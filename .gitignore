@@ -1,0 +1,20 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Raw question banks, labels, checkpoints, model caches, and runtime artifacts.
+data/raw/
+data/processed/
+outputs/
+reports/
+models/
+wandb/
+
+# Local environment overrides may include internal server paths.
+.env
+.env.*
+!example.env
