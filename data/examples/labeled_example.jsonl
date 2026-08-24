@@ -1,1 +1,2 @@
 {"id":"eng-demo-0001","question":"She ___ to school yesterday.","options":["go","goes","went","has gone"],"answer":"went","analysis":"yesterday 表示过去时间，谓语动词用一般过去时。","knowledge_points":["一般过去时","动词时态"],"source":"demo"}
+{"id":"eng-demo-0002","question":"Tom usually ___ breakfast at seven.","options":["have","has","had","is having"],"answer":"has","analysis":"usually 表示习惯性动作，主语 Tom 为第三人称单数。","knowledge_points":["一般现在时","主谓一致","动词时态"],"source":"demo"}
