@@ -137,6 +137,50 @@ def load_records(path: Path, taxonomy: frozenset[str] | set[str]) -> list[Questi
     return records
 
 
+def load_inference_records(path: Path) -> list[QuestionRecord]:
+    """Read question JSONL for prediction without requiring gold labels."""
+    records: list[QuestionRecord] = []
+    seen_ids: set[str] = set()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        raise DataContractError(f"cannot read inference file {path}: {error}") from error
+
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise DataContractError(f"line {line_number}: invalid JSON: {error.msg}") from error
+        if not isinstance(payload, dict):
+            raise DataContractError(f"line {line_number}: every JSONL line must be an object")
+        record_id = payload.get("id")
+        question = payload.get("question")
+        if not isinstance(record_id, str) or not normalize_text(record_id):
+            raise DataContractError(f"line {line_number}: id must be a non-empty string")
+        if not isinstance(question, str) or not normalize_text(question):
+            raise DataContractError(f"line {line_number}: question must be a non-empty string")
+        normalized_id = normalize_text(record_id)
+        if normalized_id in seen_ids:
+            raise DataContractError(f"line {line_number}: duplicate id {normalized_id!r}")
+        seen_ids.add(normalized_id)
+        records.append(
+            QuestionRecord(
+                id=normalized_id,
+                question=normalize_text(question),
+                options=_options(payload, line_number),
+                answer=_optional_text(payload, "answer", line_number),
+                analysis=_optional_text(payload, "analysis", line_number),
+                knowledge_points=(),
+                source=_optional_text(payload, "source", line_number),
+            )
+        )
+    if not records:
+        raise DataContractError("inference file contains no question records")
+    return records
+
+
 def content_hash(record: QuestionRecord) -> str:
     """Return a stable hash of model-visible question content, excluding labels and ID."""
     canonical = {
