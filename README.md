@@ -57,3 +57,9 @@ model:     /local_data/zhangyonglin/models/Qwen3.5-4B
 ```
 
 `xdf-35` 和 `xdf-45` 在 2026-08-24 从当前网络均于 SSH 密钥协商前关闭连接（`kex_exchange_identification`），因此在恢复访问前不能执行服务器安装、拉取或训练。详情及恢复后的命令见 [部署说明](docs/server-deployment.md)。
+
+部署前检命令如下；它会在 CUDA 不可用、无 GPU 或训练依赖不完整时返回非零状态：
+
+```bash
+"$CONDA_ENV/bin/python" scripts/check_environment.py
+```
