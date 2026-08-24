@@ -12,6 +12,7 @@ def test_environment_report_marks_missing_cuda_as_not_ready():
             "accelerate": "1.2.0",
             "datasets": "3.2.0",
             "bitsandbytes": "0.45.0",
+            "ms-swift": "4.6.0",
         },
     )
 
@@ -28,3 +29,21 @@ def test_environment_report_marks_required_packages_as_not_ready():
 
     assert report["ready"] is False
     assert "missing package: peft" in report["problems"]
+
+
+def test_environment_report_requires_the_ms_swift_training_runner():
+    report = build_environment_report(
+        cuda_available=True,
+        gpu_count=1,
+        package_versions={
+            "torch": "2.5.0",
+            "transformers": "4.50.0",
+            "peft": "0.14.0",
+            "accelerate": "1.2.0",
+            "datasets": "3.2.0",
+            "bitsandbytes": "0.45.0",
+        },
+    )
+
+    assert report["ready"] is False
+    assert "missing package: ms-swift" in report["problems"]

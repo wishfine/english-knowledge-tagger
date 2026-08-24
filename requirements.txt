@@ -1,8 +1,9 @@
 # Install a CUDA-compatible PyTorch build in the server Conda environment first.
 # Do not list torch here: `pip install -r requirements.txt` must not replace it.
-transformers>=4.48,<6
-peft>=0.14,<1
+transformers>=4.57.6,<6
+peft>=0.14,<0.21
 accelerate>=1.2,<2
-datasets>=3.2,<5
+datasets>=3.6,<4.8.5
 bitsandbytes>=0.45
 safetensors>=0.5
+ms-swift>=4.3.1,<5

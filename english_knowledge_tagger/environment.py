@@ -5,7 +5,15 @@ from __future__ import annotations
 from typing import Mapping
 
 
-REQUIRED_PACKAGES = ("torch", "transformers", "peft", "accelerate", "datasets", "bitsandbytes")
+REQUIRED_PACKAGES = (
+    "torch",
+    "transformers",
+    "peft",
+    "accelerate",
+    "datasets",
+    "bitsandbytes",
+    "ms-swift",
+)
 
 
 def build_environment_report(

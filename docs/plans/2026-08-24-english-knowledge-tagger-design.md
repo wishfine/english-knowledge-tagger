@@ -16,7 +16,7 @@
 
 `prepare_data.py` 读取标注 JSONL，验证必填字段和 taxonomy，按 NFKC 标准化后的可见题目文本生成内容哈希；同哈希的题目永远落在同一个数据分区，避免重复题泄漏。它输出训练/验证 JSONL 和含样本计数、标签频率、哈希及随机种子的 manifest。
 
-训练前将题目渲染成固定对话：system message 指定仅输出 JSON，user message 包含题干、选项、答案与解析，assistant message 为排序后的 `{"knowledge_points": [...]}`。训练脚本依据 tokenizer 的 chat template 建立 `input_ids`，只对 assistant completion 计算交叉熵。PEFT 注入 LoRA，启用 `--use-qlora` 时以 bitsandbytes NF4 4-bit 加载。
+训练前将题目渲染成固定对话：system message 指定仅输出 JSON，user message 包含题干、选项、答案与解析，assistant message 为排序后的 `{"knowledge_points": [...]}`。数据准备会同步导出 MS-Swift 的 `system` / `query` / `response` JSONL；正式训练由 MS-Swift 以 completion-only SFT 执行，默认只对 response 计算交叉熵。PEFT 注入 LoRA，并以 bitsandbytes NF4 4-bit 加载。
 
 推理脚本加载基础模型和适配器，使用同一渲染器生成输出，并解析为 JSON、去重、仅保留 taxonomy 中的标签。评估指标为样本级 exact match 和多标签 micro/macro precision、recall、F1。
 
@@ -32,7 +32,7 @@
 
 ## Server and dependency decision
 
-同类项目已经验证 Qwen3.5-4B + LoRA 在 `QuRater` Conda 环境上运行；xdf-35 历史路径为 `/local_data/zhangyonglin/conda_envs/QuRater` 与 `/local_data/zhangyonglin/models/Qwen3.5-4B`。本项目不改动该环境里的 PyTorch/CUDA，只补齐缺失的 Transformers、PEFT、Accelerate、Datasets、bitsandbytes 和 safetensors。国内下载优先使用 ModelScope，但首轮应复用已有本地权重。
+同类项目已经验证 Qwen3.5-4B + LoRA 在 `QuRater` Conda 环境上运行；xdf-35 历史路径为 `/local_data/zhangyonglin/conda_envs/QuRater` 与 `/local_data/zhangyonglin/models/Qwen3.5-4B`。4B 仅用于 smoke；10 万+全量训练采用 Qwen3.5-9B。应先克隆 QuRater 为项目私有环境，再安装 MS-Swift，绝不修改原环境里的 PyTorch/CUDA。国内下载优先使用 ModelScope，但首轮应优先检查已有本地权重。
 
 从当前机器测试到 xdf-35 与 xdf-45 都在 SSH banner 前关闭连接，因此部署脚本先执行只读环境检查；恢复连接后才允许 pull、依赖同步和 smoke train。
 
