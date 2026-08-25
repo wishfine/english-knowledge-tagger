@@ -6,9 +6,10 @@ from collections import Counter
 import json
 from math import ceil, sqrt
 from pathlib import Path
-import re
 import sqlite3
 from typing import Any, Iterable
+
+from .sft_labels import parse_sft_output_labels
 
 
 KNOWLEDGE_FIELDS = ("solve_func_ids",)
@@ -34,26 +35,7 @@ def _labels(record: dict[str, Any], fields: tuple[str, ...]) -> frozenset[str]:
 
 def _sft_output_labels(record: dict[str, Any]) -> tuple[frozenset[str], frozenset[str]] | None:
     """Parse legacy ``题型@...;知识点@...`` SFT targets when present."""
-    output = record.get("output")
-    if not isinstance(output, str):
-        return None
-
-    knowledge: set[str] = set()
-    question_type: set[str] = set()
-    recognized = False
-    for fragment in re.split(r"[;；\n]+", output):
-        label = fragment.strip()
-        if label.startswith("知识点@"):
-            recognized = True
-            if label != "知识点@空":
-                knowledge.add(label)
-        elif label.startswith("题型@"):
-            recognized = True
-            if label != "题型@空":
-                question_type.add(label)
-    if not recognized:
-        return None
-    return frozenset(knowledge), frozenset(question_type)
+    return parse_sft_output_labels(record.get("output"))
 
 
 def _knowledge_labels(record: dict[str, Any]) -> frozenset[str]:

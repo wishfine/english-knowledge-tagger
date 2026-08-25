@@ -41,9 +41,11 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 
 - `scripts/profile_source.py`：流式字段与标签 profile。
 - `scripts/audit_composites.py`：使用本地 SQLite 父题索引审计大/小题标签关系；不加载全量数据进内存。
+- `scripts/inventory_question_types.py`：按大题/小题分别枚举“题型结构 × 题型名称”，生成待填写的打标策略 CSV。
 - `scripts/label_candidates.py`：调用内部 `ds-v4-flash` 服务生成**候选**知识点标签；只写新 JSONL，不修改源数据。
 
 候选打标接口、输入输出 schema、多人协作约定和小批运行命令见 [DS-V4-Flash 候选打标说明](docs/ds-v4-flash-labeling.md)。
+题型逐项映射到老师矩阵的流程见 [题型打标策略映射](docs/type-policy-mapping.md)。
 
 ## 训练路线
 
