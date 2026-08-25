@@ -35,6 +35,21 @@ python3 scripts/sample_type_review_packet.py \
 
 该命令以 `scope × 题型结构 × 题型名称` 分层，在每一层稳定抽取至多 5 道题，约得到 560 条可审查记录。它只保留题面、题号、父题号和来源行号；题型复核完成后，如确需比较历史标签，另起新目录并加 `--include-legacy-labels`，不要覆盖盲审包。
 
+当进入某一类题的知识点处理、flat 验证或 tree 实验时，改用一个 exact route 样本包，不要混入其它题型。例如首个语法选择小题切片：
+
+```bash
+python3 scripts/sample_type_review_packet.py \
+  --input "$FINAL_SOURCE" \
+  --output "$RUNTIME/type-routing/$RUN/child-composite-grammar-selection.review.jsonl" \
+  --report "$RUNTIME/type-routing/$RUN/child-composite-grammar-selection.review.report.json" \
+  --per-route 200 \
+  --scope child \
+  --declared-type-structure 复合题 \
+  --declared-type-name 语法选择
+```
+
+三个 route 参数必须同时给出，且只做 exact match。冻结该 packet 后，flat 验证、tree 任务和 3×2 提示消融都必须使用同一份 packet；不要在不同实验间重新抽题。
+
 ## 生成路由策略骨架
 
 题型清单是观察结果；历史 `output` 中的题型标签不是策略真值。先从清单生成全部 `unmapped` 的 JSON 策略骨架：

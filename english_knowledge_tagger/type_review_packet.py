@@ -12,6 +12,9 @@ from .type_inventory import _TYPE_NAME_PATTERN, _TYPE_STRUCTURE_PATTERN, _declar
 from .type_routing import _identifier, _legacy_type_paths, _scope_from_record
 
 
+RouteKey = tuple[str, str, str]
+
+
 def _route_key(scope: str, structure: str, name: str) -> tuple[str, str, str]:
     return (scope, structure, name)
 
@@ -22,6 +25,17 @@ def _route_key_text(key: tuple[str, str, str]) -> str:
 
 def _scope_sort_key(scope: str) -> int:
     return {"parent": 0, "child": 1, "unknown": 2}[scope]
+
+
+def _validate_target_route(target_route: RouteKey | None) -> RouteKey | None:
+    if target_route is None:
+        return None
+    if len(target_route) != 3 or any(not isinstance(value, str) or not value.strip() for value in target_route):
+        raise ValueError("target_route must contain non-empty scope, structure and name")
+    scope, structure, name = (value.strip() for value in target_route)
+    if scope not in {"parent", "child", "unknown"}:
+        raise ValueError(f"target_route has unsupported scope: {scope}")
+    return (scope, structure, name)
 
 
 def _sample_score(key: tuple[str, str, str], question_id: str | None, source_line: int) -> bytes:
@@ -59,6 +73,7 @@ def build_type_review_packet(
     output_path: Path,
     per_route: int = 5,
     include_legacy_labels: bool = False,
+    target_route: RouteKey | None = None,
 ) -> dict[str, Any]:
     """Stratify source records by exact declared-type route using stable sampling.
 
@@ -70,6 +85,7 @@ def build_type_review_packet(
         raise FileExistsError(f"type review packet already exists: {output_path}")
     if per_route <= 0:
         raise ValueError("per_route must be positive")
+    target_route = _validate_target_route(target_route)
 
     route_counts: Counter[str] = Counter()
     processed = Counter[str]()
@@ -91,6 +107,9 @@ def build_type_review_packet(
             structure = _declared_value(_TYPE_STRUCTURE_PATTERN, record.get("input"))
             name = _declared_value(_TYPE_NAME_PATTERN, record.get("input"))
             key = _route_key(scope, structure, name)
+            if target_route is not None and key != target_route:
+                processed["valid"] += 1
+                continue
             route_counts[_route_key_text(key)] += 1
             item = _review_record(
                 record,
@@ -113,7 +132,7 @@ def build_type_review_packet(
                 output.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
                 emitted += 1
 
-    return {
+    report: dict[str, Any] = {
         "schema_version": "type-review-packet-report-v1",
         "input_path": str(input_path),
         "input_bytes": input_path.stat().st_size,
@@ -129,3 +148,11 @@ def build_type_review_packet(
         "route_groups": len(samples),
         "records": emitted,
     }
+    if target_route is not None:
+        report["target_route"] = {
+            "scope": target_route[0],
+            "declared_type_structure": target_route[1],
+            "declared_type_name": target_route[2],
+        }
+        report["matched_records"] = route_counts[_route_key_text(target_route)]
+    return report

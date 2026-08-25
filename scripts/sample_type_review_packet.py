@@ -22,16 +22,26 @@ def main() -> None:
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--per-route", type=int, default=5)
     parser.add_argument("--include-legacy-labels", action="store_true")
+    parser.add_argument("--scope")
+    parser.add_argument("--declared-type-structure")
+    parser.add_argument("--declared-type-name")
     args = parser.parse_args()
 
     if args.output.exists() or args.report.exists():
         parser.error("refusing to overwrite an existing packet or report")
+    route_values = (args.scope, args.declared_type_structure, args.declared_type_name)
+    if any(route_values) and not all(route_values):
+        parser.error(
+            "--scope, --declared-type-structure and --declared-type-name must be supplied together"
+        )
+    target_route = tuple(value.strip() for value in route_values) if all(route_values) else None
     try:
         report = build_type_review_packet(
             args.input,
             output_path=args.output,
             per_route=args.per_route,
             include_legacy_labels=args.include_legacy_labels,
+            target_route=target_route,
         )
     except (FileExistsError, OSError, ValueError) as error:
         parser.error(str(error))

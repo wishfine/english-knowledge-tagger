@@ -20,6 +20,67 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> Path:
 
 
 class TypeReviewPacketTests(unittest.TestCase):
+    def test_packet_filters_to_one_exact_route(self):
+        self.assertTrue(callable(build_type_review_packet), "build_type_review_packet must be implemented")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "grammar-1",
+                        "parent_id": "parent-1",
+                        "is_sub_question": True,
+                        "input": "题型结构为：复合题\n题型名称为：语法选择\n当前小题题干：one",
+                        "output": "知识点@词法@冠词@a/an的区别",
+                    },
+                    {
+                        "question_id": "reading-1",
+                        "parent_id": "parent-1",
+                        "is_sub_question": True,
+                        "input": "题型结构为：复合题\n题型名称为：阅读理解\n当前小题题干：two",
+                        "output": "题型@阅读理解@阅读选择@细节理解",
+                    },
+                    {
+                        "question_id": "grammar-2",
+                        "parent_id": "parent-2",
+                        "is_sub_question": True,
+                        "input": "题型结构为：复合题\n题型名称为：语法选择\n当前小题题干：three",
+                        "output": "知识点@词法@动词时态@一般现在时",
+                    },
+                ],
+            )
+            output = directory / "packet.jsonl"
+
+            report = build_type_review_packet(
+                source,
+                output_path=output,
+                per_route=2,
+                target_route=("child", "复合题", "语法选择"),
+            )
+            rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(report["matched_records"], 2)
+        self.assertEqual(
+            report["target_route"],
+            {
+                "scope": "child",
+                "declared_type_structure": "复合题",
+                "declared_type_name": "语法选择",
+            },
+        )
+        self.assertEqual(
+            {
+                (
+                    row["route_key"]["scope"],
+                    row["route_key"]["declared_type_structure"],
+                    row["route_key"]["declared_type_name"],
+                )
+                for row in rows
+            },
+            {("child", "复合题", "语法选择")},
+        )
+
     def test_packet_stratifies_by_exact_route_and_hides_legacy_labels_by_default(self):
         self.assertTrue(callable(build_type_review_packet), "build_type_review_packet must be implemented")
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -129,7 +190,36 @@ class TypeReviewPacketTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["records"], 1)
             row = json.loads(output.read_text(encoding="utf-8").splitlines()[0])
-            self.assertNotIn("legacy_type_labels", row)
+        self.assertNotIn("legacy_type_labels", row)
+
+    def test_packet_cli_rejects_a_partial_exact_route(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(directory / "source.jsonl", [])
+            output = directory / "packet.jsonl"
+            report = directory / "report.json"
+            script = Path(__file__).resolve().parents[1] / "scripts" / "sample_type_review_packet.py"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--input",
+                    str(source),
+                    "--output",
+                    str(output),
+                    "--report",
+                    str(report),
+                    "--scope",
+                    "child",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("must be supplied together", completed.stderr)
 
 
 if __name__ == "__main__":
