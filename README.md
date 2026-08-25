@@ -48,7 +48,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 - `scripts/sample_type_review_packet.py`：按精确题型组合稳定抽样，生成默认隐藏历史标签的盲审包。
 - `scripts/route_question_types.py`：将老师 CSV 和已确认路由应用到源数据，输出历史题型证据、候选题型树与风险码；不改写标签。
 - `scripts/label_candidates.py`：调用内部 `ds-v4-flash` 服务生成**候选**知识点标签；只写新 JSONL，不修改源数据。
-- `scripts/build_knowledge_validation_packet.py` 与 `scripts/validate_knowledge_labels.py`：按小题题型受限候选池验证历史知识点标签，输出 `keep/replace/drop/uncertain` 候选及证据，不改写标签。
+- `scripts/build_knowledge_validation_packet.py` 与 `scripts/validate_knowledge_labels.py`：按精确小题路由的 `required/optional/forbidden/unresolved` 策略验证历史知识点；`forbidden` 与 `unresolved` 不调用 DS，输出可审计跳过原因，不改写标签。
 - `configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json`：历史渲染标签树到当前老师 taxonomy 的版本化路径迁移规则。
 
 候选打标接口、输入输出 schema、多人协作约定和小批运行命令见 [DS-V4-Flash 候选打标说明](docs/ds-v4-flash-labeling.md)。

@@ -114,6 +114,162 @@ GRAMMAR_RULE = {
 
 
 class KnowledgeValidationPacketTests(unittest.TestCase):
+    def test_forbidden_rule_has_no_retrieval_pool(self):
+        self.assertTrue(
+            callable(load_knowledge_candidate_policy),
+            "load_knowledge_candidate_policy must be implemented",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            policy = load_knowledge_candidate_policy(
+                write_candidate_policy(
+                    directory / "candidate-policy.json",
+                    [
+                        {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "阅读理解",
+                            "knowledge_policy": "forbidden",
+                        }
+                    ],
+                )
+            )
+
+        rule = policy.match("child", "复合题", "阅读理解")
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.knowledge_policy, "forbidden")
+        self.assertEqual(rule.allowed_knowledge_prefixes, ())
+        self.assertEqual(rule.max_retrieved_candidates, 0)
+        self.assertEqual(rule.max_sibling_candidates, 0)
+        self.assertEqual(rule.max_output_labels, 0)
+
+    def test_required_rule_rejects_empty_candidate_pool(self):
+        self.assertTrue(
+            callable(load_knowledge_candidate_policy),
+            "load_knowledge_candidate_policy must be implemented",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            with self.assertRaisesRegex(ValueError, "required"):
+                load_knowledge_candidate_policy(
+                    write_candidate_policy(
+                        directory / "candidate-policy.json",
+                        [
+                            {
+                                "scope": "child",
+                                "declared_type_structure": "复合题",
+                                "declared_type_name": "语法选择",
+                                "knowledge_policy": "required",
+                                "allowed_knowledge_prefixes": [],
+                                "max_retrieved_candidates": 0,
+                                "max_sibling_candidates": 0,
+                                "max_output_labels": 0,
+                            }
+                        ],
+                    )
+                )
+
+    def test_forbidden_route_preserves_historical_label_as_a_policy_conflict(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": "题干：Choose the correct answer. 答案：A。",
+                        "output": "知识点@词法@冠词@a/an的区别",
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "阅读理解",
+                        },
+                    }
+                ],
+            )
+            output = directory / "packet.jsonl"
+            report = build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv")),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(
+                        directory / "candidate-policy.json",
+                        [
+                            {
+                                "scope": "child",
+                                "declared_type_structure": "复合题",
+                                "declared_type_name": "阅读理解",
+                                "knowledge_policy": "forbidden",
+                            }
+                        ],
+                    )
+                ),
+                output_path=output,
+            )
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(row["knowledge_policy"], "forbidden")
+        self.assertEqual(row["validation_action"], "skip_policy_forbidden")
+        self.assertEqual(row["alternative_labels"], [])
+        self.assertEqual(row["candidate_pool"]["max_output_labels"], 0)
+        self.assertEqual(report["policy_forbidden_items"], 1)
+        self.assertEqual(report["model_validation_items"], 0)
+
+    def test_unconfigured_route_is_unresolved_not_a_validated_empty_set(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": "题干：Choose the correct answer. 答案：A。",
+                        "output": "知识点@词法@冠词@a/an的区别",
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "尚未配置",
+                        },
+                    }
+                ],
+            )
+            output = directory / "packet.jsonl"
+            report = build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv")),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(directory / "candidate-policy.json", [])
+                ),
+                output_path=output,
+            )
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(row["knowledge_policy"], "unresolved")
+        self.assertEqual(row["validation_action"], "skip_policy_unresolved")
+        self.assertEqual(row["alternative_labels"], [])
+        self.assertEqual(report["policy_unresolved_items"], 1)
+        self.assertEqual(report["model_validation_items"], 0)
+
     def test_packet_unions_type_allowed_retrieval_with_target_siblings_without_parent_labels(self):
         self.assertTrue(
             callable(load_knowledge_candidate_policy),
@@ -230,6 +386,46 @@ class KnowledgeValidationPacketTests(unittest.TestCase):
         self.assertEqual(row["taxonomy_status"], "unmapped_legacy_label")
         self.assertEqual(row["target_definition"], "")
         self.assertEqual(row["alternative_labels"], [])
+
+    def test_report_excludes_unmapped_taxonomy_from_model_validation_items(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": "题干：...答案：A。",
+                        "output": "知识点@不存在的分类@不存在的标签",
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "语法选择",
+                        },
+                    }
+                ],
+            )
+            report = build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv")),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(directory / "candidate-policy.json", [GRAMMAR_RULE])
+                ),
+                output_path=directory / "packet.jsonl",
+            )
+
+        self.assertEqual(report["unmapped_legacy_labels"], 1)
+        self.assertEqual(report["model_validation_items"], 0)
 
     def test_packet_maps_legacy_taxonomy_before_validation_and_filters_outside_siblings(self):
         self.assertTrue(

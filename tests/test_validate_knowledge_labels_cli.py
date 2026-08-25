@@ -65,6 +65,55 @@ def validation_item(question_id: str = "child-1") -> dict[str, object]:
 
 
 class ValidateKnowledgeLabelsCliTests(unittest.TestCase):
+    def test_cli_skips_forbidden_packet_without_sending_a_ds_request(self):
+        _Handler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                item = validation_item()
+                item.update(
+                    {
+                        "knowledge_policy": "forbidden",
+                        "validation_action": "skip_policy_forbidden",
+                    }
+                )
+                packet.write_text(json.dumps(item, ensure_ascii=False) + "\n", encoding="utf-8")
+                output = directory / "verdicts.jsonl"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_knowledge_labels.py"
+                endpoint = f"http://127.0.0.1:{server.server_port}/v1/chat/completions"
+
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(script),
+                        "--input",
+                        str(packet),
+                        "--output",
+                        str(output),
+                        "--endpoint",
+                        endpoint,
+                        "--limit",
+                        "1",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+
+                row = json.loads(output.read_text(encoding="utf-8"))
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(row["status"], "skipped")
+                self.assertEqual(row["skip_reason"], "policy_forbidden")
+                self.assertEqual(row["recommended_final_knowledge_labels"], [])
+                self.assertEqual(_Handler.requests, [])
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_cli_writes_candidate_verdict_without_mutating_packet(self):
         _Handler.requests = []
         server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)

@@ -23,22 +23,39 @@
 
 历史源数据使用的路径可能仍带有旧根节点，例如 `知识点->语法词法` 和 `知识点->语法句法`。验证包先通过版本化 migration 配置映射到老师规则本的 `知识点->词法`、`知识点->句法`，同时保留原始历史路径和映射规则。映射失败是 taxonomy 问题，不等于内容错标。
 
-## 语法选择小题的首轮校准
+## 知识点存在性策略
 
-当前仓库提供了两个已确认的候选池路由：
+每一条策略只匹配一个精确 `scope × 题型结构 × 题型名称`，`knowledge_policy` 的含义如下：
+
+| 策略 | 含义 | DS-V4 行为 | 是否可直接写回源数据 |
+|---|---|---|---|
+| `required` | 小题必须有 1 个或多个知识点 | 在该题型受限候选池中验证/补充候选 | 不可，仍需抽检和 patch |
+| `optional` | 小题可以有 0 个或多个知识点 | 允许 DS 结论为不保留任何标签 | 不可 |
+| `forbidden` | 该小题最终知识点集合应为空 | 不请求 DS；历史知识点写成可审计的 policy conflict | 不可 |
+| `unresolved` | 业务规则还未确认 | 不请求 DS，也不把它解释成空标签 | 不可 |
+
+当前 `configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json` 只固化了老师图片和真实 112 组清单都能对齐的五个路由：
 
 ```text
-child × 复合题 × 语法选择
-child × 完形填空 × 语法选择
+required:
+  child × 复合题 × 语法选择
+  child × 完形填空 × 语法选择
+
+forbidden:
+  child × 复合题 × 完形填空
+  child × 完形填空 × 完形填空
+  child × 复合题 × 阅读理解
 ```
 
-两者只允许从 `知识点->词法` 和 `知识点->句法` 选择，不允许从语篇主题、语篇体裁、语用或父题标签中继承。每题最多输出 3 个知识点。
+两个 `required` 路由只允许从 `知识点->词法` 和 `知识点->句法` 选择，不允许从语篇主题、语篇体裁、语用或父题标签中继承。每题最多输出 3 个知识点。三个 `forbidden` 路由的历史知识点即使未来出现在上游数据中，也只生成 `policy_forbidden` 审计项，不能被 DS 重新解释为合法标签。
+
+这不是“所有阅读题小题永远不打知识点”的通配规则；它只作用于上述精确路由。阅读还原、阅读匹配、阅读问答、阅读填表等若以不同结构/名称出现，仍是 `unresolved`，需要继续按老师矩阵和盲审样本逐项确认。
 
 老师 CSV 已随仓库版本化。默认使用仓库内规则本；如需试验新版本，可用环境变量覆盖，但新文件必须先完成版本审查。
 
 ```bash
 export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
-export KP_POLICY=configs/knowledge_candidate_policies/child-grammar-selection-v0.1.json
+export KP_POLICY=configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json
 export KP_MIGRATION=configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json
 export KP_PACKET="$ROUTE_DIR/child-kp-grammar-validation.packet.jsonl"
 export KP_PACKET_REPORT="$ROUTE_DIR/child-kp-grammar-validation.packet.report.json"
@@ -60,7 +77,7 @@ python3 scripts/validate_knowledge_labels.py \
   --concurrency 128
 ```
 
-第二个命令最多处理 50 条**标签验证项**，不是 50 道题。若一题有多个历史知识点标签，它会生成多个验证项。
+第二个命令最多处理 50 条**标签验证项**，不是 50 道题。若一题有多个历史知识点标签，它会生成多个验证项；`forbidden` 或 `unresolved` 的项会写入结果文件，但不会占用 DS-V4 请求。
 
 `--concurrency` 取值为 1–128，默认 1。高并发时输出仍按输入 JSONL 顺序写入，便于与审查包逐行比对。`--concurrency` 大于 1 时，`--sleep-seconds` 必须为 0；如需降低服务压力，应直接降低并发数。
 
@@ -72,4 +89,6 @@ python3 scripts/validate_knowledge_labels.py \
 | `candidate` + `replace` | 候选池有更合适的标签 | `relabel_candidates`，不得直接替换 |
 | `candidate` + `drop` + `covered` | 旧标签并非解题必需 | `relabel_candidates` |
 | `candidate` + `uncertain` + `insufficient/unknown` | 题面不足或候选池不覆盖 | 人工/二次模型复核，并扩充候选池 |
+| `skipped` + `policy_forbidden` | 已确认该精确小题路由不应有知识点 | `relabel_candidates`；建议最终知识点集合为 `[]`，仍需人工抽检后出 patch |
+| `skipped` + `policy_unresolved` | 尚无可执行的业务规则 | 隔离，补充题型路由和规则确认，不能按空标签入库 |
 | `unparsed` / `error` / `skipped` | 模型输出、服务或 taxonomy 映射异常 | 隔离并保留原始证据 |

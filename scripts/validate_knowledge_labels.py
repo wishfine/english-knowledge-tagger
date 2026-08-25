@@ -91,6 +91,8 @@ def _base_output(row: dict[str, Any], *, source_path: Path) -> dict[str, Any]:
         "taxonomy_status": row.get("taxonomy_status"),
         "candidate_pool": row.get("candidate_pool"),
         "target_is_type_allowed": row.get("target_is_type_allowed", True),
+        "knowledge_policy": row.get("knowledge_policy", "unresolved"),
+        "validation_action": row.get("validation_action", "validate_with_model"),
     }
 
 
@@ -113,7 +115,12 @@ def _candidate_output(base: dict[str, Any], result: Any) -> dict[str, Any]:
     }
 
 
-def _skipped_output(base: dict[str, Any]) -> dict[str, Any]:
+def _skipped_output(
+    base: dict[str, Any],
+    *,
+    reason: str,
+    recommended_final_knowledge_labels: list[str] | None,
+) -> dict[str, Any]:
     return {
         **base,
         "validation": {
@@ -122,10 +129,12 @@ def _skipped_output(base: dict[str, Any]) -> dict[str, Any]:
             "best_label": None,
             "evidence": None,
             "reason": None,
-            "parse_error": "taxonomy status is not known",
+            "parse_error": reason,
         },
         "raw_response": "",
         "status": "skipped",
+        "skip_reason": reason,
+        "recommended_final_knowledge_labels": recommended_final_knowledge_labels,
     }
 
 
@@ -157,8 +166,33 @@ def _validate_row(
     """Validate one row in a worker and return an output row plus its outcome class."""
     base = _base_output(row, source_path=source_path)
     try:
+        if row.get("validation_action") == "skip_policy_forbidden":
+            return (
+                _skipped_output(
+                    base,
+                    reason="policy_forbidden",
+                    recommended_final_knowledge_labels=[],
+                ),
+                "skipped",
+            )
+        if row.get("validation_action") == "skip_policy_unresolved":
+            return (
+                _skipped_output(
+                    base,
+                    reason="policy_unresolved",
+                    recommended_final_knowledge_labels=None,
+                ),
+                "skipped",
+            )
         if row.get("taxonomy_status") != "known":
-            return _skipped_output(base), "skipped"
+            return (
+                _skipped_output(
+                    base,
+                    reason="taxonomy_status_not_known",
+                    recommended_final_knowledge_labels=None,
+                ),
+                "skipped",
+            )
         result = client.validate(_request_from_row(row, line_number=line_number))
         return _candidate_output(base, result), "candidate"
     except (ValueError, LabelingServiceError) as error:

@@ -26,6 +26,24 @@
       "max_retrieved_candidates": 12,
       "max_sibling_candidates": 8,
       "max_output_labels": 3
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "完形填空",
+      "knowledge_policy": "forbidden"
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "完形填空",
+      "declared_type_name": "完形填空",
+      "knowledge_policy": "forbidden"
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "阅读理解",
+      "knowledge_policy": "forbidden"
     }
   ]
 }

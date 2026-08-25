@@ -70,6 +70,7 @@ class BuildKnowledgeValidationPacketCliTests(unittest.TestCase):
                                 "scope": "child",
                                 "declared_type_structure": "复合题",
                                 "declared_type_name": "语法选择",
+                                "knowledge_policy": "required",
                                 "allowed_knowledge_prefixes": ["知识点->词法"],
                                 "max_retrieved_candidates": 12,
                                 "max_sibling_candidates": 8,
@@ -119,7 +120,10 @@ class BuildKnowledgeValidationPacketCliTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["records"], 1)
-            self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["taxonomy_status"], "known")
+            row = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(row["taxonomy_status"], "known")
+            self.assertEqual(row["knowledge_policy"], "required")
+            self.assertEqual(row["validation_action"], "validate_with_model")
 
 
 if __name__ == "__main__":

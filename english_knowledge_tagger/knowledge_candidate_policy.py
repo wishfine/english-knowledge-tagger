@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 SCHEMA_VERSION = "knowledge-candidate-policy-v1"
 SCOPES = frozenset({"parent", "child", "unknown"})
+KNOWLEDGE_POLICIES = frozenset({"forbidden", "optional", "required", "unresolved"})
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class KnowledgeCandidateRule:
     max_retrieved_candidates: int
     max_sibling_candidates: int
     max_output_labels: int
+    knowledge_policy: str
 
     @property
     def key(self) -> tuple[str, str, str]:
@@ -51,15 +53,34 @@ def _positive_int(value: object, field: str, *, maximum: int) -> int:
     return value
 
 
-def _prefixes(value: object) -> tuple[str, ...]:
+def _prefixes(value: object, *, policy: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not value:
-        raise ValueError("knowledge candidate rule allowed_knowledge_prefixes must be a non-empty list")
+        raise ValueError(
+            f"knowledge candidate rule {policy} requires a non-empty "
+            "allowed_knowledge_prefixes list"
+        )
     prefixes = tuple(_nonempty_string(item, "allowed_knowledge_prefixes") for item in value)
     if len(set(prefixes)) != len(prefixes):
         raise ValueError("knowledge candidate rule allowed_knowledge_prefixes contains duplicates")
     if any(not prefix.startswith("知识点->") for prefix in prefixes):
         raise ValueError("knowledge candidate rule prefixes must use canonical '知识点->' paths")
     return prefixes
+
+
+def _empty_pool_value(value: object, field: str, *, policy: str) -> int:
+    if value is None:
+        return 0
+    if isinstance(value, int) and not isinstance(value, bool) and value == 0:
+        return 0
+    raise ValueError(f"knowledge candidate rule {policy} requires {field} to be omitted or 0")
+
+
+def _empty_prefixes(value: object, *, policy: str) -> tuple[str, ...]:
+    if value is None or value == []:
+        return ()
+    raise ValueError(
+        f"knowledge candidate rule {policy} requires allowed_knowledge_prefixes to be omitted or []"
+    )
 
 
 def load_knowledge_candidate_policy(path: Path) -> KnowledgeCandidatePolicy:
@@ -77,6 +98,12 @@ def load_knowledge_candidate_policy(path: Path) -> KnowledgeCandidatePolicy:
     for raw_rule in raw_rules:
         if not isinstance(raw_rule, Mapping):
             raise ValueError("each knowledge candidate rule must be an object")
+        knowledge_policy = _nonempty_string(
+            raw_rule.get("knowledge_policy", "required"), "knowledge_policy"
+        )
+        if knowledge_policy not in KNOWLEDGE_POLICIES:
+            raise ValueError(f"knowledge candidate rule has unsupported knowledge_policy: {knowledge_policy}")
+        uses_candidate_pool = knowledge_policy in {"optional", "required"}
         rule = KnowledgeCandidateRule(
             scope=_nonempty_string(raw_rule.get("scope"), "scope"),
             declared_type_structure=_nonempty_string(
@@ -85,16 +112,40 @@ def load_knowledge_candidate_policy(path: Path) -> KnowledgeCandidatePolicy:
             declared_type_name=_nonempty_string(
                 raw_rule.get("declared_type_name"), "declared_type_name"
             ),
-            allowed_knowledge_prefixes=_prefixes(raw_rule.get("allowed_knowledge_prefixes")),
-            max_retrieved_candidates=_positive_int(
-                raw_rule.get("max_retrieved_candidates"), "max_retrieved_candidates", maximum=12
+            allowed_knowledge_prefixes=(
+                _prefixes(raw_rule.get("allowed_knowledge_prefixes"), policy=knowledge_policy)
+                if uses_candidate_pool
+                else _empty_prefixes(raw_rule.get("allowed_knowledge_prefixes"), policy=knowledge_policy)
             ),
-            max_sibling_candidates=_positive_int(
-                raw_rule.get("max_sibling_candidates"), "max_sibling_candidates", maximum=8
+            max_retrieved_candidates=(
+                _positive_int(
+                    raw_rule.get("max_retrieved_candidates"), "max_retrieved_candidates", maximum=12
+                )
+                if uses_candidate_pool
+                else _empty_pool_value(
+                    raw_rule.get("max_retrieved_candidates"),
+                    "max_retrieved_candidates",
+                    policy=knowledge_policy,
+                )
             ),
-            max_output_labels=_positive_int(
-                raw_rule.get("max_output_labels"), "max_output_labels", maximum=6
+            max_sibling_candidates=(
+                _positive_int(
+                    raw_rule.get("max_sibling_candidates"), "max_sibling_candidates", maximum=8
+                )
+                if uses_candidate_pool
+                else _empty_pool_value(
+                    raw_rule.get("max_sibling_candidates"),
+                    "max_sibling_candidates",
+                    policy=knowledge_policy,
+                )
             ),
+            max_output_labels=(
+                _positive_int(raw_rule.get("max_output_labels"), "max_output_labels", maximum=6)
+                if uses_candidate_pool
+                else _empty_pool_value(
+                    raw_rule.get("max_output_labels"), "max_output_labels", policy=knowledge_policy)
+            ),
+            knowledge_policy=knowledge_policy,
         )
         if rule.scope not in SCOPES:
             raise ValueError(f"knowledge candidate rule has unsupported scope: {rule.scope}")

@@ -88,6 +88,8 @@ def _validation_row(
     shared_retrieved: tuple[Any, ...],
     shared_candidate_pool: Mapping[str, Any],
 ) -> dict[str, Any]:
+    knowledge_policy = shared_candidate_pool["knowledge_policy"]
+    validation_action = shared_candidate_pool["validation_action"]
     base: dict[str, Any] = {
         "schema_version": "knowledge-validation-packet-v1",
         "review_id": f"kp-validation:{_identifier(record.get('question_id')) or source_line}:{legacy_label}",
@@ -102,6 +104,8 @@ def _validation_row(
             "status": taxonomy_mapping_status,
             "rule_id": taxonomy_mapping_rule_id,
         },
+        "knowledge_policy": knowledge_policy,
+        "validation_action": validation_action,
     }
     knowledge_record = rulebook.records.get(canonical_label)
     if knowledge_record is None:
@@ -111,6 +115,17 @@ def _validation_row(
             "target_definition": "",
             "alternative_labels": [],
             "candidate_pool": {"status": "not_applicable", "allowed_prefixes": []},
+            "target_is_type_allowed": False,
+        }
+    if validation_action != "validate_with_model":
+        return {
+            **base,
+            "taxonomy_status": "deprecated_legacy_label"
+            if knowledge_record.status == "deprecated"
+            else "known",
+            "target_definition": "",
+            "alternative_labels": [],
+            "candidate_pool": dict(shared_candidate_pool),
             "target_is_type_allowed": False,
         }
     sibling_limit = candidate_rule.max_sibling_candidates if candidate_rule is not None else 8
@@ -176,7 +191,23 @@ def _shared_candidate_pool(
     if candidate_rule is None:
         return None, (), {
             "status": "unconfigured",
+            "knowledge_policy": "unresolved",
+            "validation_action": "skip_policy_unresolved",
             "allowed_prefixes": [],
+            "max_retrieved_candidates": 0,
+            "max_sibling_candidates": 0,
+            "max_output_labels": 0,
+            "shared_retrieved_labels": [],
+        }
+    if candidate_rule.knowledge_policy in {"forbidden", "unresolved"}:
+        return candidate_rule, (), {
+            "status": candidate_rule.knowledge_policy,
+            "knowledge_policy": candidate_rule.knowledge_policy,
+            "validation_action": f"skip_policy_{candidate_rule.knowledge_policy}",
+            "allowed_prefixes": [],
+            "max_retrieved_candidates": 0,
+            "max_sibling_candidates": 0,
+            "max_output_labels": 0,
             "shared_retrieved_labels": [],
         }
     retrieved = rulebook.retrieve_active_records(
@@ -187,6 +218,8 @@ def _shared_candidate_pool(
     )
     return candidate_rule, retrieved, {
         "status": "configured",
+        "knowledge_policy": candidate_rule.knowledge_policy,
+        "validation_action": "validate_with_model",
         "allowed_prefixes": list(candidate_rule.allowed_knowledge_prefixes),
         "max_retrieved_candidates": candidate_rule.max_retrieved_candidates,
         "max_sibling_candidates": candidate_rule.max_sibling_candidates,
@@ -256,6 +289,12 @@ def build_knowledge_validation_packet(
                 rows.append(row)
                 report_counts[row["taxonomy_status"]] += 1
                 report_counts[f"taxonomy_mapping:{canonicalized.status}"] += 1
+                report_counts[f"validation_action:{row['validation_action']}"] += 1
+                if (
+                    row["validation_action"] == "validate_with_model"
+                    and row["taxonomy_status"] == "known"
+                ):
+                    report_counts["model_validation_items"] += 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("x", encoding="utf-8") as output:
@@ -277,6 +316,9 @@ def build_knowledge_validation_packet(
             "selected_records_without_legacy_knowledge"
         ],
         "records": len(rows),
+        "model_validation_items": report_counts["model_validation_items"],
+        "policy_forbidden_items": report_counts["validation_action:skip_policy_forbidden"],
+        "policy_unresolved_items": report_counts["validation_action:skip_policy_unresolved"],
         "taxonomy_mapping_counts": {
             "identity": report_counts["taxonomy_mapping:identity"],
             "prefix_alias": report_counts["taxonomy_mapping:prefix_alias"],
