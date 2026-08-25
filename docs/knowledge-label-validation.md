@@ -81,6 +81,44 @@ python3 scripts/validate_knowledge_labels.py \
 
 `--concurrency` 取值为 1–128，默认 1。高并发时输出仍按输入 JSONL 顺序写入，便于与审查包逐行比对。`--concurrency` 大于 1 时，`--sleep-seconds` 必须为 0；如需降低服务压力，应直接降低并发数。
 
+## 分层树候选：replace 与 required 缺标的第二阶段
+
+平铺验证只负责判断已有历史标签是否可保留，并给出受限 pool 内的初步替换建议。若结论为 `replace`，或为 `uncertain + insufficient`，以及 `required` 小题完全没有历史知识点时，可以启动树搜索来**额外生成一个**末级候选。
+
+树从老师 CSV 的 active 知识点路径构建。每一步只给 DS 当前兄弟节点和控制符 `__NO_MATCH__`；终端兄弟节点才携带压缩释义。真实标签 `知识点->其他` 与控制符完全不同。`__NO_MATCH__` 会回退并排除刚失败的分支；在题型受限根节点仍无匹配时输出 `uncovered`，绝不自动置空。
+
+树搜索不是最终多标签输出，也不替换原有 flat 验证。输出只进入 `relabel_candidates`，应和 flat `replace` 分层抽检比较。首轮每题最多 8 次选择、最多 2 次回退。
+
+```bash
+export TREE_RUN=knowledge-tree-v0.1-$(date +%Y%m%d-%H%M%S)
+export TREE_DIR="$RUNTIME/knowledge-tree/$TREE_RUN"
+mkdir -p "$TREE_DIR"
+
+export TREE_TASKS="$TREE_DIR/tasks.jsonl"
+export TREE_TASK_REPORT="$TREE_DIR/tasks.report.json"
+export TREE_RESULTS="$TREE_DIR/ds-v4-results.jsonl"
+
+python3 scripts/build_knowledge_tree_tasks.py \
+  --source "$FINAL_SOURCE" \
+  --review-packet "$CHILD_KP_CAL" \
+  --validation-packet "$KP_PACKET" \
+  --validation-verdicts "$KP_VERDICTS" \
+  --candidate-policy configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json \
+  --output "$TREE_TASKS" \
+  --report "$TREE_TASK_REPORT"
+
+python3 scripts/route_knowledge_tree.py \
+  --input "$TREE_TASKS" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --output "$TREE_RESULTS" \
+  --limit 100 \
+  --concurrency 16 \
+  --max-steps 8 \
+  --max-backtracks 2
+```
+
+树 CLI 的 `--concurrency` 是并行任务数；每项任务最多会产生 8 个 DS 请求。先以 16 或 32 启动，在服务稳定后再提高，不要沿用平铺验证的 128 作为默认值。
+
 ## 结果处理
 
 | 验证状态 | 含义 | 后续去向 |
@@ -91,4 +129,6 @@ python3 scripts/validate_knowledge_labels.py \
 | `candidate` + `uncertain` + `insufficient/unknown` | 题面不足或候选池不覆盖 | 人工/二次模型复核，并扩充候选池 |
 | `skipped` + `policy_forbidden` | 已确认该精确小题路由不应有知识点 | `relabel_candidates`；建议最终知识点集合为 `[]`，仍需人工抽检后出 patch |
 | `skipped` + `policy_unresolved` | 尚无可执行的业务规则 | 隔离，补充题型路由和规则确认，不能按空标签入库 |
+| `tree_candidate` | 树路由到一个 active 末级知识点 | 与 flat 结果一起进入 `relabel_candidates`，分层抽检，不直接 patch |
+| `uncovered` / `budget_exhausted` | 受限 taxonomy 根无匹配，或搜索预算耗尽 | 保留 trace，补 taxonomy/释义或人工复核；不能输出空标签 |
 | `unparsed` / `error` / `skipped` | 模型输出、服务或 taxonomy 映射异常 | 隔离并保留原始证据 |
