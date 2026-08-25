@@ -302,6 +302,53 @@ class KnowledgeValidationPacketTests(unittest.TestCase):
             )
         )
 
+    def test_packet_strips_source_declared_type_metadata_from_model_context(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": (
+                            "题型结构为：复合题\n题型名称为：语法选择\n"
+                            "当前小题题干：It is ___ umbrella.\n答案：an\n解析：考查 a/an。"
+                        ),
+                        "output": "知识点@词法@冠词@a/an的区别",
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "语法选择",
+                        },
+                    }
+                ],
+            )
+            output = directory / "packet.jsonl"
+            build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv")),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(directory / "candidate-policy.json", [GRAMMAR_RULE])
+                ),
+                output_path=output,
+            )
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertNotIn("题型结构为：", row["question_context"])
+        self.assertNotIn("题型名称为：", row["question_context"])
+        self.assertIn("It is ___ umbrella", row["question_context"])
+        self.assertIn("解析：考查 a/an", row["question_context"])
+
 
 if __name__ == "__main__":
     unittest.main()

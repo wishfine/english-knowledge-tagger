@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import json
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 from .knowledge_candidate_policy import KnowledgeCandidatePolicy
@@ -13,11 +14,23 @@ from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
 from .sft_labels import parse_sft_output_labels
 
 
+_DECLARED_TYPE_METADATA = re.compile(r"(?m)^[ \t]*题型(?:结构|名称)为：[^\r\n]*(?:\r?\n|$)")
+
+
 def _identifier(value: object) -> str | None:
     if not isinstance(value, str):
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _model_question_context(record: Mapping[str, Any]) -> str:
+    """Remove source-declared type metadata after it has selected the candidate pool."""
+    raw = record.get("input")
+    if not isinstance(raw, str):
+        return ""
+    stripped = _DECLARED_TYPE_METADATA.sub("", raw)
+    return re.sub(r"\n{3,}", "\n\n", stripped).strip()
 
 
 def _canonical_knowledge_path(label: str) -> str:
@@ -81,7 +94,7 @@ def _validation_row(
         "question_id": _identifier(record.get("question_id")),
         "parent_id": _identifier(record.get("parent_id")),
         "is_sub_question": record.get("is_sub_question"),
-        "question_context": record.get("input") if isinstance(record.get("input"), str) else "",
+        "question_context": _model_question_context(record),
         "legacy_label": legacy_label,
         "canonical_label": canonical_label,
         "taxonomy_mapping": {
