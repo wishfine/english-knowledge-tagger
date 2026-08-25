@@ -67,9 +67,11 @@ python3 scripts/bootstrap_type_routing_policy.py \
 
 ## 生成审计路由
 
-将已填写的策略和老师 CSV 应用到源数据。输出只包含来源行号、历史题型证据、候选题型集合、策略状态和风险码，不包含任何重写后的标签：
+将已填写的策略和老师 CSV 应用到源数据。输出只包含来源行号、历史题型证据、候选题型集合、策略状态和风险码，不包含任何重写后的标签。默认规则本路径为 `data/rulebooks/初中英语知识点题型方法释义.csv`：
 
 ```bash
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
+
 python3 scripts/route_question_types.py \
   --input "$FINAL_SOURCE" \
   --policy "$RUNTIME/type-routing/$RUN/type-routing.policy.v0.1.json" \

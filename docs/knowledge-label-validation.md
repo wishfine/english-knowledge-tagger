@@ -22,9 +22,10 @@ child × 完形填空 × 语法选择
 
 两者只允许从 `知识点->词法` 和 `知识点->句法` 选择，不允许从语篇主题、语篇体裁、语用或父题标签中继承。每题最多输出 3 个知识点。
 
-在服务器运行前，需要将老师 CSV 放到一个稳定、可读但不进入 Git 的位置，并设置 `TEACHER_CSV`。
+老师 CSV 已随仓库版本化。默认使用仓库内规则本；如需试验新版本，可用环境变量覆盖，但新文件必须先完成版本审查。
 
 ```bash
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
 export KP_POLICY=configs/knowledge_candidate_policies/child-grammar-selection-v0.1.json
 export KP_PACKET="$ROUTE_DIR/child-kp-grammar-validation.packet.jsonl"
 export KP_PACKET_REPORT="$ROUTE_DIR/child-kp-grammar-validation.packet.report.json"
