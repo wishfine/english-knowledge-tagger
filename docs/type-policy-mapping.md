@@ -21,6 +21,20 @@ python3 scripts/inventory_question_types.py \
 
 JSON 是机器可读的完整统计。CSV 是人工逐行映射表，包含历史题型标签分布、历史知识点数量分布和最多三个样本题号。
 
+## 生成盲审样本包
+
+在填写策略前，先按每个精确组合抽取真实题面。默认包不含历史 `output` 中的题型标签，避免 Codex、Gemini 或人工复核被旧标签锚定：
+
+```bash
+python3 scripts/sample_type_review_packet.py \
+  --input "$FINAL_SOURCE" \
+  --output "$RUNTIME/type-routing/$RUN/blind-review.jsonl" \
+  --report "$RUNTIME/type-routing/$RUN/blind-review.report.json" \
+  --per-route 5
+```
+
+该命令以 `scope × 题型结构 × 题型名称` 分层，在每一层稳定抽取至多 5 道题，约得到 560 条可审查记录。它只保留题面、题号、父题号和来源行号；题型复核完成后，如确需比较历史标签，另起新目录并加 `--include-legacy-labels`，不要覆盖盲审包。
+
 ## 生成路由策略骨架
 
 题型清单是观察结果；历史 `output` 中的题型标签不是策略真值。先从清单生成全部 `unmapped` 的 JSON 策略骨架：

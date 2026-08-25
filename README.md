@@ -43,6 +43,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 - `scripts/audit_composites.py`：使用本地 SQLite 父题索引审计大/小题标签关系；不加载全量数据进内存。
 - `scripts/inventory_question_types.py`：按大题/小题分别枚举“题型结构 × 题型名称”，生成待填写的打标策略 CSV。
 - `scripts/bootstrap_type_routing_policy.py`：由题型清单生成全量 `unmapped` 的精确题型路由策略骨架。
+- `scripts/sample_type_review_packet.py`：按精确题型组合稳定抽样，生成默认隐藏历史标签的盲审包。
 - `scripts/route_question_types.py`：将老师 CSV 和已确认路由应用到源数据，输出历史题型证据、候选题型树与风险码；不改写标签。
 - `scripts/label_candidates.py`：调用内部 `ds-v4-flash` 服务生成**候选**知识点标签；只写新 JSONL，不修改源数据。
 

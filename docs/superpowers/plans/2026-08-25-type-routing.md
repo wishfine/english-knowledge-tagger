@@ -308,3 +308,54 @@ git commit -m "docs: document auditable type routing workflow"
 
 The plan contains no deferred implementation placeholders; the policy values themselves are deliberately created as unmapped records until supported by the CSV and review evidence.
 
+### Task 5: Generate blind, stratified type-review packets
+
+**Files:**
+
+- Create: english_knowledge_tagger/type_review_packet.py
+- Create: scripts/sample_type_review_packet.py
+- Create: tests/test_type_review_packet.py
+- Modify: docs/type-policy-mapping.md
+
+**Interfaces:**
+
+- Consumes: rendered SFT JSONL and a positive per-route sample limit.
+- Produces: build_type_review_packet(input_path, output_path, per_route, include_legacy_labels) -> dict[str, Any], with at most the requested count for every exact scope, structure, and name group.
+
+- [ ] **Step 1: Write the failing test**
+
+~~~python
+def test_packet_stratifies_by_exact_route_and_hides_legacy_labels_by_default():
+    report = build_type_review_packet(source, output_path=output, per_route=1)
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    self.assertEqual(report["records"], 2)
+    self.assertEqual({row["route_key"]["scope"] for row in rows}, {"parent", "child"})
+    self.assertNotIn("legacy_type_labels", rows[0])
+    self.assertIn("question_context", rows[0])
+~~~
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: python3 -m unittest tests/test_type_review_packet.py -v
+Expected: FAIL because the packet builder does not exist.
+
+- [ ] **Step 3: Write the minimal implementation**
+
+~~~python
+def build_type_review_packet(input_path, *, output_path, per_route=5, include_legacy_labels=False):
+    # Keep the per-route records with the smallest SHA-256 score computed from
+    # exact route key and question_id/source line. Memory is O(route_count × per_route).
+    # The default packet supplies input and source identifiers but no legacy labels.
+~~~
+
+- [ ] **Step 4: Run focused tests to verify they pass**
+
+Run: python3 -m unittest tests/test_type_review_packet.py -v
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+~~~bash
+git add english_knowledge_tagger/type_review_packet.py scripts/sample_type_review_packet.py tests/test_type_review_packet.py docs/type-policy-mapping.md
+git commit -m "feat: sample blind type review packets"
+~~~
