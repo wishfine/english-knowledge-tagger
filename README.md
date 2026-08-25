@@ -1,65 +1,63 @@
 # English Knowledge Tagger
 
-对英语题目自动输出一个或多个标准知识点的 LoRA/QLoRA 微调项目。正式训练使用 **Qwen3.5-9B + MS-Swift QLoRA SFT**；Qwen3.5-4B 只用于开训前的 smoke 验证。
+为已有初中英语题目回标“题型方法 + 知识点”的数据工程与生成式 SFT 项目。
 
-首版把任务建模为 **completion-only 指令微调**：输入题干、选项、答案与解析，输出受固定 taxonomy 约束的 JSON：
-
-```json
-{"knowledge_points": ["一般过去时", "动词时态"]}
-```
-
-这样同一道题能拥有多标签，且在 taxonomy 演进后仍可保留层级标签；训练、验证与推理使用同一套渲染规则。
-
-## 数据格式
-
-原始标注数据是 UTF-8 JSONL，每行至少包含 `id`、`question`、`knowledge_points`。可选字段为 `options`、`answer`、`analysis`、`source`：
-
-```json
-{"id":"eng-0001","question":"She ___ to school yesterday.","options":["go","goes","went","has gone"],"answer":"went","analysis":"yesterday 表示过去时间，谓语用 went。","knowledge_points":["一般过去时","动词时态"]}
-```
-
-知识点必须先收录在 `data/taxonomy/knowledge_points.json`。原始题库和训练输出已被 `.gitignore` 排除。
-
-## 本地快速检查
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-pytest
-```
-
-## 训练流程
-
-```bash
-python scripts/prepare_data.py \
-  --input data/raw/english_labeled.jsonl \
-  --taxonomy data/taxonomy/knowledge_points.json \
-  --output-dir data/processed/v1
-
-bash scripts/server_train.sh \
-  data/processed/v1/swift_train.jsonl \
-  data/processed/v1/swift_validation.jsonl \
-  data/taxonomy/knowledge_points.json \
-  outputs/english-kp-v1
-```
-
-MS-Swift 默认只对 `response`（本项目的 assistant JSON）计算 SFT loss；适配器、tokenizer、训练配置与数据 manifest 一起保存在输出目录。`scripts/train.py` 保留为原生 Transformers/PEFT 回退实现。开始 9B 正式训练前，必须先运行 Qwen3.5-4B 的 `bash scripts/server_smoke.sh`。
-
-## 服务器建议
-
-已复核的同类项目表明，英语标签项目可将 Qwen 学生模型的 **QuRater** Conda 环境作为克隆源和使用已有 `Qwen3.5-4B` 权重，而不是修改 Qwen3-32B / vLLM 的教师环境。为避免 MS-Swift 升级依赖影响其他项目，正式训练必须使用项目专属克隆环境。历史记录在 xdf-35 上给出：
+当前目标不是全量重洗题库，而是先构建经过业务规则和人工确认的高质量数据版本：
 
 ```text
-conda env: /local_data/zhangyonglin/conda_envs/QuRater
-4B model:  /local_data/zhangyonglin/models/Qwen3.5-4B
-9B model:  /local_data/zhangyonglin/models/Qwen3.5-9B
+hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0（10 万+）
 ```
 
-`xdf-35` 和 `xdf-45` 在 2026-08-24 从当前网络均于 SSH 密钥协商前关闭连接（`kex_exchange_identification`），因此在恢复访问前不能执行服务器安装、拉取或训练。详情及恢复后的命令见 [部署说明](docs/server-deployment.md)。
+源数据保持只读。所有标签修正通过可审计 patch 叠加，不能直接覆盖原始或“暂时认为 OK”的 JSONL。
 
-部署前检命令如下；它会在 CUDA 不可用、无 GPU 或训练依赖不完整时返回非零状态：
+## 当前数据事实
+
+当前基线数据是渲染后的 SFT JSONL，而不是结构化题目：
+
+```json
+{
+  "instruction": "...",
+  "input": "题型名称、题干、选项、答案、解析及必要父题上下文",
+  "output": "题型@...;知识点@...",
+  "question_id": "...",
+  "parent_id": "...",
+  "is_sub_question": true
+}
+```
+
+这是给已有题目回标的场景，因此 `input` 中的题型结构/名称、答案、解析和父题上下文都是允许使用的证据。`output` 才是历史标签来源。
+
+## 数据工作流
+
+1. 审计大题/小题的题型与知识点标签，不直接改数据。
+2. 生成小批、同质的人工审查包。
+3. 人工确认 `keep/drop/replace/add` patch。
+4. 将原始高置信样本与已确认 patch 构造成 `hq-v*` 数据版本。
+5. 使用冻结 dev/test 评估模型，针对稳定错误切片补充数据。
+
+小题知识点的关键规则是：父题标签只能缩小候选范围，不能自动全部继承。题型族决定小题是否应有知识点、可否继承以及是否必须重标。
+
+## 已实现组件
+
+- `scripts/profile_source.py`：流式字段与标签 profile。
+- `scripts/audit_composites.py`：使用本地 SQLite 父题索引审计大/小题标签关系；不加载全量数据进内存。
+- `scripts/label_candidates.py`：调用内部 `ds-v4-flash` 服务生成**候选**知识点标签；只写新 JSONL，不修改源数据。
+
+候选打标接口、输入输出 schema、多人协作约定和小批运行命令见 [DS-V4-Flash 候选打标说明](docs/ds-v4-flash-labeling.md)。
+
+## 训练路线
+
+正式训练目标为 `Qwen/Qwen3-VL-8B-Instruct` 的 BF16 全参生成式 SFT，使用 response-only loss 和 DeepSpeed ZeRO-3。全参训练在高质量 `hq-v*` 数据与冻结评测集准备完成前不启动。
+
+现有历史 Qwen3.5 / MS-Swift / LoRA 文件保留作参考，不能视为当前正式训练路线。
+
+## 本地验证
+
+项目的新数据组件仅依赖 Python 标准库：
 
 ```bash
-"$CONDA_ENV/bin/python" scripts/check_environment.py
+python3 -m unittest discover -s tests -p 'test_source_profile.py' -v
+python3 -m unittest discover -s tests -p 'test_composite_audit.py' -v
+python3 -m unittest discover -s tests -p 'test_candidate_labeling.py' -v
+python3 -m unittest discover -s tests -p 'test_label_candidates_cli.py' -v
 ```
