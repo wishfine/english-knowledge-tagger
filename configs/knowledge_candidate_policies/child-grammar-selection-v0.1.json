@@ -1,0 +1,29 @@
+{
+  "schema_version": "knowledge-candidate-policy-v1",
+  "rules": [
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "语法选择",
+      "allowed_knowledge_prefixes": [
+        "知识点->词法",
+        "知识点->句法"
+      ],
+      "max_retrieved_candidates": 12,
+      "max_sibling_candidates": 8,
+      "max_output_labels": 3
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "完形填空",
+      "declared_type_name": "语法选择",
+      "allowed_knowledge_prefixes": [
+        "知识点->词法",
+        "知识点->句法"
+      ],
+      "max_retrieved_candidates": 12,
+      "max_sibling_candidates": 8,
+      "max_output_labels": 3
+    }
+  ]
+}
