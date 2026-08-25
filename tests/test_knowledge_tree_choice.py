@@ -9,6 +9,7 @@ try:
     from english_knowledge_tagger.knowledge_taxonomy_tree import NO_MATCH, KnowledgeTaxonomyTree
     from english_knowledge_tagger.knowledge_tree_choice import (
         KnowledgeTreeChoiceClient,
+        build_tree_choice_prompt,
         parse_tree_choice_response,
     )
     from english_knowledge_tagger.knowledge_tree_search import TreeChoiceRequest
@@ -19,6 +20,7 @@ except ModuleNotFoundError:
     NO_MATCH = "__NO_MATCH__"
     KnowledgeTaxonomyTree = None
     KnowledgeTreeChoiceClient = None
+    build_tree_choice_prompt = None
     TreeChoiceRequest = None
     parse_tree_choice_response = None
 
@@ -40,6 +42,24 @@ def _tree() -> object:
 
 
 class KnowledgeTreeChoiceTests(unittest.TestCase):
+    def test_none_mode_keeps_terminal_path_but_omits_its_compressed_definition(self):
+        self.assertTrue(callable(build_tree_choice_prompt), "build_tree_choice_prompt must be implemented")
+        candidate = "知识点->词法->冠词->a/an的区别"
+
+        prompt = build_tree_choice_prompt(
+            TreeChoiceRequest(
+                question_context="题干：It is ___ umbrella. 答案：an。",
+                parent_path="知识点->词法->冠词",
+                candidate_paths=(candidate,),
+                excluded_paths=(),
+            ),
+            _tree(),
+            terminal_definition_mode="none",
+        )
+
+        self.assertIn(candidate, prompt)
+        self.assertNotIn("按发音选择 a/an。", prompt)
+
     def test_client_only_allows_current_siblings_and_no_match(self):
         self.assertTrue(callable(KnowledgeTreeChoiceClient), "KnowledgeTreeChoiceClient must be implemented")
         captured = {}

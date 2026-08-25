@@ -21,6 +21,7 @@ from english_knowledge_tagger.knowledge_rulebook import load_knowledge_rulebook
 from english_knowledge_tagger.knowledge_taxonomy_tree import KnowledgeTaxonomyTree
 from english_knowledge_tagger.knowledge_tree_choice import (
     PROMPT_VERSION,
+    TERMINAL_DEFINITION_MODES,
     KnowledgeTreeChoiceClient,
 )
 from english_knowledge_tagger.knowledge_tree_tasks import (
@@ -32,7 +33,14 @@ from english_knowledge_tagger.knowledge_tree_tasks import (
 DEFAULT_ENDPOINT = "http://172.22.0.35:6636/v1/chat/completions"
 
 
-def _error_output(row: dict[str, Any], error: Exception, *, max_steps: int, max_backtracks: int) -> dict[str, Any]:
+def _error_output(
+    row: dict[str, Any],
+    error: Exception,
+    *,
+    max_steps: int,
+    max_backtracks: int,
+    terminal_definition_mode: str,
+) -> dict[str, Any]:
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "task_id": row.get("task_id"),
@@ -50,6 +58,7 @@ def _error_output(row: dict[str, Any], error: Exception, *, max_steps: int, max_
         "trace": [],
         "max_steps": max_steps,
         "max_backtracks": max_backtracks,
+        "terminal_definition_mode": terminal_definition_mode,
         "error": str(error),
     }
 
@@ -62,6 +71,7 @@ def _route_one(
     model: str,
     max_steps: int,
     max_backtracks: int,
+    terminal_definition_mode: str,
 ) -> dict[str, Any]:
     try:
         result = route_knowledge_tree_task(
@@ -71,10 +81,21 @@ def _route_one(
             max_steps=max_steps,
             max_backtracks=max_backtracks,
         )
-        return {**result, "model": model, "prompt_version": PROMPT_VERSION}
+        return {
+            **result,
+            "model": model,
+            "prompt_version": PROMPT_VERSION,
+            "terminal_definition_mode": terminal_definition_mode,
+        }
     except (ValueError, LabelingServiceError) as error:
         return {
-            **_error_output(row, error, max_steps=max_steps, max_backtracks=max_backtracks),
+            **_error_output(
+                row,
+                error,
+                max_steps=max_steps,
+                max_backtracks=max_backtracks,
+                terminal_definition_mode=terminal_definition_mode,
+            ),
             "model": model,
             "prompt_version": PROMPT_VERSION,
         }
@@ -91,6 +112,11 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--max-backtracks", type=int, default=2)
+    parser.add_argument(
+        "--terminal-definition-mode",
+        choices=sorted(TERMINAL_DEFINITION_MODES),
+        default="compressed",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     parser.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
     args = parser.parse_args()
@@ -120,6 +146,7 @@ def main() -> None:
             api_key=os.getenv(args.api_key_env) or None,
         ),
         tree,
+        terminal_definition_mode=args.terminal_definition_mode,
     )
 
     queued_rows: list[tuple[int, dict[str, Any], Exception | None]] = []
@@ -147,6 +174,7 @@ def main() -> None:
                     parse_error,
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
+                    terminal_definition_mode=args.terminal_definition_mode,
                 )
                 continue
             futures[
@@ -158,6 +186,7 @@ def main() -> None:
                     model=args.model,
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
+                    terminal_definition_mode=args.terminal_definition_mode,
                 )
             ] = index
         for future, index in futures.items():
@@ -181,6 +210,7 @@ def main() -> None:
                 "concurrency": args.concurrency,
                 "max_steps": args.max_steps,
                 "max_backtracks": args.max_backtracks,
+                "terminal_definition_mode": args.terminal_definition_mode,
             },
             ensure_ascii=False,
             sort_keys=True,

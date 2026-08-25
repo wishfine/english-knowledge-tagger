@@ -107,6 +107,8 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                         f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
                         "--limit",
                         "1",
+                        "--terminal-definition-mode",
+                        "none",
                     ],
                     check=False,
                     capture_output=True,
@@ -118,7 +120,9 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                 self.assertEqual(row["status"], "tree_candidate")
                 self.assertEqual(row["candidate_label"], "知识点->词法->冠词->a/an的区别")
                 self.assertEqual(len(row["trace"]), 3)
+                self.assertEqual(row["terminal_definition_mode"], "none")
                 self.assertEqual(len(_Handler.requests), 3)
+                self.assertNotIn("按发音选择 a/an。", _Handler.requests[-1]["messages"][0]["content"])
         finally:
             server.shutdown()
             server.server_close()

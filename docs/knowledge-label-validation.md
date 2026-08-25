@@ -119,6 +119,45 @@ python3 scripts/route_knowledge_tree.py \
 
 树 CLI 的 `--concurrency` 是并行任务数；每项任务最多会产生 8 个 DS 请求。先以 16 或 32 启动，在服务稳定后再提高，不要沿用平铺验证的 128 作为默认值。
 
+### 末级压缩释义的 3×2 消融
+
+该实验固定同一份 `$TREE_TASKS`、老师 CSV、模型、并发、搜索预算和 DS endpoint，仅改变末级候选是否附带“压缩释义”。`compressed` 是当前默认行为，`none` 只发末级完整路径。每个模式独立运行三次；即使 temperature 为 0，服务端仍可能出现输出波动，因此必须保留三份结果。
+
+```bash
+export ABLATION_DIR="$TREE_DIR/terminal-definition-ablation"
+mkdir -p "$ABLATION_DIR"
+sha256sum "$TREE_TASKS" data/rulebooks/初中英语知识点题型方法释义.csv \
+  configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json \
+  > "$ABLATION_DIR/input-manifest.sha256"
+
+for spec in compressed:1 none:1 none:2 compressed:2 compressed:3 none:3; do
+  mode="${spec%:*}"
+  repeat="${spec#*:}"
+  python3 scripts/route_knowledge_tree.py \
+    --input "$TREE_TASKS" \
+    --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+    --output "$ABLATION_DIR/$mode-$repeat.jsonl" \
+    --limit 100 \
+    --concurrency 16 \
+    --max-steps 8 \
+    --max-backtracks 2 \
+    --terminal-definition-mode "$mode"
+done
+
+python3 scripts/analyze_knowledge_tree_runs.py \
+  --with-definitions compressed-1="$ABLATION_DIR/compressed-1.jsonl" \
+  --with-definitions compressed-2="$ABLATION_DIR/compressed-2.jsonl" \
+  --with-definitions compressed-3="$ABLATION_DIR/compressed-3.jsonl" \
+  --without-definitions none-1="$ABLATION_DIR/none-1.jsonl" \
+  --without-definitions none-2="$ABLATION_DIR/none-2.jsonl" \
+  --without-definitions none-3="$ABLATION_DIR/none-3.jsonl" \
+  --output "$ABLATION_DIR/summary.json"
+```
+
+`summary.json` 的 `groups.*.replace.all_three_candidate_agreement` 是 replace 任务三次得到同一末级候选的比例；`all_three_decision_agreement` 同时要求状态也相同。`comparison.unanimous_candidate_disagreements` 只计算两种模式内部均完全一致、但候选不同的题，适合人工优先抽看。
+
+不要只按一致率自动决定是否保留释义：先人工复核两个模式都稳定但互相不同的题，以及任一模式不稳定的 replace 题。若压缩释义在 replace 切片上稳定性不下降、`uncovered/budget_exhausted` 未上升、且人工正确率更高，才保留；若效果无差异，优先 `none` 以缩短 prompt。
+
 ## 结果处理
 
 | 验证状态 | 含义 | 后续去向 |

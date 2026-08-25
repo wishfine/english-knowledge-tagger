@@ -18,6 +18,7 @@ from .knowledge_tree_search import TreeChoice, TreeChoiceRequest
 
 PROMPT_VERSION = "knowledge-tree-choice-ds-v4-v1"
 _COVERAGE = frozenset({"covered", "insufficient", "unknown"})
+TERMINAL_DEFINITION_MODES = frozenset({"compressed", "none"})
 
 
 @dataclass(frozen=True)
@@ -80,12 +81,17 @@ def parse_tree_choice_response(
 
 
 def build_tree_choice_prompt(
-    request: TreeChoiceRequest, tree: KnowledgeTaxonomyTree
+    request: TreeChoiceRequest,
+    tree: KnowledgeTaxonomyTree,
+    *,
+    terminal_definition_mode: str = "compressed",
 ) -> str:
     """Render only the current siblings and a separate no-match control option."""
+    if terminal_definition_mode not in TERMINAL_DEFINITION_MODES:
+        raise ValueError(f"unsupported terminal_definition_mode: {terminal_definition_mode}")
     candidates: list[str] = []
     for path in request.candidate_paths:
-        definition = tree.definition(path)
+        definition = tree.definition(path) if terminal_definition_mode == "compressed" else None
         if definition:
             candidates.append(f"- {path}\n  压缩释义：{definition}")
         else:
@@ -118,12 +124,16 @@ class KnowledgeTreeChoiceClient:
         config: LabelingServiceConfig,
         tree: KnowledgeTaxonomyTree,
         *,
+        terminal_definition_mode: str = "compressed",
         transport: Transport | None = None,
     ):
         if not config.endpoint:
             raise ValueError("tree choice endpoint must be non-empty")
+        if terminal_definition_mode not in TERMINAL_DEFINITION_MODES:
+            raise ValueError(f"unsupported terminal_definition_mode: {terminal_definition_mode}")
         self._config = config
         self._tree = tree
+        self._terminal_definition_mode = terminal_definition_mode
         self._transport = transport or _http_transport
 
     def choose(self, request: TreeChoiceRequest) -> TreeChoice:
@@ -139,7 +149,14 @@ class KnowledgeTreeChoiceClient:
         payload = {
             "model": self._config.model,
             "messages": [
-                {"role": "user", "content": build_tree_choice_prompt(request, self._tree)}
+                {
+                    "role": "user",
+                    "content": build_tree_choice_prompt(
+                        request,
+                        self._tree,
+                        terminal_definition_mode=self._terminal_definition_mode,
+                    ),
+                }
             ],
             "max_tokens": self._config.max_tokens,
             "temperature": 0.0,
