@@ -14,7 +14,7 @@ from .candidate_labeling import (
 )
 
 
-PROMPT_VERSION = "knowledge-label-validation-ds-v4-v1"
+PROMPT_VERSION = "knowledge-label-validation-ds-v4-v2"
 VERDICTS = frozenset({"keep", "replace", "drop", "uncertain"})
 
 
@@ -39,6 +39,7 @@ class KnowledgeValidationRequest:
 class ParsedValidation:
     status: str
     verdict: str | None
+    candidate_coverage: str | None
     best_label: str | None
     evidence: str | None
     reason: str | None
@@ -54,6 +55,7 @@ class KnowledgeValidationResult:
     raw_response: str
     status: str
     verdict: str | None
+    candidate_coverage: str | None
     best_label: str | None
     evidence: str | None
     reason: str | None
@@ -64,6 +66,7 @@ def _json_example() -> str:
     return (
         '{"verdict":"keep|replace|drop|uncertain",'
         '"best_label":"候选标签路径或null",'
+        '"candidate_coverage":"covered|insufficient|unknown",'
         '"evidence":"题干、答案或解析中的短证据",'
         '"reason":"判定理由"}'
     )
@@ -88,6 +91,8 @@ def build_knowledge_validation_prompt(request: KnowledgeValidationRequest) -> st
         "- replace：当前标签不合适，但一个列出的候选标签更合适，best_label 必须为该候选。\n"
         "- drop：当前标签不是解题必需考点，且候选中没有应替换标签，best_label 必须为 null。\n"
         "- uncertain：题目信息不足、候选池未覆盖或无法可靠判断，best_label 必须为 null。\n"
+        "- candidate_coverage：若候选池足以判断填 covered；若正确标签可能不在候选池中填 insufficient；题面无法判断覆盖情况填 unknown。\n"
+        "- 若 candidate_coverage 不是 covered，不得输出 keep、replace 或 drop，必须输出 uncertain。\n"
         f"{target_constraint}"
         "只输出一个 JSON 对象，不要 Markdown、解释前缀或额外字段。格式：\n"
         f"{_json_example()}\n\n"
@@ -104,6 +109,7 @@ def _unparsed(error: str) -> ParsedValidation:
     return ParsedValidation(
         status="unparsed",
         verdict=None,
+        candidate_coverage=None,
         best_label=None,
         evidence=None,
         reason=None,
@@ -135,10 +141,13 @@ def parse_validation_response(
         return _unparsed("response JSON must be an object")
     verdict = payload.get("verdict")
     best_label = payload.get("best_label")
+    candidate_coverage = payload.get("candidate_coverage")
     evidence = payload.get("evidence")
     reason = payload.get("reason")
     if not isinstance(verdict, str) or verdict not in VERDICTS:
         return _unparsed("verdict must be keep, replace, drop, or uncertain")
+    if candidate_coverage not in {"covered", "insufficient", "unknown"}:
+        return _unparsed("candidate_coverage must be covered, insufficient, or unknown")
     if best_label is not None and not isinstance(best_label, str):
         return _unparsed("best_label must be a string or null")
     if isinstance(best_label, str) and best_label not in allowed_labels:
@@ -153,9 +162,12 @@ def parse_validation_response(
         return _unparsed("replace verdict requires a different best_label")
     if verdict in {"drop", "uncertain"} and best_label is not None:
         return _unparsed(f"{verdict} verdict requires best_label to be null")
+    if verdict != "uncertain" and candidate_coverage != "covered":
+        return _unparsed("non-uncertain verdict requires candidate_coverage to be covered")
     return ParsedValidation(
         status="candidate",
         verdict=verdict,
+        candidate_coverage=candidate_coverage,
         best_label=best_label,
         evidence=evidence,
         reason=reason,
@@ -219,6 +231,7 @@ class KnowledgeValidationClient:
             raw_response=content,
             status=parsed.status,
             verdict=parsed.verdict,
+            candidate_coverage=parsed.candidate_coverage,
             best_label=parsed.best_label,
             evidence=parsed.evidence,
             reason=parsed.reason,

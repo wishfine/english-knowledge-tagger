@@ -23,6 +23,7 @@ class _Handler(BaseHTTPRequestHandler):
                         "message": {
                             "content": (
                                 '{"verdict":"keep","best_label":"知识点->词法->冠词->a/an的区别",'
+                                '"candidate_coverage":"covered",'
                                 '"evidence":"umbrella 以元音音素开头。","reason":"与目标释义一致。"}'
                             )
                         }

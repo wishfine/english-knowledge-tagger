@@ -349,6 +349,55 @@ class KnowledgeValidationPacketTests(unittest.TestCase):
         self.assertIn("It is ___ umbrella", row["question_context"])
         self.assertIn("解析：考查 a/an", row["question_context"])
 
+    def test_packet_uses_one_shared_retrieval_shortlist_for_all_labels_on_the_same_question(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": "题干：It is an umbrella every day. 解析：考查 a/an 和一般现在时。",
+                        "output": (
+                            "知识点@词法@冠词@a/an的区别;"
+                            "知识点@词法@动词@时态@一般现在时"
+                        ),
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "语法选择",
+                        },
+                    }
+                ],
+            )
+            packet = directory / "packet.jsonl"
+            build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv")),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(directory / "candidate-policy.json", [GRAMMAR_RULE])
+                ),
+                output_path=packet,
+            )
+            rows = [json.loads(line) for line in packet.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            rows[0]["candidate_pool"]["shared_retrieved_labels"],
+            rows[1]["candidate_pool"]["shared_retrieved_labels"],
+        )
+        self.assertLessEqual(len(rows[0]["candidate_pool"]["shared_retrieved_labels"]), 12)
+
 
 if __name__ == "__main__":
     unittest.main()

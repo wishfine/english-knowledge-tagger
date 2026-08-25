@@ -98,6 +98,7 @@ def _candidate_output(base: dict[str, Any], result: Any) -> dict[str, Any]:
         **base,
         "validation": {
             "verdict": result.verdict,
+            "candidate_coverage": result.candidate_coverage,
             "best_label": result.best_label,
             "evidence": result.evidence,
             "reason": result.reason,
@@ -116,6 +117,7 @@ def _skipped_output(base: dict[str, Any]) -> dict[str, Any]:
         **base,
         "validation": {
             "verdict": None,
+            "candidate_coverage": None,
             "best_label": None,
             "evidence": None,
             "reason": None,
@@ -131,6 +133,7 @@ def _error_output(base: dict[str, Any], error: Exception) -> dict[str, Any]:
         **base,
         "validation": {
             "verdict": None,
+            "candidate_coverage": None,
             "best_label": None,
             "evidence": None,
             "reason": None,

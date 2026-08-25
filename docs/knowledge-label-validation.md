@@ -11,7 +11,15 @@
 
 源数据中的 `题型结构为：...`、`题型名称为：...` 仅在本地用于命中候选池策略；生成验证包时会从发送给 DS-V4 的题目上下文中移除。这样模型不能直接复述历史题型名称，但仍保留题干、选项、答案、解析和必要上下文。
 
+同一道题的所有历史标签共享同一份“题型受限检索 shortlist”；不会因正在验证的旧标签不同而更换 top-k 候选。每个历史标签仍可附加自身、且仍在允许前缀内的同级近邻。旧标签若落在小题允许范围之外，可以作为待验证对象展示，但不能作为 `keep` 或 `replace` 的可选结果。
+
 模型只可返回 `keep`、`replace`、`drop` 或 `uncertain`。`replace` 的目标必须在包中提供的候选标签内；否则结果标为 `unparsed`，不会作为候选结论。大题知识点绝不参与小题候选池。
+
+模型还必须输出 `candidate_coverage`：
+
+- `covered`：候选池足以判断，才允许 `keep`、`replace` 或 `drop`；
+- `insufficient`：正确标签可能未出现在候选池中，必须输出 `uncertain`；
+- `unknown`：题面不足以判断候选池覆盖，必须输出 `uncertain`。
 
 历史源数据使用的路径可能仍带有旧根节点，例如 `知识点->语法词法` 和 `知识点->语法句法`。验证包先通过版本化 migration 配置映射到老师规则本的 `知识点->词法`、`知识点->句法`，同时保留原始历史路径和映射规则。映射失败是 taxonomy 问题，不等于内容错标。
 
@@ -60,6 +68,6 @@ python3 scripts/validate_knowledge_labels.py \
 |---|---|---|
 | `candidate` + `keep` | 旧标签与题面、释义一致 | 作为 silver 候选，仍需分层抽检 |
 | `candidate` + `replace` | 候选池有更合适的标签 | `relabel_candidates`，不得直接替换 |
-| `candidate` + `drop` | 旧标签并非解题必需 | `relabel_candidates` |
-| `candidate` + `uncertain` | 题面不足或候选池不覆盖 | 人工/二次模型复核 |
+| `candidate` + `drop` + `covered` | 旧标签并非解题必需 | `relabel_candidates` |
+| `candidate` + `uncertain` + `insufficient/unknown` | 题面不足或候选池不覆盖 | 人工/二次模型复核，并扩充候选池 |
 | `unparsed` / `error` / `skipped` | 模型输出、服务或 taxonomy 映射异常 | 隔离并保留原始证据 |

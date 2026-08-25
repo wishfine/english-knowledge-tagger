@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import Any, Mapping
 
-from .knowledge_candidate_policy import KnowledgeCandidatePolicy
+from .knowledge_candidate_policy import KnowledgeCandidatePolicy, KnowledgeCandidateRule
 from .knowledge_rulebook import KnowledgeRulebook
 from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
 from .sft_labels import parse_sft_output_labels
@@ -84,8 +84,9 @@ def _validation_row(
     taxonomy_mapping_status: str,
     taxonomy_mapping_rule_id: str | None,
     rulebook: KnowledgeRulebook,
-    candidate_policy: KnowledgeCandidatePolicy,
-    route_key: tuple[str, str, str] | None,
+    candidate_rule: KnowledgeCandidateRule | None,
+    shared_retrieved: tuple[Any, ...],
+    shared_candidate_pool: Mapping[str, Any],
 ) -> dict[str, Any]:
     base: dict[str, Any] = {
         "schema_version": "knowledge-validation-packet-v1",
@@ -112,7 +113,6 @@ def _validation_row(
             "candidate_pool": {"status": "not_applicable", "allowed_prefixes": []},
             "target_is_type_allowed": False,
         }
-    candidate_rule = candidate_policy.match(*route_key) if route_key is not None else None
     sibling_limit = candidate_rule.max_sibling_candidates if candidate_rule is not None else 8
     all_siblings = rulebook.nearby_active_records(canonical_label, limit=sibling_limit)
     target_is_type_allowed = True
@@ -131,23 +131,12 @@ def _validation_row(
         )
     else:
         siblings = all_siblings
-    sibling_paths = frozenset(record.path for record in siblings)
-    retrieved = ()
-    candidate_pool: dict[str, Any] = {"status": "unconfigured", "allowed_prefixes": []}
-    if candidate_rule is not None:
-        retrieved = rulebook.retrieve_active_records(
-            prefixes=candidate_rule.allowed_knowledge_prefixes,
-            query=base["question_context"],
-            exclude_paths=frozenset({canonical_label}) | sibling_paths,
-            limit=candidate_rule.max_retrieved_candidates,
-        )
-        candidate_pool = {
-            "status": "configured",
-            "allowed_prefixes": list(candidate_rule.allowed_knowledge_prefixes),
-            "max_retrieved_candidates": candidate_rule.max_retrieved_candidates,
-            "max_sibling_candidates": candidate_rule.max_sibling_candidates,
-            "max_output_labels": candidate_rule.max_output_labels,
-        }
+    sibling_paths = frozenset(candidate.path for candidate in siblings)
+    retrieved = tuple(
+        candidate
+        for candidate in shared_retrieved
+        if candidate.path != canonical_label and candidate.path not in sibling_paths
+    )
     return {
         **base,
         "taxonomy_status": "deprecated_legacy_label"
@@ -170,8 +159,39 @@ def _validation_row(
             }
             for candidate in retrieved
         ],
-        "candidate_pool": candidate_pool,
+        "candidate_pool": dict(shared_candidate_pool),
         "target_is_type_allowed": target_is_type_allowed,
+    }
+
+
+def _shared_candidate_pool(
+    record: Mapping[str, Any],
+    *,
+    rulebook: KnowledgeRulebook,
+    candidate_policy: KnowledgeCandidatePolicy,
+    route_key: tuple[str, str, str] | None,
+) -> tuple[KnowledgeCandidateRule | None, tuple[Any, ...], dict[str, Any]]:
+    """Retrieve one comparable, type-constrained shortlist for all labels on a question."""
+    candidate_rule = candidate_policy.match(*route_key) if route_key is not None else None
+    if candidate_rule is None:
+        return None, (), {
+            "status": "unconfigured",
+            "allowed_prefixes": [],
+            "shared_retrieved_labels": [],
+        }
+    retrieved = rulebook.retrieve_active_records(
+        prefixes=candidate_rule.allowed_knowledge_prefixes,
+        query=_model_question_context(record),
+        exclude_paths=frozenset(),
+        limit=candidate_rule.max_retrieved_candidates,
+    )
+    return candidate_rule, retrieved, {
+        "status": "configured",
+        "allowed_prefixes": list(candidate_rule.allowed_knowledge_prefixes),
+        "max_retrieved_candidates": candidate_rule.max_retrieved_candidates,
+        "max_sibling_candidates": candidate_rule.max_sibling_candidates,
+        "max_output_labels": candidate_rule.max_output_labels,
+        "shared_retrieved_labels": [candidate.path for candidate in retrieved],
     }
 
 
@@ -213,6 +233,12 @@ def build_knowledge_validation_packet(
             if not labels:
                 report_counts["selected_records_without_legacy_knowledge"] += 1
                 continue
+            candidate_rule, shared_retrieved, shared_candidate_pool = _shared_candidate_pool(
+                record,
+                rulebook=rulebook,
+                candidate_policy=candidate_policy,
+                route_key=selected_routes[source_line],
+            )
             for legacy_label in labels:
                 canonicalized = migration.canonicalize(legacy_label)
                 row = _validation_row(
@@ -223,8 +249,9 @@ def build_knowledge_validation_packet(
                     taxonomy_mapping_status=canonicalized.status,
                     taxonomy_mapping_rule_id=canonicalized.rule_id,
                     rulebook=rulebook,
-                    candidate_policy=candidate_policy,
-                    route_key=selected_routes[source_line],
+                    candidate_rule=candidate_rule,
+                    shared_retrieved=shared_retrieved,
+                    shared_candidate_pool=shared_candidate_pool,
                 )
                 rows.append(row)
                 report_counts[row["taxonomy_status"]] += 1

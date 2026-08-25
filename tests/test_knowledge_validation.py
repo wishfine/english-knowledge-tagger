@@ -35,6 +35,7 @@ class KnowledgeValidationTests(unittest.TestCase):
                         "message": {
                             "content": (
                                 '{"verdict":"replace","best_label":"知识点->词法->冠词->the的用法",'
+                                '"candidate_coverage":"covered",'
                                 '"evidence":"题干考查特指。","reason":"应使用定冠词规则。"}'
                             )
                         }
@@ -73,7 +74,7 @@ class KnowledgeValidationTests(unittest.TestCase):
         self.assertTrue(callable(parse_validation_response), "parse_validation_response must be implemented")
         parsed = parse_validation_response(
             '{"verdict":"replace","best_label":"知识点->词法->杜撰标签",'
-            '"evidence":"x","reason":"x"}',
+            '"candidate_coverage":"covered","evidence":"x","reason":"x"}',
             legacy_label=TARGET,
             allowed_labels=frozenset({TARGET, ALTERNATIVE}),
         )
@@ -86,7 +87,7 @@ class KnowledgeValidationTests(unittest.TestCase):
         self.assertTrue(callable(parse_validation_response), "parse_validation_response must be implemented")
         parsed = parse_validation_response(
             '{"verdict":"keep","best_label":"知识点->词汇->词汇辨析->副词（短语）辨析",'
-            '"evidence":"x","reason":"x"}',
+            '"candidate_coverage":"covered","evidence":"x","reason":"x"}',
             legacy_label="知识点->词汇->词汇辨析->副词（短语）辨析",
             allowed_labels=frozenset({"知识点->词法->形容词与副词->副词的用法->副词修饰动词"}),
             target_is_type_allowed=False,
@@ -94,6 +95,18 @@ class KnowledgeValidationTests(unittest.TestCase):
 
         self.assertEqual(parsed.status, "unparsed")
         self.assertIn("outside", parsed.error or "")
+
+    def test_parser_rejects_drop_when_model_says_candidate_pool_is_insufficient(self):
+        self.assertTrue(callable(parse_validation_response), "parse_validation_response must be implemented")
+        parsed = parse_validation_response(
+            '{"verdict":"drop","best_label":null,"candidate_coverage":"insufficient",'
+            '"evidence":"候选池没有正确标签。","reason":"缺少方向介词标签。"}',
+            legacy_label=TARGET,
+            allowed_labels=frozenset({TARGET, ALTERNATIVE}),
+        )
+
+        self.assertEqual(parsed.status, "unparsed")
+        self.assertIn("coverage", parsed.error or "")
 
 
 if __name__ == "__main__":
