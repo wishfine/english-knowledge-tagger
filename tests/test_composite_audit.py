@@ -129,6 +129,47 @@ class CompositeAuditTests(unittest.TestCase):
         self.assertEqual(report["parent_groups"]["orphan_children"], 1)
         self.assertEqual(report["knowledge_parent_child"]["parent_missing"], 1)
 
+    def test_audit_parses_sft_output_and_uses_explicit_sub_question_scope(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory,
+                [
+                    {
+                        "question_id": "p-1",
+                        "parent_id": "p-1",
+                        "is_sub_question": False,
+                        "output": (
+                            "题型@阅读理解@阅读选择;"
+                            "知识点@语篇体裁@记叙文;"
+                            "知识点@词汇@固定搭配/句型"
+                        ),
+                    },
+                    {
+                        "question_id": "c-1",
+                        "parent_id": "p-1",
+                        "is_sub_question": True,
+                        "output": "题型@阅读理解@阅读选择@主旨;知识点@语篇体裁@记叙文",
+                    },
+                ],
+            )
+
+            report = audit_jsonl(
+                source,
+                index_path=directory / "audit.sqlite3",
+                discourse_knowledge_ids={"知识点@语篇体裁@记叙文"},
+            )
+
+        self.assertEqual(report["records"], {"valid": 2, "parents": 1, "children": 1, "missing_ids": 0})
+        self.assertEqual(report["knowledge_parent_child"]["subset_not_equal"], 1)
+        self.assertEqual(report["type_parent_child"]["child_contains_parent_external"], 1)
+        self.assertEqual(
+            report["after_discourse_removal"],
+            {"children_with_non_discourse_knowledge": 0, "children_with_only_discourse_knowledge": 1},
+        )
+        self.assertEqual(report["label_cardinality"]["knowledge"]["parent"], {"2": 1})
+        self.assertEqual(report["label_cardinality"]["type"]["child"], {"1": 1})
+
     def test_audit_cli_writes_report_and_persistent_index(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir)

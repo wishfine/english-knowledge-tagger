@@ -6,6 +6,7 @@ from collections import Counter
 import json
 from math import ceil, sqrt
 from pathlib import Path
+import re
 import sqlite3
 from typing import Any, Iterable
 
@@ -29,6 +30,48 @@ def _labels(record: dict[str, Any], fields: tuple[str, ...]) -> frozenset[str]:
             return frozenset()
         return frozenset({str(value)})
     return frozenset()
+
+
+def _sft_output_labels(record: dict[str, Any]) -> tuple[frozenset[str], frozenset[str]] | None:
+    """Parse legacy ``题型@...;知识点@...`` SFT targets when present."""
+    output = record.get("output")
+    if not isinstance(output, str):
+        return None
+
+    knowledge: set[str] = set()
+    question_type: set[str] = set()
+    recognized = False
+    for fragment in re.split(r"[;；\n]+", output):
+        label = fragment.strip()
+        if label.startswith("知识点@"):
+            recognized = True
+            if label != "知识点@空":
+                knowledge.add(label)
+        elif label.startswith("题型@"):
+            recognized = True
+            if label != "题型@空":
+                question_type.add(label)
+    if not recognized:
+        return None
+    return frozenset(knowledge), frozenset(question_type)
+
+
+def _knowledge_labels(record: dict[str, Any]) -> frozenset[str]:
+    parsed = _sft_output_labels(record)
+    return parsed[0] if parsed is not None else _labels(record, KNOWLEDGE_FIELDS)
+
+
+def _type_labels(record: dict[str, Any]) -> frozenset[str]:
+    parsed = _sft_output_labels(record)
+    return parsed[1] if parsed is not None else _labels(record, TYPE_FIELDS)
+
+
+def _scope(record: dict[str, Any], question_id: str, parent_id: str) -> str:
+    if record.get("is_sub_question") is True:
+        return "child"
+    if record.get("is_sub_question") is False:
+        return "parent"
+    return "parent" if question_id == parent_id else "child"
 
 
 def _id(value: Any) -> str | None:
@@ -162,9 +205,9 @@ def audit_jsonl(
                 records["missing_ids"] += 1
                 continue
 
-            knowledge = _labels(record, KNOWLEDGE_FIELDS)
-            question_type = _labels(record, TYPE_FIELDS)
-            scope = "parent" if question_id == parent_id else "child"
+            knowledge = _knowledge_labels(record)
+            question_type = _type_labels(record)
+            scope = _scope(record, question_id, parent_id)
             knowledge_cardinality[scope][len(knowledge)] += 1
             type_cardinality[scope][len(question_type)] += 1
 
@@ -209,7 +252,7 @@ def audit_jsonl(
         for record in _iter_records(path):
             question_id = _id(record.get("question_id"))
             parent_id = _id(record.get("parent_id"))
-            if question_id is None or parent_id is None or question_id == parent_id:
+            if question_id is None or parent_id is None or _scope(record, question_id, parent_id) == "parent":
                 continue
             parent = _load_parent(cursor, parent_id)
             if parent is None:
@@ -219,8 +262,8 @@ def audit_jsonl(
                 continue
 
             parent_knowledge, parent_type = parent
-            child_knowledge = _labels(record, KNOWLEDGE_FIELDS)
-            child_type = _labels(record, TYPE_FIELDS)
+            child_knowledge = _knowledge_labels(record)
+            child_type = _type_labels(record)
             knowledge_relation[_relation(child_knowledge, parent_knowledge)] += 1
             type_relation[_relation(child_type, parent_type)] += 1
             if discourse_ids:
