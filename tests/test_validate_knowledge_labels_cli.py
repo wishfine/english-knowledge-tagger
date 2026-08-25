@@ -41,10 +41,10 @@ class _Handler(BaseHTTPRequestHandler):
         return
 
 
-def validation_item() -> dict[str, object]:
+def validation_item(question_id: str = "child-1") -> dict[str, object]:
     return {
-        "review_id": "kp-validation:child-1:a-an",
-        "question_id": "child-1",
+        "review_id": f"kp-validation:{question_id}:a-an",
+        "question_id": question_id,
         "parent_id": "parent-1",
         "is_sub_question": True,
         "question_context": "题干：It is ___ umbrella. 答案：an。解析：考查 a/an。",
@@ -136,6 +136,85 @@ class ValidateKnowledgeLabelsCliTests(unittest.TestCase):
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("refusing to overwrite", completed.stderr)
             self.assertEqual(output.read_text(encoding="utf-8"), "do not overwrite\n")
+
+    def test_cli_supports_parallel_requests_and_preserves_input_order_in_output(self):
+        _Handler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                packet.write_text(
+                    "\n".join(
+                        json.dumps(validation_item(question_id), ensure_ascii=False)
+                        for question_id in ("child-1", "child-2")
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                output = directory / "verdicts.jsonl"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_knowledge_labels.py"
+                endpoint = f"http://127.0.0.1:{server.server_port}/v1/chat/completions"
+
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(script),
+                        "--input",
+                        str(packet),
+                        "--output",
+                        str(output),
+                        "--endpoint",
+                        endpoint,
+                        "--limit",
+                        "2",
+                        "--concurrency",
+                        "2",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+
+                rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual([row["question_id"] for row in rows], ["child-1", "child-2"])
+                self.assertEqual([row["status"] for row in rows], ["candidate", "candidate"])
+                self.assertEqual(len(_Handler.requests), 2)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_cli_rejects_concurrency_above_128(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            packet = directory / "packet.jsonl"
+            packet.write_text(json.dumps(validation_item(), ensure_ascii=False) + "\n", encoding="utf-8")
+            output = directory / "verdicts.jsonl"
+            script = Path(__file__).resolve().parents[1] / "scripts" / "validate_knowledge_labels.py"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--input",
+                    str(packet),
+                    "--output",
+                    str(output),
+                    "--limit",
+                    "1",
+                    "--concurrency",
+                    "129",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("between 1 and 128", completed.stderr)
 
 
 if __name__ == "__main__":

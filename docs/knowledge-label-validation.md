@@ -57,10 +57,12 @@ python3 scripts/validate_knowledge_labels.py \
   --input "$KP_PACKET" \
   --output "$KP_VERDICTS" \
   --limit 50 \
-  --sleep-seconds 0.1
+  --concurrency 128
 ```
 
 第二个命令最多处理 50 条**标签验证项**，不是 50 道题。若一题有多个历史知识点标签，它会生成多个验证项。
+
+`--concurrency` 取值为 1–128，默认 1。高并发时输出仍按输入 JSONL 顺序写入，便于与审查包逐行比对。`--concurrency` 大于 1 时，`--sleep-seconds` 必须为 0；如需降低服务压力，应直接降低并发数。
 
 ## 结果处理
 

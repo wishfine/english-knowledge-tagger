@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -145,6 +146,28 @@ def _error_output(base: dict[str, Any], error: Exception) -> dict[str, Any]:
     }
 
 
+def _validate_row(
+    client: KnowledgeValidationClient,
+    row: dict[str, Any],
+    *,
+    line_number: int,
+    source_path: Path,
+    sleep_seconds: float,
+) -> tuple[dict[str, Any], str]:
+    """Validate one row in a worker and return an output row plus its outcome class."""
+    base = _base_output(row, source_path=source_path)
+    try:
+        if row.get("taxonomy_status") != "known":
+            return _skipped_output(base), "skipped"
+        result = client.validate(_request_from_row(row, line_number=line_number))
+        return _candidate_output(base, result), "candidate"
+    except (ValueError, LabelingServiceError) as error:
+        return _error_output(base, error), "error"
+    finally:
+        if sleep_seconds:
+            time.sleep(sleep_seconds)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
@@ -154,6 +177,7 @@ def main() -> None:
     )
     parser.add_argument("--model", default="ds-v4-flash")
     parser.add_argument("--limit", type=int, required=True)
+    parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--sleep-seconds", type=float, default=0.0)
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     parser.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
@@ -161,8 +185,12 @@ def main() -> None:
 
     if args.limit <= 0:
         parser.error("--limit must be positive")
+    if not 1 <= args.concurrency <= 128:
+        parser.error("--concurrency must be between 1 and 128")
     if args.sleep_seconds < 0:
         parser.error("--sleep-seconds must be non-negative")
+    if args.concurrency > 1 and args.sleep_seconds:
+        parser.error("--sleep-seconds must be 0 when --concurrency is greater than 1")
     if args.output.exists():
         parser.error(f"refusing to overwrite existing output: {args.output}")
 
@@ -174,40 +202,59 @@ def main() -> None:
             api_key=os.getenv(args.api_key_env) or None,
         )
     )
-    processed = 0
-    candidates = 0
-    skipped = 0
-    errors = 0
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.input.open("r", encoding="utf-8") as source, args.output.open(
-        "x", encoding="utf-8"
-    ) as output:
+    queued_rows: list[tuple[int, int, dict[str, Any], Exception | None]] = []
+    with args.input.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, 1):
-            if processed >= args.limit:
+            if len(queued_rows) >= args.limit:
                 break
             if not line.strip():
                 continue
             row: dict[str, Any] = {}
+            error: Exception | None = None
             try:
                 parsed = json.loads(line)
                 if not isinstance(parsed, dict):
                     raise ValueError(f"line {line_number}: JSONL row must be an object")
                 row = parsed
-                base = _base_output(row, source_path=args.input)
-                if row.get("taxonomy_status") != "known":
-                    result_row = _skipped_output(base)
-                    skipped += 1
-                else:
-                    result = client.validate(_request_from_row(row, line_number=line_number))
-                    result_row = _candidate_output(base, result)
-                    candidates += 1
-            except (ValueError, LabelingServiceError) as error:
-                result_row = _error_output(_base_output(row, source_path=args.input), error)
-                errors += 1
+            except (json.JSONDecodeError, ValueError) as caught:
+                error = caught
+            queued_rows.append((len(queued_rows), line_number, row, error))
+
+    processed = len(queued_rows)
+    candidates = 0
+    skipped = 0
+    errors = 0
+    results: dict[int, tuple[dict[str, Any], str]] = {}
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    futures = {}
+    with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+        for index, line_number, row, parse_error in queued_rows:
+            if parse_error is not None:
+                results[index] = (_error_output(_base_output(row, source_path=args.input), parse_error), "error")
+                continue
+            futures[
+                executor.submit(
+                    _validate_row,
+                    client,
+                    row,
+                    line_number=line_number,
+                    source_path=args.input,
+                    sleep_seconds=args.sleep_seconds,
+                )
+            ] = index
+        for future, index in futures.items():
+            results[index] = future.result()
+
+    with args.output.open("x", encoding="utf-8") as output:
+        for index in range(processed):
+            result_row, outcome = results[index]
             output.write(json.dumps(result_row, ensure_ascii=False, sort_keys=True) + "\n")
-            processed += 1
-            if args.sleep_seconds:
-                time.sleep(args.sleep_seconds)
+            if outcome == "candidate":
+                candidates += 1
+            elif outcome == "skipped":
+                skipped += 1
+            else:
+                errors += 1
 
     print(
         json.dumps(
@@ -219,6 +266,7 @@ def main() -> None:
                 "skipped": skipped,
                 "error": errors,
                 "model": args.model,
+                "concurrency": args.concurrency,
             },
             ensure_ascii=False,
             sort_keys=True,
