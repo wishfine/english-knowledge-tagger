@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from .sft_labels import parse_sft_output_labels
+from .type_inventory import MISSING, _TYPE_NAME_PATTERN, _TYPE_STRUCTURE_PATTERN, _declared_value
+from .type_rulebook import TypeRulebook
 
 SCHEMA_VERSION = "type-routing-policy-v1"
 POLICY_STATUSES = frozenset({"unmapped", "needs_review", "approved", "not_applicable"})
@@ -174,3 +178,176 @@ def bootstrap_type_routing_policy(inventory: Mapping[str, Any]) -> dict[str, Any
             }
         )
     return {"schema_version": SCHEMA_VERSION, "rules": rules}
+
+
+def _scope_from_record(record: Mapping[str, Any]) -> str:
+    if record.get("is_sub_question") is True:
+        return "child"
+    if record.get("is_sub_question") is False:
+        return "parent"
+    return "unknown"
+
+
+def _identifier(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _canonical_type_path(label: str) -> str:
+    return "题型->" + label.removeprefix("题型@").replace("@", "->")
+
+
+def _legacy_type_paths(record: Mapping[str, Any]) -> list[str]:
+    parsed = parse_sft_output_labels(record.get("output"))
+    if parsed is None:
+        return []
+    _, type_labels = parsed
+    return sorted(_canonical_type_path(label) for label in type_labels)
+
+
+def _is_in_prefix(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(f"{prefix}->")
+
+
+def route_sft_record(
+    record: Mapping[str, Any],
+    *,
+    source_line: int,
+    policy: TypeRoutingPolicy,
+    rulebook: TypeRulebook,
+) -> dict[str, Any]:
+    """Create an audit route for one rendered SFT record without changing labels."""
+    scope = _scope_from_record(record)
+    structure = _declared_value(_TYPE_STRUCTURE_PATTERN, record.get("input"))
+    name = _declared_value(_TYPE_NAME_PATTERN, record.get("input"))
+    rule = policy.match(scope, structure, name)
+    legacy_type_labels = _legacy_type_paths(record)
+    risk_codes: set[str] = set()
+
+    if structure == MISSING or name == MISSING:
+        risk_codes.add("missing_declared_type")
+    if rule is None:
+        risk_codes.add("unmapped_policy")
+        route = {
+            "policy_status": "unmapped",
+            "rule_id": None,
+            "canonical_family": None,
+            "type_selection_mode": "unresolved",
+            "candidate_type_prefixes": [],
+            "candidate_type_paths": [],
+            "knowledge_inheritance": "never",
+            "knowledge_policy": "unresolved",
+            "review_notes": "没有此 exact scope × 题型结构 × 题型名称 的策略行。",
+        }
+    else:
+        if rule.policy_status == "unmapped":
+            risk_codes.add("unmapped_policy")
+        elif rule.policy_status == "needs_review":
+            risk_codes.add("needs_policy_review")
+        candidate_paths = rulebook.candidates_for_prefixes(rule.candidate_type_prefixes)
+        route = {
+            "policy_status": rule.policy_status,
+            "rule_id": rule.rule_id,
+            "canonical_family": rule.canonical_family or None,
+            "type_selection_mode": rule.type_selection_mode,
+            "candidate_type_prefixes": list(rule.candidate_type_prefixes),
+            "candidate_type_paths": list(candidate_paths),
+            "knowledge_inheritance": rule.knowledge_inheritance,
+            "knowledge_policy": rule.knowledge_policy or "unresolved",
+            "review_notes": rule.review_notes,
+        }
+
+    for legacy_path in legacy_type_labels:
+        status = rulebook.status_for(legacy_path)
+        if status is None:
+            risk_codes.add("legacy_type_not_in_rulebook")
+        elif status == "deprecated":
+            risk_codes.add("legacy_type_deprecated")
+        if rule is not None and rule.candidate_type_prefixes and not any(
+            _is_in_prefix(legacy_path, prefix) for prefix in rule.candidate_type_prefixes
+        ):
+            risk_codes.add("legacy_type_outside_candidate_prefix")
+
+    return {
+        "schema_version": "type-route-v1",
+        "source_line": source_line,
+        "question_id": _identifier(record.get("question_id")),
+        "parent_id": _identifier(record.get("parent_id")),
+        "scope": scope,
+        "declared_type": {"structure": structure, "name": name},
+        "legacy_type_labels": legacy_type_labels,
+        "route": route,
+        "risk_codes": sorted(risk_codes),
+    }
+
+
+def _counter_as_dict(counter: Counter[str]) -> dict[str, int]:
+    return {key: counter[key] for key in sorted(counter)}
+
+
+def route_sft_jsonl(
+    input_path: Path,
+    *,
+    output_path: Path,
+    policy: TypeRoutingPolicy,
+    rulebook: TypeRulebook,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Stream an SFT JSONL source to a non-overwriting type-route JSONL artifact."""
+    if output_path.exists():
+        raise FileExistsError(f"type-route output already exists: {output_path}")
+    if limit is not None and limit <= 0:
+        raise ValueError("limit must be positive when provided")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    records = Counter[str]()
+    route_statuses = Counter[str]()
+    canonical_families = Counter[str]()
+    risk_codes = Counter[str]()
+    with input_path.open("r", encoding="utf-8") as source, output_path.open(
+        "x", encoding="utf-8"
+    ) as output:
+        for source_line, line in enumerate(source, 1):
+            if not line.strip():
+                continue
+            if limit is not None and records["valid"] >= limit:
+                break
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                records["invalid_json_lines"] += 1
+                continue
+            if not isinstance(record, dict):
+                records["non_object_records"] += 1
+                continue
+            route = route_sft_record(
+                record,
+                source_line=source_line,
+                policy=policy,
+                rulebook=rulebook,
+            )
+            output.write(json.dumps(route, ensure_ascii=False, sort_keys=True) + "\n")
+            records["valid"] += 1
+            route_statuses[route["route"]["policy_status"]] += 1
+            family = route["route"]["canonical_family"]
+            if isinstance(family, str) and family:
+                canonical_families[family] += 1
+            for code in route["risk_codes"]:
+                risk_codes[code] += 1
+
+    return {
+        "schema_version": "type-route-report-v1",
+        "input_path": str(input_path),
+        "input_bytes": input_path.stat().st_size,
+        "output_path": str(output_path),
+        "limit": limit,
+        "records": {
+            "valid": records["valid"],
+            "invalid_json_lines": records["invalid_json_lines"],
+            "non_object_records": records["non_object_records"],
+        },
+        "route_status_counts": _counter_as_dict(route_statuses),
+        "canonical_family_counts": _counter_as_dict(canonical_families),
+        "risk_code_counts": _counter_as_dict(risk_codes),
+    }
