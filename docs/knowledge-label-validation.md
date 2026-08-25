@@ -11,6 +11,8 @@
 
 模型只可返回 `keep`、`replace`、`drop` 或 `uncertain`。`replace` 的目标必须在包中提供的候选标签内；否则结果标为 `unparsed`，不会作为候选结论。大题知识点绝不参与小题候选池。
 
+历史源数据使用的路径可能仍带有旧根节点，例如 `知识点->语法词法` 和 `知识点->语法句法`。验证包先通过版本化 migration 配置映射到老师规则本的 `知识点->词法`、`知识点->句法`，同时保留原始历史路径和映射规则。映射失败是 taxonomy 问题，不等于内容错标。
+
 ## 语法选择小题的首轮校准
 
 当前仓库提供了两个已确认的候选池路由：
@@ -27,6 +29,7 @@ child × 完形填空 × 语法选择
 ```bash
 export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
 export KP_POLICY=configs/knowledge_candidate_policies/child-grammar-selection-v0.1.json
+export KP_MIGRATION=configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json
 export KP_PACKET="$ROUTE_DIR/child-kp-grammar-validation.packet.jsonl"
 export KP_PACKET_REPORT="$ROUTE_DIR/child-kp-grammar-validation.packet.report.json"
 export KP_VERDICTS="$ROUTE_DIR/child-kp-grammar-validation.ds-v4.jsonl"
@@ -36,6 +39,7 @@ python3 scripts/build_knowledge_validation_packet.py \
   --review-packet "$CHILD_KP_CAL" \
   --teacher-csv "$TEACHER_CSV" \
   --candidate-policy "$KP_POLICY" \
+  --taxonomy-migration "$KP_MIGRATION" \
   --output "$KP_PACKET" \
   --report "$KP_PACKET_REPORT"
 

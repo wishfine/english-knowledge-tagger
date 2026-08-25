@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from english_knowledge_tagger.knowledge_candidate_policy import load_knowledge_candidate_policy
 from english_knowledge_tagger.knowledge_rulebook import load_knowledge_rulebook
+from english_knowledge_tagger.knowledge_taxonomy_migration import load_knowledge_taxonomy_migration
 from english_knowledge_tagger.knowledge_validation_packet import build_knowledge_validation_packet
 
 
@@ -23,6 +24,7 @@ def main() -> None:
     parser.add_argument("--review-packet", type=Path, required=True)
     parser.add_argument("--teacher-csv", type=Path, required=True)
     parser.add_argument("--candidate-policy", type=Path, required=True)
+    parser.add_argument("--taxonomy-migration", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
@@ -35,6 +37,7 @@ def main() -> None:
             review_packet_path=args.review_packet,
             rulebook=load_knowledge_rulebook(args.teacher_csv),
             candidate_policy=load_knowledge_candidate_policy(args.candidate_policy),
+            taxonomy_migration=load_knowledge_taxonomy_migration(args.taxonomy_migration),
             output_path=args.output,
         )
     except (FileExistsError, OSError, ValueError) as error:

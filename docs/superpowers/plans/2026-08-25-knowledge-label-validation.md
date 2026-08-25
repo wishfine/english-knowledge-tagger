@@ -18,6 +18,7 @@
 - Candidate pools are selected from the small question's routed type, never from parent knowledge labels.
 - A route may supply at most 12 retrieved labels plus at most 8 sibling labels to DS-V4.
 - Missing or unmapped historical labels are emitted for review and never sent to DS-V4 as invented labels.
+- Historical root aliases must map to the teacher taxonomy before target definitions or sibling candidates are resolved.
 
 ---
 

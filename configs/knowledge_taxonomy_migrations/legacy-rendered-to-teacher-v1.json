@@ -1,0 +1,15 @@
+{
+  "schema_version": "knowledge-taxonomy-migration-v1",
+  "rules": [
+    {
+      "rule_id": "legacy-grammar-wording-to-morphology",
+      "source_prefix": "知识点->语法词法",
+      "target_prefix": "知识点->词法"
+    },
+    {
+      "rule_id": "legacy-grammar-syntax-to-syntax",
+      "source_prefix": "知识点->语法句法",
+      "target_prefix": "知识点->句法"
+    }
+  ]
+}

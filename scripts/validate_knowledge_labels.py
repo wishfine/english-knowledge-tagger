@@ -56,13 +56,21 @@ def _request_from_row(row: dict[str, Any], *, line_number: int) -> KnowledgeVali
     candidate_pool = row.get("candidate_pool")
     if not isinstance(candidate_pool, dict) or not isinstance(candidate_pool.get("max_output_labels"), int):
         raise ValueError(f"line {line_number}: candidate_pool.max_output_labels must be an integer")
+    target_is_type_allowed = row.get("target_is_type_allowed", True)
+    if not isinstance(target_is_type_allowed, bool):
+        raise ValueError(f"line {line_number}: target_is_type_allowed must be a boolean")
     return KnowledgeValidationRequest(
         review_id=_nonempty_string(row, "review_id", line_number=line_number),
         question_context=_nonempty_string(row, "question_context", line_number=line_number),
-        legacy_label=_nonempty_string(row, "legacy_label", line_number=line_number),
+        legacy_label=_nonempty_string(
+            row,
+            "canonical_label" if row.get("canonical_label") is not None else "legacy_label",
+            line_number=line_number,
+        ),
         target_definition=_nonempty_string(row, "target_definition", line_number=line_number),
         alternatives=_alternatives(row, line_number=line_number),
         max_output_labels=candidate_pool["max_output_labels"],
+        target_is_type_allowed=target_is_type_allowed,
     )
 
 
@@ -77,8 +85,11 @@ def _base_output(row: dict[str, Any], *, source_path: Path) -> dict[str, Any]:
         "source_path": str(source_path),
         "input_sha256": hashlib.sha256(context.encode("utf-8")).hexdigest(),
         "legacy_label": row.get("legacy_label"),
+        "canonical_label": row.get("canonical_label", row.get("legacy_label")),
+        "taxonomy_mapping": row.get("taxonomy_mapping"),
         "taxonomy_status": row.get("taxonomy_status"),
         "candidate_pool": row.get("candidate_pool"),
+        "target_is_type_allowed": row.get("target_is_type_allowed", True),
     }
 
 

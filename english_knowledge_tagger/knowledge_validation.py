@@ -32,6 +32,7 @@ class KnowledgeValidationRequest:
     target_definition: str
     alternatives: tuple[ValidationAlternative, ...]
     max_output_labels: int
+    target_is_type_allowed: bool = True
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,11 @@ def build_knowledge_validation_prompt(request: KnowledgeValidationRequest) -> st
     alternatives = "\n".join(
         f"- {item.label}\n  压缩释义：{item.definition}" for item in request.alternatives
     ) or "- （没有可用近邻候选；如无法判断请输出 uncertain）"
+    target_constraint = (
+        "当前历史标签不在该小题题型允许的知识点范围内，不能输出 keep；只能选择给出的替换候选，或输出 drop/uncertain。\n"
+        if not request.target_is_type_allowed
+        else ""
+    )
     return (
         "你在复核一道英语小题的一个历史知识点标签。历史标签不是事实，必须以题干、选项、答案和解析为准。\n"
         "本轮只验证当前这一个历史标签：不要因为题中出现其他考点而额外添加标签。\n"
@@ -82,6 +88,7 @@ def build_knowledge_validation_prompt(request: KnowledgeValidationRequest) -> st
         "- replace：当前标签不合适，但一个列出的候选标签更合适，best_label 必须为该候选。\n"
         "- drop：当前标签不是解题必需考点，且候选中没有应替换标签，best_label 必须为 null。\n"
         "- uncertain：题目信息不足、候选池未覆盖或无法可靠判断，best_label 必须为 null。\n"
+        f"{target_constraint}"
         "只输出一个 JSON 对象，不要 Markdown、解释前缀或额外字段。格式：\n"
         f"{_json_example()}\n\n"
         f"待验证历史标签：{request.legacy_label}\n"
@@ -113,7 +120,11 @@ def _strip_code_fence(text: str) -> str:
 
 
 def parse_validation_response(
-    text: str, *, legacy_label: str, allowed_labels: frozenset[str]
+    text: str,
+    *,
+    legacy_label: str,
+    allowed_labels: frozenset[str],
+    target_is_type_allowed: bool = True,
 ) -> ParsedValidation:
     """Strictly parse a model verdict and reject labels outside the supplied pool."""
     try:
@@ -134,6 +145,8 @@ def parse_validation_response(
         return _unparsed("best_label is outside the supplied candidate pool")
     if not isinstance(evidence, str) or not isinstance(reason, str):
         return _unparsed("evidence and reason must be strings")
+    if verdict == "keep" and not target_is_type_allowed:
+        return _unparsed("keep verdict is outside the small-question candidate pool")
     if verdict == "keep" and best_label != legacy_label:
         return _unparsed("keep verdict requires best_label to equal the historical label")
     if verdict == "replace" and (best_label is None or best_label == legacy_label):
@@ -187,12 +200,16 @@ class KnowledgeValidationClient:
         if not isinstance(content, str):
             raise LabelingServiceError("validation completion content must be a string")
         allowed_labels = frozenset(
-            {request.legacy_label, *(alternative.label for alternative in request.alternatives)}
+            {
+                *( (request.legacy_label,) if request.target_is_type_allowed else () ),
+                *(alternative.label for alternative in request.alternatives),
+            }
         )
         parsed = parse_validation_response(
             content,
             legacy_label=request.legacy_label,
             allowed_labels=allowed_labels,
+            target_is_type_allowed=request.target_is_type_allowed,
         )
         return KnowledgeValidationResult(
             review_id=request.review_id,

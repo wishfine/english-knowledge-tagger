@@ -82,6 +82,19 @@ class KnowledgeValidationTests(unittest.TestCase):
         self.assertIsNone(parsed.verdict)
         self.assertIn("best_label", parsed.error or "")
 
+    def test_parser_rejects_keep_when_historical_label_is_outside_small_question_pool(self):
+        self.assertTrue(callable(parse_validation_response), "parse_validation_response must be implemented")
+        parsed = parse_validation_response(
+            '{"verdict":"keep","best_label":"知识点->词汇->词汇辨析->副词（短语）辨析",'
+            '"evidence":"x","reason":"x"}',
+            legacy_label="知识点->词汇->词汇辨析->副词（短语）辨析",
+            allowed_labels=frozenset({"知识点->词法->形容词与副词->副词的用法->副词修饰动词"}),
+            target_is_type_allowed=False,
+        )
+
+        self.assertEqual(parsed.status, "unparsed")
+        self.assertIn("outside", parsed.error or "")
+
 
 if __name__ == "__main__":
     unittest.main()

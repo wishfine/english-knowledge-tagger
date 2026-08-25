@@ -9,10 +9,14 @@ try:
         load_knowledge_candidate_policy,
     )
     from english_knowledge_tagger.knowledge_rulebook import load_knowledge_rulebook
+    from english_knowledge_tagger.knowledge_taxonomy_migration import (
+        load_knowledge_taxonomy_migration,
+    )
     from english_knowledge_tagger.knowledge_validation_packet import build_knowledge_validation_packet
 except ModuleNotFoundError:
     load_knowledge_candidate_policy = None
     load_knowledge_rulebook = None
+    load_knowledge_taxonomy_migration = None
     build_knowledge_validation_packet = None
 
 
@@ -44,6 +48,16 @@ def write_teacher_csv(path: Path) -> Path:
                     "打标解读（标绿的标签，新题不再打）": "原始释义：判断一般现在时。",
                     "大模型压缩+人工微调的释义": "句中 every day 表示一般现在时。",
                 },
+                {
+                    "末级知识点": "知识点->词汇->固定搭配/句型",
+                    "打标解读（标绿的标签，新题不再打）": "原始释义：判断固定搭配。",
+                    "大模型压缩+人工微调的释义": "判断固定搭配。",
+                },
+                {
+                    "末级知识点": "知识点->词汇->近/反义词->同/近义词",
+                    "打标解读（标绿的标签，新题不再打）": "原始释义：判断同义词。",
+                    "大模型压缩+人工微调的释义": "判断同义词。",
+                },
             ]
         )
     return path
@@ -61,6 +75,26 @@ def write_candidate_policy(path: Path, rules: list[dict[str, object]]) -> Path:
     path.write_text(
         json.dumps(
             {"schema_version": "knowledge-candidate-policy-v1", "rules": rules},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def write_migration(path: Path) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "knowledge-taxonomy-migration-v1",
+                "rules": [
+                    {
+                        "rule_id": "legacy-grammar-wording-to-morphology",
+                        "source_prefix": "知识点->语法词法",
+                        "target_prefix": "知识点->词法",
+                    }
+                ],
+            },
             ensure_ascii=False,
         ),
         encoding="utf-8",
@@ -196,6 +230,77 @@ class KnowledgeValidationPacketTests(unittest.TestCase):
         self.assertEqual(row["taxonomy_status"], "unmapped_legacy_label")
         self.assertEqual(row["target_definition"], "")
         self.assertEqual(row["alternative_labels"], [])
+
+    def test_packet_maps_legacy_taxonomy_before_validation_and_filters_outside_siblings(self):
+        self.assertTrue(
+            callable(load_knowledge_taxonomy_migration),
+            "load_knowledge_taxonomy_migration must be implemented",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-1",
+                        "is_sub_question": True,
+                        "input": "题干：It is ___ umbrella. 答案：an。解析：考查 a/an。",
+                        "output": "知识点@语法词法@冠词@a/an的区别",
+                    },
+                    {
+                        "question_id": "child-2",
+                        "is_sub_question": True,
+                        "input": "题干：He goes to school every day. 答案：goes。解析：一般现在时。",
+                        "output": "知识点@词汇@固定搭配/句型",
+                    },
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": line_number,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "语法选择",
+                        },
+                    }
+                    for line_number in (1, 2)
+                ],
+            )
+            rulebook = load_knowledge_rulebook(write_teacher_csv(directory / "teacher.csv"))
+            packet = directory / "packet.jsonl"
+            build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=rulebook,
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(directory / "candidate-policy.json", [GRAMMAR_RULE])
+                ),
+                taxonomy_migration=load_knowledge_taxonomy_migration(
+                    write_migration(directory / "migration.json")
+                ),
+                output_path=packet,
+            )
+            rows = [json.loads(line) for line in packet.read_text(encoding="utf-8").splitlines()]
+
+        mapped = next(row for row in rows if row["question_id"] == "child-1")
+        outside = next(row for row in rows if row["question_id"] == "child-2")
+        self.assertEqual(mapped["legacy_label"], "知识点->语法词法->冠词->a/an的区别")
+        self.assertEqual(mapped["canonical_label"], "知识点->词法->冠词->a/an的区别")
+        self.assertEqual(mapped["taxonomy_mapping"], {
+            "status": "prefix_alias",
+            "rule_id": "legacy-grammar-wording-to-morphology",
+        })
+        self.assertTrue(mapped["target_is_type_allowed"])
+        self.assertFalse(outside["target_is_type_allowed"])
+        self.assertTrue(
+            all(
+                alternative["label"].startswith(("知识点->词法", "知识点->句法"))
+                for alternative in outside["alternative_labels"]
+            )
+        )
 
 
 if __name__ == "__main__":

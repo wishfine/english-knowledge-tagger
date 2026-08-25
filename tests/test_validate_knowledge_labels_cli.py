@@ -47,8 +47,14 @@ def validation_item() -> dict[str, object]:
         "parent_id": "parent-1",
         "is_sub_question": True,
         "question_context": "题干：It is ___ umbrella. 答案：an。解析：考查 a/an。",
-        "legacy_label": "知识点->词法->冠词->a/an的区别",
+        "legacy_label": "知识点->语法词法->冠词->a/an的区别",
+        "canonical_label": "知识点->词法->冠词->a/an的区别",
+        "taxonomy_mapping": {
+            "status": "prefix_alias",
+            "rule_id": "legacy-grammar-wording-to-morphology",
+        },
         "taxonomy_status": "known",
+        "target_is_type_allowed": True,
         "target_definition": "按读音选择 a/an。",
         "alternative_labels": [
             {"label": "知识点->词法->冠词->the的用法", "definition": "判断是否使用 the。"}

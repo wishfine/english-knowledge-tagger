@@ -81,6 +81,14 @@ class BuildKnowledgeValidationPacketCliTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            migration = directory / "migration.json"
+            migration.write_text(
+                json.dumps(
+                    {"schema_version": "knowledge-taxonomy-migration-v1", "rules": []},
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
             output = directory / "packet.jsonl"
             report = directory / "report.json"
             script = Path(__file__).resolve().parents[1] / "scripts" / "build_knowledge_validation_packet.py"
@@ -97,6 +105,8 @@ class BuildKnowledgeValidationPacketCliTests(unittest.TestCase):
                     str(teacher),
                     "--candidate-policy",
                     str(policy),
+                    "--taxonomy-migration",
+                    str(migration),
                     "--output",
                     str(output),
                     "--report",

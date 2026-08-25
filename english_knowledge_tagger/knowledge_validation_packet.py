@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 from .knowledge_candidate_policy import KnowledgeCandidatePolicy
 from .knowledge_rulebook import KnowledgeRulebook
+from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
 from .sft_labels import parse_sft_output_labels
 
 
@@ -66,11 +67,13 @@ def _validation_row(
     *,
     source_line: int,
     legacy_label: str,
+    canonical_label: str,
+    taxonomy_mapping_status: str,
+    taxonomy_mapping_rule_id: str | None,
     rulebook: KnowledgeRulebook,
     candidate_policy: KnowledgeCandidatePolicy,
     route_key: tuple[str, str, str] | None,
 ) -> dict[str, Any]:
-    knowledge_record = rulebook.records.get(legacy_label)
     base: dict[str, Any] = {
         "schema_version": "knowledge-validation-packet-v1",
         "review_id": f"kp-validation:{_identifier(record.get('question_id')) or source_line}:{legacy_label}",
@@ -80,7 +83,13 @@ def _validation_row(
         "is_sub_question": record.get("is_sub_question"),
         "question_context": record.get("input") if isinstance(record.get("input"), str) else "",
         "legacy_label": legacy_label,
+        "canonical_label": canonical_label,
+        "taxonomy_mapping": {
+            "status": taxonomy_mapping_status,
+            "rule_id": taxonomy_mapping_rule_id,
+        },
     }
+    knowledge_record = rulebook.records.get(canonical_label)
     if knowledge_record is None:
         return {
             **base,
@@ -88,10 +97,27 @@ def _validation_row(
             "target_definition": "",
             "alternative_labels": [],
             "candidate_pool": {"status": "not_applicable", "allowed_prefixes": []},
+            "target_is_type_allowed": False,
         }
     candidate_rule = candidate_policy.match(*route_key) if route_key is not None else None
     sibling_limit = candidate_rule.max_sibling_candidates if candidate_rule is not None else 8
-    siblings = rulebook.nearby_active_records(legacy_label, limit=sibling_limit)
+    all_siblings = rulebook.nearby_active_records(canonical_label, limit=sibling_limit)
+    target_is_type_allowed = True
+    if candidate_rule is not None:
+        target_is_type_allowed = any(
+            canonical_label == prefix or canonical_label.startswith(f"{prefix}->")
+            for prefix in candidate_rule.allowed_knowledge_prefixes
+        )
+        siblings = tuple(
+            candidate
+            for candidate in all_siblings
+            if any(
+                candidate.path == prefix or candidate.path.startswith(f"{prefix}->")
+                for prefix in candidate_rule.allowed_knowledge_prefixes
+            )
+        )
+    else:
+        siblings = all_siblings
     sibling_paths = frozenset(record.path for record in siblings)
     retrieved = ()
     candidate_pool: dict[str, Any] = {"status": "unconfigured", "allowed_prefixes": []}
@@ -99,7 +125,7 @@ def _validation_row(
         retrieved = rulebook.retrieve_active_records(
             prefixes=candidate_rule.allowed_knowledge_prefixes,
             query=base["question_context"],
-            exclude_paths=frozenset({legacy_label}) | sibling_paths,
+            exclude_paths=frozenset({canonical_label}) | sibling_paths,
             limit=candidate_rule.max_retrieved_candidates,
         )
         candidate_pool = {
@@ -132,6 +158,7 @@ def _validation_row(
             for candidate in retrieved
         ],
         "candidate_pool": candidate_pool,
+        "target_is_type_allowed": target_is_type_allowed,
     }
 
 
@@ -141,6 +168,7 @@ def build_knowledge_validation_packet(
     review_packet_path: Path,
     rulebook: KnowledgeRulebook,
     candidate_policy: KnowledgeCandidatePolicy,
+    taxonomy_migration: KnowledgeTaxonomyMigration | None = None,
     output_path: Path,
 ) -> dict[str, Any]:
     """Join selected source rows to their legacy knowledge labels and definitions."""
@@ -151,6 +179,7 @@ def build_knowledge_validation_packet(
     found_lines: set[int] = set()
     report_counts = Counter[str]()
     rows: list[dict[str, Any]] = []
+    migration = taxonomy_migration or KnowledgeTaxonomyMigration(aliases=())
     with source_path.open("r", encoding="utf-8") as source:
         for source_line, line in enumerate(source, 1):
             if source_line not in selected_lines:
@@ -172,16 +201,21 @@ def build_knowledge_validation_packet(
                 report_counts["selected_records_without_legacy_knowledge"] += 1
                 continue
             for legacy_label in labels:
+                canonicalized = migration.canonicalize(legacy_label)
                 row = _validation_row(
                     record,
                     source_line=source_line,
                     legacy_label=legacy_label,
+                    canonical_label=canonicalized.canonical_path,
+                    taxonomy_mapping_status=canonicalized.status,
+                    taxonomy_mapping_rule_id=canonicalized.rule_id,
                     rulebook=rulebook,
                     candidate_policy=candidate_policy,
                     route_key=selected_routes[source_line],
                 )
                 rows.append(row)
                 report_counts[row["taxonomy_status"]] += 1
+                report_counts[f"taxonomy_mapping:{canonicalized.status}"] += 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("x", encoding="utf-8") as output:
@@ -203,4 +237,8 @@ def build_knowledge_validation_packet(
             "selected_records_without_legacy_knowledge"
         ],
         "records": len(rows),
+        "taxonomy_mapping_counts": {
+            "identity": report_counts["taxonomy_mapping:identity"],
+            "prefix_alias": report_counts["taxonomy_mapping:prefix_alias"],
+        },
     }
