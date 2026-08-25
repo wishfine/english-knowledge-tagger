@@ -70,22 +70,32 @@ def _agreement(
             "tasks": 0,
             "all_three_decision_agreement": None,
             "all_three_candidate_agreement": None,
+            "decision_disagreement_task_ids": [],
+            "candidate_disagreement_task_ids": [],
         }
     same_decisions = 0
     same_candidates = 0
+    decision_disagreements: list[str] = []
+    candidate_disagreements: list[str] = []
     for task_id in task_ids:
         decisions = tuple(_decision(run[task_id]) for run in indexed_runs)
         if len(set(decisions)) == 1:
             same_decisions += 1
+        else:
+            decision_disagreements.append(task_id)
         if all(status == "tree_candidate" and label is not None for status, label in decisions) and len(
             {label for _, label in decisions}
         ) == 1:
             same_candidates += 1
+        else:
+            candidate_disagreements.append(task_id)
     count = len(task_ids)
     return {
         "tasks": count,
         "all_three_decision_agreement": same_decisions / count,
         "all_three_candidate_agreement": same_candidates / count,
+        "decision_disagreement_task_ids": decision_disagreements,
+        "candidate_disagreement_task_ids": candidate_disagreements,
     }
 
 
@@ -134,7 +144,11 @@ def summarize_run_groups(groups: Mapping[str, tuple[Run, ...]]) -> dict[str, obj
         summaries[name] = summary
         indexed_groups[name] = indexed_runs
 
-    comparison: dict[str, object] = {"common_tasks_all_six": None, "unanimous_candidate_disagreements": None}
+    comparison: dict[str, object] = {
+        "common_tasks_all_six": None,
+        "unanimous_candidate_disagreements": None,
+        "unanimous_candidate_disagreement_task_ids": [],
+    }
     if {"compressed", "none"}.issubset(indexed_groups):
         compressed_indexes = indexed_groups["compressed"]
         none_indexes = indexed_groups["none"]
@@ -142,6 +156,7 @@ def summarize_run_groups(groups: Mapping[str, tuple[Run, ...]]) -> dict[str, obj
             set.intersection(*(set(indexed) for indexed in (*compressed_indexes, *none_indexes)))
         )
         disagreements = 0
+        disagreement_task_ids: list[str] = []
         for task_id in common:
             # A cross-mode comparison is valid only for individually unanimous candidates.
             compressed_labels = {_decision(indexed[task_id]) for indexed in compressed_indexes}
@@ -154,9 +169,11 @@ def summarize_run_groups(groups: Mapping[str, tuple[Run, ...]]) -> dict[str, obj
                 and next(iter(compressed_labels))[1] != next(iter(none_labels))[1]
             ):
                 disagreements += 1
+                disagreement_task_ids.append(task_id)
         comparison = {
             "common_tasks_all_six": len(common),
             "unanimous_candidate_disagreements": disagreements,
+            "unanimous_candidate_disagreement_task_ids": disagreement_task_ids,
         }
     return {
         "schema_version": "knowledge-tree-run-analysis-v1",

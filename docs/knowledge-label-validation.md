@@ -154,7 +154,7 @@ python3 scripts/analyze_knowledge_tree_runs.py \
   --output "$ABLATION_DIR/summary.json"
 ```
 
-`summary.json` 的 `groups.*.replace.all_three_candidate_agreement` 是 replace 任务三次得到同一末级候选的比例；`all_three_decision_agreement` 同时要求状态也相同。`comparison.unanimous_candidate_disagreements` 只计算两种模式内部均完全一致、但候选不同的题，适合人工优先抽看。
+`summary.json` 的 `groups.*.replace.all_three_candidate_agreement` 是 replace 任务三次得到同一末级候选的比例；`all_three_decision_agreement` 同时要求状态也相同。每个切片的 `candidate_disagreement_task_ids` 和 `decision_disagreement_task_ids` 给出应优先人工抽看的题号。`comparison.unanimous_candidate_disagreements` 只计算两种模式内部均完全一致、但候选不同的题；其对应题号在 `comparison.unanimous_candidate_disagreement_task_ids`。
 
 不要只按一致率自动决定是否保留释义：先人工复核两个模式都稳定但互相不同的题，以及任一模式不稳定的 replace 题。若压缩释义在 replace 切片上稳定性不下降、`uncovered/budget_exhausted` 未上升、且人工正确率更高，才保留；若效果无差异，优先 `none` 以缩短 prompt。
 

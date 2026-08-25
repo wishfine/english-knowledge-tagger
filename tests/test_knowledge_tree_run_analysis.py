@@ -66,6 +66,10 @@ class KnowledgeTreeRunAnalysisTests(unittest.TestCase):
             report["groups"]["compressed"]["replace"]["all_three_candidate_agreement"], 1.0
         )
         self.assertEqual(report["groups"]["none"]["replace"]["all_three_candidate_agreement"], 0.0)
+        self.assertEqual(
+            report["groups"]["none"]["replace"]["candidate_disagreement_task_ids"],
+            ["replace-1"],
+        )
         self.assertEqual(report["groups"]["none"]["all_tasks"]["all_three_candidate_agreement"], 0.5)
         self.assertEqual(report["comparison"]["common_tasks_all_six"], 2)
         self.assertEqual(report["comparison"]["unanimous_candidate_disagreements"], 0)
