@@ -56,6 +56,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 候选打标接口、输入输出 schema、多人协作约定和小批运行命令见 [DS-V4-Flash 候选打标说明](docs/ds-v4-flash-labeling.md)。
 题型逐项映射到老师矩阵的流程见 [题型打标策略映射](docs/type-policy-mapping.md)。
 小题知识点历史标签验证与 DS-V4 小批运行流程见 [知识点标签验证](docs/knowledge-label-validation.md)。
+题型与知识点从审计到 HQ 的当前端到端闭环见 [当前数据处理 Loop](docs/current-data-loop.md)。
 
 ## 训练路线
 
