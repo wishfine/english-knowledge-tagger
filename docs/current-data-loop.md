@@ -244,7 +244,7 @@ none（只发末级路径）× 3
 | 增强源 | 已确定为正式上游源，已从 45 同步到 35 并核验 SHA-256 | mentor 新版到来时作为新 source version 审计，不覆盖本版 |
 | 题型 inventory | 已对旧版源形成 112 个 `scope × 结构 × 名称` 观察行 | 以最终增强源重跑并逐 route 填写 policy |
 | 首个小题 route | `child × 复合题 × 语法选择` 已抽取 500 题同质包 | 固化审查结论，继续介词/主谓一致/比较级切片 |
-| flat 验证 | 983 个标签验证项：917 可解析，其中 keep 659、replace 152、drop 105、uncertain 1；63 unparsed、3 legacy taxonomy 未映射 | 先跑 v0.1/v0.2 同包候选覆盖对照；只以完整 alternatives 集合真正扩张的项评估覆盖收益，再对 replace/drop 做分层盲审 |
+| flat 验证 | 983 个标签验证项：917 可解析，其中 keep 659、replace 152、drop 105、uncertain 1；63 unparsed、3 legacy taxonomy 未映射。20 条有效 sibling 增量的 v0.1/v0.2×3 结果完全一致，v0.2 未选中新增叶子且平均耗时 +8.97% | flat 默认保留 v0.1；先聚类 63 个 unparsed，并建立“已知错标且正确叶子被 v0.1 截断”的人工对抗校准集，再重评 v0.2 |
 | tree 候选 | 126 个任务，其中 125 个由 replace 触发、1 个候选池不足 | 先完成 A/B 解盲与多标签评测，不直接 patch |
 | 释义消融 | 3×2 已完成，不能依据稳定性单独选模式 | 解盲后按知识点节点比较；保留两种模式 |
 | 性能埋点 | 已加入树路由 trace、任务和批次报告 | 新 batch 启用 `--report`，再做并发与节点热点对照 |
