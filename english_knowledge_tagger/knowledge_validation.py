@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import time
 from typing import Any, Mapping
 
 from .candidate_labeling import (
@@ -60,6 +61,9 @@ class KnowledgeValidationResult:
     evidence: str | None
     reason: str | None
     error: str | None
+    model_call_elapsed_ms: float
+    prompt_chars: int
+    response_chars: int
 
 
 def _json_example() -> str:
@@ -196,12 +200,14 @@ class KnowledgeValidationClient:
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
             headers["Authorization"] = f"Bearer {self._config.api_key}"
+        prompt = build_knowledge_validation_prompt(request)
         payload = {
             "model": self._config.model,
-            "messages": [{"role": "user", "content": build_knowledge_validation_prompt(request)}],
+            "messages": [{"role": "user", "content": prompt}],
             "max_tokens": self._config.max_tokens,
             "temperature": 0.0,
         }
+        call_started_ns = time.perf_counter_ns()
         response = self._transport(
             self._config.endpoint, payload, self._config.timeout_seconds, headers
         )
@@ -223,6 +229,7 @@ class KnowledgeValidationClient:
             allowed_labels=allowed_labels,
             target_is_type_allowed=request.target_is_type_allowed,
         )
+        model_call_elapsed_ms = (time.perf_counter_ns() - call_started_ns) / 1_000_000
         return KnowledgeValidationResult(
             review_id=request.review_id,
             model=response.get("model") if isinstance(response.get("model"), str) else self._config.model,
@@ -236,4 +243,7 @@ class KnowledgeValidationClient:
             evidence=parsed.evidence,
             reason=parsed.reason,
             error=parsed.error,
+            model_call_elapsed_ms=model_call_elapsed_ms,
+            prompt_chars=len(prompt),
+            response_chars=len(content),
         )

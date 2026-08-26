@@ -157,6 +157,58 @@ class ValidateKnowledgeLabelsCliTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_cli_writes_non_overwriting_timing_report_without_question_content(self):
+        _Handler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                packet.write_text(json.dumps(validation_item(), ensure_ascii=False) + "\n", encoding="utf-8")
+                output = directory / "verdicts.jsonl"
+                report = directory / "timing.report.json"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_knowledge_labels.py"
+                endpoint = f"http://127.0.0.1:{server.server_port}/v1/chat/completions"
+
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(script),
+                        "--input",
+                        str(packet),
+                        "--output",
+                        str(output),
+                        "--report",
+                        str(report),
+                        "--endpoint",
+                        endpoint,
+                        "--limit",
+                        "1",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                row = json.loads(output.read_text(encoding="utf-8"))
+                timing = json.loads(report.read_text(encoding="utf-8"))
+                self.assertGreaterEqual(row["task_elapsed_ms"], 0.0)
+                self.assertGreaterEqual(row["queue_elapsed_ms"], 0.0)
+                self.assertGreaterEqual(row["model_call_elapsed_ms"], 0.0)
+                self.assertGreater(row["prompt_chars"], 0)
+                self.assertGreater(row["response_chars"], 0)
+                self.assertEqual(timing["processed"], 1)
+                self.assertEqual(timing["target_parents"][0]["target_parent_path"], "知识点->词法->冠词")
+                self.assertNotIn("question_id", timing["slow_rows"][0])
+                self.assertNotIn("question_context", timing["slow_rows"][0])
+                self.assertNotIn("raw_response", timing["slow_rows"][0])
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_cli_refuses_existing_output(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory = Path(temp_dir)
@@ -185,6 +237,39 @@ class ValidateKnowledgeLabelsCliTests(unittest.TestCase):
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("refusing to overwrite", completed.stderr)
             self.assertEqual(output.read_text(encoding="utf-8"), "do not overwrite\n")
+
+    def test_cli_refuses_existing_timing_report(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            packet = directory / "packet.jsonl"
+            packet.write_text(json.dumps(validation_item(), ensure_ascii=False) + "\n", encoding="utf-8")
+            output = directory / "verdicts.jsonl"
+            report = directory / "timing.report.json"
+            report.write_text("do not overwrite\n", encoding="utf-8")
+            script = Path(__file__).resolve().parents[1] / "scripts" / "validate_knowledge_labels.py"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "--input",
+                    str(packet),
+                    "--output",
+                    str(output),
+                    "--report",
+                    str(report),
+                    "--limit",
+                    "1",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("refusing to overwrite existing report", completed.stderr)
+            self.assertFalse(output.exists())
+            self.assertEqual(report.read_text(encoding="utf-8"), "do not overwrite\n")
 
     def test_cli_supports_parallel_requests_and_preserves_input_order_in_output(self):
         _Handler.requests = []

@@ -64,7 +64,10 @@ class KnowledgeValidationTests(unittest.TestCase):
         self.assertEqual(result.verdict, "replace")
         self.assertEqual(result.best_label, ALTERNATIVE)
         self.assertEqual(result.status, "candidate")
+        self.assertGreaterEqual(result.model_call_elapsed_ms, 0.0)
         prompt = captured["payload"]["messages"][0]["content"]
+        self.assertEqual(result.prompt_chars, len(prompt))
+        self.assertGreater(result.response_chars, 0)
         self.assertIn("待验证历史标签", prompt)
         self.assertIn("原始释义", prompt)
         self.assertIn(ALTERNATIVE, prompt)

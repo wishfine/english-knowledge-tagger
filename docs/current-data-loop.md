@@ -237,6 +237,36 @@ none（只发末级路径）× 3
 
 已有运行没有这些字段，不能事后可靠补算。性能报告不保存题干、答案、解析、原始回复或 evidence。
 
+## 5.1 实验金标与候选预算 Loop
+
+老师验证工作簿中的“`小题知识点`”sheet 是现有最高价值的金标种子：每行以 `父题ID` 和 `(1)/(2)/…` 小问编号给出人工标签集合。导入器将其保留为只读 JSONL，并迁移到老师规则本的 canonical taxonomy；不会把 Excel 直接当作最终 source child。
+
+当前已在真实样例验证的 source 映射规则是：
+
+```text
+child_question_id = int(parent_question_id) + subquestion_index
+```
+
+最终源文件的物理行顺序并不代表小问顺序，渲染文本中的“小题序号：0”也不可靠。因此 resolver 必须全量扫描 source，验证计算出的 child ID、`parent_id` 和 `is_sub_question=true` 同时匹配，才标记为 `approved`。之后用：
+
+```text
+老师 gold − 历史标签 = missing_gold_labels
+历史标签 − 老师 gold = spurious_historical_labels
+```
+
+每个 `spurious_historical_label → missing_gold_labels` 才是候选预算的有效错标校准记录。它避免把一个多标签题的所有 gold 都错误归因给某一个历史标签。
+
+在 approved 错标校准记录上，离线比较候选策略时不调用 DS：
+
+```text
+fixed sibling=8, retrieval k=4/8/12
+fixed retrieval=12, sibling=4/8/all（仅宽分支）
+```
+
+报告按历史标签父节点、gold 标签父节点及二者混淆对分层，记录 gold 处于 `historical_target / sibling / type_retrieval / absent` 的比例、候选总数和定义字符数。选择每个混淆簇“最小但不显著降低 gold coverage”的预算；不寻找一个全局 k。
+
+只有离线 coverage 明确不同的混淆簇，才进入同输入、同并发、三次重复的 DS 纠错/稳定性实验。flat DS 运行的 `--report` 同时记录 p50/p95/p99、排队、模型调用、prompt 长度和按历史标签父节点的热点；性能报告不保留题号或题面。
+
 ## 6. 当前进度快照（2026-08-26）
 
 | 项目 | 当前状态 | 下一步 |
@@ -248,6 +278,7 @@ none（只发末级路径）× 3
 | tree 候选 | 126 个任务，其中 125 个由 replace 触发、1 个候选池不足 | 先完成 A/B 解盲与多标签评测，不直接 patch |
 | 释义消融 | 3×2 已完成，不能依据稳定性单独选模式 | 解盲后按知识点节点比较；保留两种模式 |
 | 性能埋点 | 已加入树路由 trace、任务和批次报告 | 新 batch 启用 `--report`，再做并发与节点热点对照 |
+| 老师小题金标 | 评测 workbook 可解析为 12,240 个小问集合、21,639 个标签；其中 21,338 个为 active taxonomy，301 个未映射 | 在 35 上完成 parent+index → child 全量验证，只用 approved 错标对做 k/sibling 离线 coverage |
 | HQ 与 SFT | 尚未启动 | 完成 `hq-v0.1`、冻结 dev/test 后再启动 Qwen3-VL-8B 全参 SFT |
 
 ## 7. 协作分工与交接规则
