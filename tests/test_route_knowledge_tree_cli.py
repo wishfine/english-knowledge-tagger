@@ -91,6 +91,7 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                         }
                     )
                 output = directory / "results.jsonl"
+                report = directory / "timing.report.json"
                 script = Path(__file__).resolve().parents[1] / "scripts" / "route_knowledge_tree.py"
 
                 completed = subprocess.run(
@@ -103,6 +104,8 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                         str(teacher),
                         "--output",
                         str(output),
+                        "--report",
+                        str(report),
                         "--endpoint",
                         f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
                         "--limit",
@@ -116,6 +119,7 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                 )
 
                 row = json.loads(output.read_text(encoding="utf-8"))
+                timing = json.loads(report.read_text(encoding="utf-8"))
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 self.assertEqual(row["status"], "tree_candidate")
                 self.assertEqual(row["candidate_label"], "知识点->词法->冠词->a/an的区别")
@@ -123,6 +127,12 @@ class RouteKnowledgeTreeCliTests(unittest.TestCase):
                 self.assertEqual(row["terminal_definition_mode"], "none")
                 self.assertEqual(len(_Handler.requests), 3)
                 self.assertNotIn("按发音选择 a/an。", _Handler.requests[-1]["messages"][0]["content"])
+                self.assertEqual(timing["processed"], 1)
+                self.assertGreaterEqual(timing["task_elapsed_ms"]["p50"], 0)
+                self.assertEqual(
+                    {node["parent_path"] for node in timing["nodes"]},
+                    {"知识点", "知识点->词法", "知识点->词法->冠词"},
+                )
         finally:
             server.shutdown()
             server.server_close()

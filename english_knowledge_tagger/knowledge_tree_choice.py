@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import time
 from typing import Mapping
 
 from .candidate_labeling import (
@@ -146,21 +147,18 @@ class KnowledgeTreeChoiceClient:
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
             headers["Authorization"] = f"Bearer {self._config.api_key}"
+        prompt = build_tree_choice_prompt(
+            request,
+            self._tree,
+            terminal_definition_mode=self._terminal_definition_mode,
+        )
         payload = {
             "model": self._config.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": build_tree_choice_prompt(
-                        request,
-                        self._tree,
-                        terminal_definition_mode=self._terminal_definition_mode,
-                    ),
-                }
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "max_tokens": self._config.max_tokens,
             "temperature": 0.0,
         }
+        call_started_ns = time.perf_counter_ns()
         response = self._transport(
             self._config.endpoint, payload, self._config.timeout_seconds, headers
         )
@@ -175,10 +173,14 @@ class KnowledgeTreeChoiceClient:
         parsed = parse_tree_choice_response(
             raw_response, allowed_choices=frozenset((*request.candidate_paths, NO_MATCH))
         )
+        model_call_elapsed_ms = (time.perf_counter_ns() - call_started_ns) / 1_000_000
         return TreeChoice(
             choice=parsed.choice or "",
             candidate_coverage=parsed.candidate_coverage or "unknown",
             evidence=parsed.evidence or "",
             raw_response=raw_response,
             parse_error=parsed.error,
+            model_call_elapsed_ms=model_call_elapsed_ms,
+            prompt_chars=len(prompt),
+            response_chars=len(raw_response),
         )

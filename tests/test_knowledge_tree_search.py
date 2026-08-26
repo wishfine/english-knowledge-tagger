@@ -67,6 +67,8 @@ class KnowledgeTreeSearchTests(unittest.TestCase):
         self.assertEqual(result.status, "tree_candidate")
         self.assertEqual(result.candidate_label, "知识点->词法->名词->可数名词")
         self.assertEqual(len(result.trace), 3)
+        self.assertEqual(result.trace[0]["candidate_count"], 1)
+        self.assertGreaterEqual(result.trace[0]["choice_elapsed_ms"], 0.0)
 
     def test_no_match_backtracks_and_excludes_the_failed_child(self):
         self.assertTrue(callable(search_one_candidate), "search_one_candidate must be implemented")

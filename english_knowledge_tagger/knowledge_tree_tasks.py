@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 import json
 from pathlib import Path
+import time
 from typing import Any, Mapping, Protocol
 
 from .knowledge_candidate_policy import KnowledgeCandidatePolicy
@@ -240,6 +241,7 @@ def route_knowledge_tree_task(
         _identifier(prefix, field="allowed_knowledge_prefixes", source="knowledge tree task")
         for prefix in raw_prefixes
     )
+    task_started_ns = time.perf_counter_ns()
     result = search_one_candidate(
         tree,
         question_context=question_context,
@@ -248,6 +250,7 @@ def route_knowledge_tree_task(
         max_steps=max_steps,
         max_backtracks=max_backtracks,
     )
+    task_elapsed_ms = (time.perf_counter_ns() - task_started_ns) / 1_000_000
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
         "task_id": task_id,
@@ -265,4 +268,5 @@ def route_knowledge_tree_task(
         "trace": list(result.trace),
         "max_steps": max_steps,
         "max_backtracks": max_backtracks,
+        "task_elapsed_ms": task_elapsed_ms,
     }

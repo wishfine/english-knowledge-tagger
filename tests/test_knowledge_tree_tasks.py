@@ -178,6 +178,7 @@ class KnowledgeTreeTasksTests(unittest.TestCase):
         self.assertEqual(result["candidate_label"], label)
         self.assertEqual(len(result["trace"]), 3)
         self.assertEqual(len(client.requests), 3)
+        self.assertGreaterEqual(result["task_elapsed_ms"], 0.0)
 
 
 if __name__ == "__main__":

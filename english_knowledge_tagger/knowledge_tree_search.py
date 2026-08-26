@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+import time
 from typing import Callable, Mapping
 
 from .knowledge_taxonomy_tree import NO_MATCH, KnowledgeTaxonomyTree
@@ -28,6 +29,9 @@ class TreeChoice:
     evidence: str
     raw_response: str = ""
     parse_error: str | None = None
+    model_call_elapsed_ms: float | None = None
+    prompt_chars: int | None = None
+    response_chars: int | None = None
 
 
 @dataclass(frozen=True)
@@ -114,19 +118,26 @@ def search_one_candidate(
             candidate_paths=candidate_paths,
             excluded_paths=tuple(sorted(excluded[current_parent])),
         )
+        choice_started_ns = time.perf_counter_ns()
         decision = choose(request)
+        choice_elapsed_ms = (time.perf_counter_ns() - choice_started_ns) / 1_000_000
         steps += 1
         trace.append(
             {
                 "step": steps,
                 "parent_path": current_parent,
                 "candidate_paths": candidate_paths,
+                "candidate_count": len(candidate_paths),
                 "excluded_paths": request.excluded_paths,
                 "choice": decision.choice,
                 "candidate_coverage": decision.candidate_coverage,
                 "evidence": decision.evidence,
                 "raw_response": decision.raw_response,
                 "parse_error": decision.parse_error,
+                "choice_elapsed_ms": choice_elapsed_ms,
+                "model_call_elapsed_ms": decision.model_call_elapsed_ms,
+                "prompt_chars": decision.prompt_chars,
+                "response_chars": decision.response_chars,
             }
         )
         if decision.parse_error is not None:

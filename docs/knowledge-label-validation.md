@@ -119,6 +119,46 @@ python3 scripts/route_knowledge_tree.py \
 
 树 CLI 的 `--concurrency` 是并行任务数；每项任务最多会产生 8 个 DS 请求。先以 16 或 32 启动，在服务稳定后再提高，不要沿用平铺验证的 128 作为默认值。
 
+### 树路由耗时审计
+
+从本版本起，树路由结果的每一层 `trace` 都记录以下只读性能字段：
+
+- `candidate_count`：该节点当轮实际提供给 DS 的候选数；
+- `choice_elapsed_ms`：完整的一层选择耗时；
+- `model_call_elapsed_ms`、`prompt_chars`、`response_chars`：DS 调用与提示词/回复长度；
+- 每道任务的 `queue_elapsed_ms`（提交到线程池至实际开始）和 `task_elapsed_ms`。
+
+为避免把性能诊断混入已有 3×2 消融输出，每次需要分析延迟时新建一个目录并传入 `--report`：
+
+```bash
+export TIMING_DIR="$TREE_DIR/timing-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$TIMING_DIR"
+
+python3 scripts/route_knowledge_tree.py \
+  --input "$TREE_TASKS" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --output "$TIMING_DIR/results.jsonl" \
+  --report "$TIMING_DIR/timing.report.json" \
+  --limit 126 \
+  --concurrency 16 \
+  --max-steps 8 \
+  --max-backtracks 2 \
+  --terminal-definition-mode none
+```
+
+`timing.report.json` 不包含题干、答案、解析、模型原始回复或 evidence；它只保留整体分位数、前 20 个慢任务的 ID/计数，以及按 `parent_path` 聚合的节点耗时。因此可以和 run manifest 一起保存。
+
+读报告时先按下面的因果链排查，**不要只看总 wall time 就直接压缩 prompt**：
+
+| 现象 | 更可能的瓶颈 | 下一步 |
+|---|---|---|
+| `queue_elapsed_ms.p95` 高，而单层 `model_call_elapsed_ms` 正常 | 并发超过 DS 服务可消化的请求量 | 降低并发做 16/32/64 小批比较，选择吞吐不下降且 p95 可接受的档位 |
+| 某个节点的 `choice_elapsed_ms` 高，且 `mean_candidate_count` / `mean_prompt_chars` 高 | 该知识点分支过宽，或终端释义过长 | 先抽慢节点题目，试验规则检索、缩短释义或减少同层候选；不能直接删标签 |
+| 某个节点 `no_match_calls` 很多，或任务 trace 很长 | taxonomy 分支、候选策略或释义边界不合适 | 与不稳定/人工错误样本一起复核该节点；这首先是数据质量信号，不是性能优化信号 |
+| `task_elapsed_ms` 高但各层调用耗时正常 | 本地调度、结果序列化或异常重试以外的开销 | 先在同批小样本用 profiler 复现，再优化 Python 逻辑 |
+
+已有历史运行没有这些计时字段，不能事后可靠地回填。耗时结论必须来自启用 `--report` 后的新运行；每次比较的模型、并发、`max_steps`、`max_backtracks` 和 `terminal_definition_mode` 应保持一致。
+
 ### 末级压缩释义的 3×2 消融
 
 该实验固定同一份 `$TREE_TASKS`、老师 CSV、模型、并发、搜索预算和 DS endpoint，仅改变末级候选是否附带“压缩释义”。`compressed` 是当前默认行为，`none` 只发末级完整路径。每个模式独立运行三次；即使 temperature 为 0，服务端仍可能出现输出波动，因此必须保留三份结果。

@@ -105,6 +105,9 @@ class KnowledgeTreeChoiceTests(unittest.TestCase):
         self.assertIn(NO_MATCH, prompt)
         self.assertNotIn("历史标签", prompt)
         self.assertEqual(captured["payload"]["temperature"], 0.0)
+        self.assertGreaterEqual(result.model_call_elapsed_ms, 0.0)
+        self.assertEqual(result.prompt_chars, len(prompt))
+        self.assertEqual(result.response_chars, len(result.raw_response))
 
     def test_parser_rejects_a_child_not_offered_by_the_current_step(self):
         self.assertTrue(callable(parse_tree_choice_response), "parse_tree_choice_response must be implemented")

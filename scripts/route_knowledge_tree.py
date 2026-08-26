@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +29,7 @@ from english_knowledge_tagger.knowledge_tree_tasks import (
     RESULT_SCHEMA_VERSION,
     route_knowledge_tree_task,
 )
+from english_knowledge_tagger.knowledge_tree_timing import summarize_tree_timing
 
 
 DEFAULT_ENDPOINT = "http://172.22.0.35:6636/v1/chat/completions"
@@ -40,6 +42,8 @@ def _error_output(
     max_steps: int,
     max_backtracks: int,
     terminal_definition_mode: str,
+    queue_elapsed_ms: float | None = None,
+    task_elapsed_ms: float | None = None,
 ) -> dict[str, Any]:
     return {
         "schema_version": RESULT_SCHEMA_VERSION,
@@ -59,6 +63,8 @@ def _error_output(
         "max_steps": max_steps,
         "max_backtracks": max_backtracks,
         "terminal_definition_mode": terminal_definition_mode,
+        "queue_elapsed_ms": queue_elapsed_ms,
+        "task_elapsed_ms": task_elapsed_ms,
         "error": str(error),
     }
 
@@ -72,7 +78,10 @@ def _route_one(
     max_steps: int,
     max_backtracks: int,
     terminal_definition_mode: str,
+    submitted_ns: int,
 ) -> dict[str, Any]:
+    worker_started_ns = time.perf_counter_ns()
+    queue_elapsed_ms = (worker_started_ns - submitted_ns) / 1_000_000
     try:
         result = route_knowledge_tree_task(
             row,
@@ -86,8 +95,10 @@ def _route_one(
             "model": model,
             "prompt_version": PROMPT_VERSION,
             "terminal_definition_mode": terminal_definition_mode,
+            "queue_elapsed_ms": queue_elapsed_ms,
         }
     except (ValueError, LabelingServiceError) as error:
+        task_elapsed_ms = (time.perf_counter_ns() - worker_started_ns) / 1_000_000
         return {
             **_error_output(
                 row,
@@ -95,6 +106,8 @@ def _route_one(
                 max_steps=max_steps,
                 max_backtracks=max_backtracks,
                 terminal_definition_mode=terminal_definition_mode,
+                queue_elapsed_ms=queue_elapsed_ms,
+                task_elapsed_ms=task_elapsed_ms,
             ),
             "model": model,
             "prompt_version": PROMPT_VERSION,
@@ -106,6 +119,11 @@ def main() -> None:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--teacher-csv", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--report",
+        type=Path,
+        help="Optional JSON timing report; must not already exist.",
+    )
     parser.add_argument("--endpoint", default=os.getenv("ENGLISH_TAGGER_DS_V4_ENDPOINT", DEFAULT_ENDPOINT))
     parser.add_argument("--model", default="ds-v4-flash")
     parser.add_argument("--limit", type=int, required=True)
@@ -133,6 +151,10 @@ def main() -> None:
         parser.error("--timeout-seconds must be positive")
     if args.output.exists():
         parser.error(f"refusing to overwrite existing output: {args.output}")
+    if args.report is not None and args.report.exists():
+        parser.error(f"refusing to overwrite existing report: {args.report}")
+    if args.report is not None and args.report == args.output:
+        parser.error("--report must differ from --output")
 
     try:
         tree = KnowledgeTaxonomyTree.from_rulebook(load_knowledge_rulebook(args.teacher_csv))
@@ -165,6 +187,7 @@ def main() -> None:
                 queued_rows.append((len(queued_rows), {}, error))
 
     results: dict[int, dict[str, Any]] = {}
+    batch_started_ns = time.perf_counter_ns()
     futures = {}
     with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
         for index, row, parse_error in queued_rows:
@@ -175,8 +198,10 @@ def main() -> None:
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
                     terminal_definition_mode=args.terminal_definition_mode,
+                    task_elapsed_ms=0.0,
                 )
                 continue
+            submitted_ns = time.perf_counter_ns()
             futures[
                 executor.submit(
                     _route_one,
@@ -187,10 +212,12 @@ def main() -> None:
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
                     terminal_definition_mode=args.terminal_definition_mode,
+                    submitted_ns=submitted_ns,
                 )
             ] = index
         for future, index in futures.items():
             results[index] = future.result()
+    wall_elapsed_ms = (time.perf_counter_ns() - batch_started_ns) / 1_000_000
 
     counts: Counter[str] = Counter()
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -199,6 +226,27 @@ def main() -> None:
             row = results[index]
             output.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
             counts[str(row["status"])] += 1
+    report_path: str | None = None
+    if args.report is not None:
+        timing_report = summarize_tree_timing(
+            (results[index] for index in range(len(queued_rows))),
+            wall_elapsed_ms=wall_elapsed_ms,
+            concurrency=args.concurrency,
+        )
+        report = {
+            **timing_report,
+            "input": str(args.input),
+            "output": str(args.output),
+            "model": args.model,
+            "max_steps": args.max_steps,
+            "max_backtracks": args.max_backtracks,
+            "terminal_definition_mode": args.terminal_definition_mode,
+        }
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        with args.report.open("x", encoding="utf-8") as handle:
+            json.dump(report, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+        report_path = str(args.report)
     print(
         json.dumps(
             {
@@ -208,6 +256,8 @@ def main() -> None:
                 "status_counts": dict(sorted(counts.items())),
                 "model": args.model,
                 "concurrency": args.concurrency,
+                "wall_elapsed_ms": wall_elapsed_ms,
+                "report": report_path,
                 "max_steps": args.max_steps,
                 "max_backtracks": args.max_backtracks,
                 "terminal_definition_mode": args.terminal_definition_mode,
