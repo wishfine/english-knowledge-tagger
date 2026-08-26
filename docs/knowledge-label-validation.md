@@ -69,6 +69,74 @@ python3 scripts/compare_knowledge_candidate_pools.py \
 
 先对 `effective_expanded_rows` 对应项按 `target_parent_path` 抽查，确认新增叶子是合理混淆项且没有错误跨 route 混入；**在此之前不对 v0.2 packet 调用 DS**。若 `effective_expanded_rows=0`，则这不是“候选覆盖提升”实验，不能据此宣称 v0.2 更好；只能另行决定是否研究提示词排序/来源变化。通过后，才以 v0.2 packet 跑相同小批 DS 验证，并比较人工金标标签是否进入候选集合、`replace/drop/uncertain` 的变化和 prompt 耗时。
 
+### 有效候选覆盖的 20 条 × 2 × 3 DS 消融
+
+当 `$EFFECTIVE_REPORT.effective_expanded_rows` 大于 0、且新增叶子已完成业务抽查后，不跑全部 980 个历史标签验证项。使用下列命令从两份冻结 packet 生成**同序、同题、同历史标签**的有效子集；当前首个切片应为 20 条。
+
+```bash
+export EFFECTIVE_ABLATION="$SIBLING_RUN/effective-pool-ablation"
+mkdir -p "$EFFECTIVE_ABLATION"
+
+export V01_EFFECTIVE_PACKET="$EFFECTIVE_ABLATION/v0.1.effective.packet.jsonl"
+export V02_EFFECTIVE_PACKET="$EFFECTIVE_ABLATION/v0.2.effective.packet.jsonl"
+export EFFECTIVE_ABLATION_PACKET_REPORT="$EFFECTIVE_ABLATION/packets.report.json"
+
+python3 scripts/build_effective_pool_ablation_packets.py \
+  --baseline "$V01_PACKET" \
+  --candidate "$V02_PACKET" \
+  --coverage "$EFFECTIVE_PACKET" \
+  --baseline-output "$V01_EFFECTIVE_PACKET" \
+  --candidate-output "$V02_EFFECTIVE_PACKET" \
+  --report "$EFFECTIVE_ABLATION_PACKET_REPORT"
+
+cat "$EFFECTIVE_ABLATION_PACKET_REPORT"
+wc -l "$V01_EFFECTIVE_PACKET" "$V02_EFFECTIVE_PACKET"
+sha256sum "$V01_EFFECTIVE_PACKET" "$V02_EFFECTIVE_PACKET" > "$EFFECTIVE_ABLATION/input-manifest.sha256"
+```
+
+随后固定 endpoint、模型、并发、prompt version 和输入 packet，各跑三次。`/usr/bin/time` 产生每次的 wall time 与最大 RSS；不把不同并发或不同输入长度的运行混在同一结论里。
+
+```bash
+for spec in v01:1 v02:1 v01:2 v02:2 v01:3 v02:3; do
+  mode="${spec%:*}"
+  repeat="${spec#*:}"
+  if [ "$mode" = v01 ]; then
+    input="$V01_EFFECTIVE_PACKET"
+  else
+    input="$V02_EFFECTIVE_PACKET"
+  fi
+  output="$EFFECTIVE_ABLATION/$mode-$repeat.verdicts.jsonl"
+  timing="$EFFECTIVE_ABLATION/$mode-$repeat.time.txt"
+
+  /usr/bin/time -f 'wall_seconds=%e\nmax_rss_kb=%M' -o "$timing" \
+    python3 scripts/validate_knowledge_labels.py \
+      --input "$input" \
+      --output "$output" \
+      --limit 20 \
+      --concurrency 16
+done
+```
+
+汇总时，`coverage` 仍使用 36 条对照输出；分析器只读取其中 `newly_available_alternative_labels` 非空的 20 条，并拒绝六次 run 任何缺项或重复项：
+
+```bash
+export EFFECTIVE_ABLATION_REPORT="$EFFECTIVE_ABLATION/summary.json"
+
+python3 scripts/analyze_effective_pool_ablation.py \
+  --baseline v01-1="$EFFECTIVE_ABLATION/v01-1.verdicts.jsonl" \
+  --baseline v01-2="$EFFECTIVE_ABLATION/v01-2.verdicts.jsonl" \
+  --baseline v01-3="$EFFECTIVE_ABLATION/v01-3.verdicts.jsonl" \
+  --candidate v02-1="$EFFECTIVE_ABLATION/v02-1.verdicts.jsonl" \
+  --candidate v02-2="$EFFECTIVE_ABLATION/v02-2.verdicts.jsonl" \
+  --candidate v02-3="$EFFECTIVE_ABLATION/v02-3.verdicts.jsonl" \
+  --coverage "$EFFECTIVE_PACKET" \
+  --output "$EFFECTIVE_ABLATION_REPORT"
+
+cat "$EFFECTIVE_ABLATION_REPORT"
+```
+
+报告中的 `candidate_consistently_selects_new_label` 只表示 v0.2 三次一致地输出 `replace`，且目标是一个新增叶子；它是应优先盲审的 **effect case**，不是模型正确率。`unanimous_decision_disagreements` 也必须进入盲审。只有人工确认的题才能用于比较 v0.1/v0.2 的候选覆盖和决策正确性，更不能自动生成 patch。
+
 模型只可返回 `keep`、`replace`、`drop` 或 `uncertain`。`replace` 的目标必须在包中提供的候选标签内；否则结果标为 `unparsed`，不会作为候选结论。大题知识点绝不参与小题候选池。
 
 模型还必须输出 `candidate_coverage`：
