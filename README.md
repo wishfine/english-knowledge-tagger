@@ -49,6 +49,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 - `scripts/route_question_types.py`：将老师 CSV 和已确认路由应用到源数据，输出历史题型证据、候选题型树与风险码；不改写标签。
 - `scripts/label_candidates.py`：调用内部 `ds-v4-flash` 服务生成**候选**知识点标签；只写新 JSONL，不修改源数据。
 - `scripts/build_knowledge_validation_packet.py` 与 `scripts/validate_knowledge_labels.py`：按精确小题路由的 `required/optional/forbidden/unresolved` 策略验证历史知识点；`forbidden` 与 `unresolved` 不调用 DS，输出可审计跳过原因，不改写标签。
+- `scripts/normalize_terminal_label_discriminator.py`、`scripts/gate_terminal_label_discriminator.py` 与 `scripts/assemble_silver_questions.py`：将 mentor/DS 的逐末级标签判别通过显式 field-map 标准化；只放行已完成人审校准的正例，并且只在一道题全部历史 active 知识点都有正向证据时产出 `silver_question_candidate`。未校准、false 与源身份不一致的证据默认 hold，不改写 source。
 - `scripts/build_knowledge_tree_tasks.py` 与 `scripts/route_knowledge_tree.py`：从历史 `replace`、候选池不足和 required 缺标构建单标签树搜索任务；逐层路由得到候选及回退轨迹，不生成最终多标签集合。
 - `scripts/analyze_knowledge_tree_runs.py`：对三次 `compressed` 与三次 `none` 树路由运行做可重复性和 replace 候选波动汇总，不自动选择提示版本。
 - `configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json`：历史渲染标签树到当前老师 taxonomy 的版本化路径迁移规则。

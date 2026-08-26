@@ -18,6 +18,9 @@ cleaned_final_enhanced_v2.jsonl
 3. DS-V4、Doubao、Gemini 的结果都是候选证据，不会直接改标签或进入 HQ。
 4. 未确认的题型路由或知识点规则必须隔离，不能因为“无标签”就默认打空。
 
+从 2026-08-26 起，**历史末级知识点的直接判别**是小题知识点高质量提取的主入口：
+`题目 × 现有末级标签 → 该标签是否合理`。题型 route 仍是父/子范围、抽检和错误分析的重要维度，但不再作为“这个标签能否被直接判别”的硬候选前缀。flat shortlist 与知识点树只处理直接判别的 false、错误、未校准或缺标难例。
+
 ## 数据层与版本
 
 | 层 | 含义 | 是否可训练 | 关键约束 |
@@ -108,9 +111,70 @@ cleaned_final_enhanced_v2.jsonl
 
 ## 2. 小题知识点 Loop（当前主线）
 
-小题知识点处理依赖当前 route 已确认，但不需要等待全部 112 个题型组合都完成。只要一个精确 route 被审批，就可以独立完成其知识点 loop。
+小题知识点的首个门是直接末级标签判别，而不是先把 386 个标签压缩成一个 route-specific candidate pool。每条证据必须保留 parent/child scope；题型 route 用于分层统计、抽检与后续难例处理，不作为直接正向判别的放行条件。这样可以在题型清洗并行时继续做标签质量提取，但绝不能把未校准结果提前当训练真值。
 
-### 2.1 先判断“该类小题是否应该有知识点”
+### 2.1 直接末级标签判别 → 保守 silver（当前高质量提取入口）
+
+单位是 `question_id × canonical terminal label`。判别器只回答“该历史标签是否确为本题解题所需”；它不负责凭空补齐遗漏标签，也不直接替换错误标签。
+
+```text
+mentor/DS 原始判别 JSONL
+    → 显式 field-map 适配为 versioned evidence
+    → sparse calibration policy gate
+        ├─ 校准后的 match=true → silver_label_candidate
+        ├─ 显式批准的 match=false → relabel_candidate
+        └─ 其余（含所有未完成校准标签）→ hold
+    → 只有同一题全部历史 active 标签都有正向 silver evidence
+      才成为 silver_question_candidate
+```
+
+这里有三个绝不能混淆的结论：
+
+1. `match=true` 是模型产出率，不是标签准确率；必须经该标签的人审校准台账放行。
+2. `silver_label_candidate` 仅证明**一个标签**经校准后可保留；`silver_question_candidate` 也仍无法证明题目没有漏标，所以两者都不是 `hq-v*`。
+3. `match=false` 默认 hold。只有该标签的 false 样本也被完整人审且 policy 明确允许时，才能进入 `relabel_candidate`。
+
+当前校准台账尚未完成，因此 policy 必须是**稀疏白名单**：未列出的任何末级标签都强制 `hold`。`screened_12` 只能用于 preliminary silver；建议完成独立 post-sweep 的 60 条零误差正样本复核后，才可作为更强的 95% 单侧约 95% precision 下界发布门槛。即使达到该门槛，仍需以冻结评测集决定能否进入 HQ。
+
+先按规则本生成审核骨架；它不是自动放行 policy：
+
+```bash
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
+python3 scripts/build_terminal_label_calibration_template.py \
+  --teacher-csv "$TEACHER_CSV" \
+  --output "$RUNTIME/calibration/terminal-label-review-template.jsonl"
+```
+
+待人工审核完成后，人工将**已完成标签**整理为一个 `terminal-label-calibration-policy-v1` JSON；空 policy 合法，但会把全部记录放进 hold。对某一份上游判别器导出，field-map 必须显式声明每个源字段的位置，禁止通过“看起来像 match/label”的字段名猜测：
+
+```bash
+python3 scripts/normalize_terminal_label_discriminator.py \
+  --input "$RAW_DISCRIMINATOR_JSONL" \
+  --field-map "$RUNNER_FIELD_MAP_JSON" \
+  --output "$RUN_DIR/direct-evidence.normalized.jsonl"
+
+python3 scripts/gate_terminal_label_discriminator.py \
+  --input "$RUN_DIR/direct-evidence.normalized.jsonl" \
+  --teacher-csv "$TEACHER_CSV" \
+  --policy "$CALIBRATION_POLICY_JSON" \
+  --silver-output "$RUN_DIR/silver-label-evidence.jsonl" \
+  --relabel-output "$RUN_DIR/relabel-candidates.jsonl" \
+  --hold-output "$RUN_DIR/direct-hold.jsonl" \
+  --report "$RUN_DIR/direct-gate.report.json"
+
+python3 scripts/assemble_silver_questions.py \
+  --source "$FINAL_SOURCE" \
+  --silver-evidence "$RUN_DIR/silver-label-evidence.jsonl" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json \
+  --output "$RUN_DIR/silver-question-candidates.jsonl" \
+  --hold-output "$RUN_DIR/silver-question-hold.jsonl" \
+  --report "$RUN_DIR/silver-question-assembly.report.json"
+```
+
+三个脚本均拒绝覆盖输出，且不会改写上游 source 或其 `output`。组装时核对 `question_id`、`parent_id`、`is_sub_question` 和 `source_line`，因此错 source version 或旧行号的 positive evidence 会留在 hold。
+
+### 2.2 先判断“该类小题是否应该有知识点”
 
 策略文件：`configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json`。该版本保留为历史 baseline；`v0.2` 仅在两个已确认语法选择 route 上试验“完整直接末级兄弟”候选覆盖，必须先人工审查其 coverage packet。
 
@@ -136,7 +200,7 @@ forbidden:
 
 其余阅读还原、阅读匹配、阅读问答、阅读填表等不是被“一刀切判空”，而是 `unresolved`，需按老师矩阵逐项确认。
 
-### 2.2 Flat 验证：判断一条历史标签是否合理
+### 2.3 Flat 验证：判断一条历史标签是否合理
 
 对 `required` 或已确认的 `optional` route，使用：
 
@@ -155,7 +219,7 @@ build_knowledge_validation_packet.py
 
 Flat 验证按“标签实例”运行：一题有多个历史知识点就有多个验证项。最终仍要以题为单位合并标签集合，不能把单个 `replace` 直接覆盖该题全部知识点。
 
-### 2.3 Tree 候选：只服务难例，不替代最终多标签输出
+### 2.4 Tree 候选：只服务难例，不替代最终多标签输出
 
 触发条件：flat `replace`、`uncertain + insufficient`、或 `required` 路由缺少任何知识点。
 
@@ -169,7 +233,7 @@ build_knowledge_tree_tasks.py
 
 树路由当前**每题只返回一个候选**，不能直接成为最终集合。若审查发现“比较级用法 + 比较级变化规则”这类关联标签，应生成 `add` patch 或多标签人工结论，而不是强迫两个正确标签二选一。
 
-### 2.4 人工/模型复核与 patch
+### 2.5 人工/模型复核与 patch
 
 候选进入 `relabel_candidates` 后，按知识点、父节点、题型 route、候选数和风险码分组复核。每个确认 patch 至少应能回溯到：
 
