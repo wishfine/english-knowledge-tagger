@@ -9,6 +9,7 @@
 | 文档 | 用途 | 何时阅读 |
 |---|---|---|
 | [数据清洗执行手册](data-cleaning-playbook.md) | 完整 SOP：逐末级标签、校准、silver、错标/漏标、HQ 门禁 | 开始任何数据清洗工作前 |
+| [数据处理协作原则](data-cleaning-principles.md) | 给题型和知识点同事共用的简版方法论 | 分配工作或进行跨角色交接时 |
 | [当前数据处理 Loop](current-data-loop.md) | 当前代码组件、已完成实验、运行命令和进度快照 | 实际运行或交接前 |
 | [题型打标策略映射](type-policy-mapping.md) | `scope × 结构 × 名称` 的题型审计与 policy | 处理题型、route 或知识点存在性规则时 |
 | [知识点标签验证](knowledge-label-validation.md) | flat/tree 的替换与补标难例链路 | 直接判别 false、未校准、缺标后 |
