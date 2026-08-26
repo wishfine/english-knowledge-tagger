@@ -19,17 +19,12 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> Path:
     return path
 
 
-def packet_row(*, sibling_labels: list[str]) -> dict[str, object]:
+def packet_row(*, sibling_labels: list[str], include_route_key: bool = False) -> dict[str, object]:
     return {
         "review_id": "kp-validation:q-1:知识点@词法@被动语态@一般现在时的被动语态",
         "source_line": 12,
         "question_id": "q-1",
         "parent_id": "p-1",
-        "route_key": {
-            "scope": "child",
-            "declared_type_structure": "复合题",
-            "declared_type_name": "语法选择",
-        },
         "canonical_label": "知识点->词法->被动语态->一般现在时的被动语态",
         "candidate_pool": {
             "sibling_selection": "limited_direct_leaves",
@@ -46,7 +41,17 @@ def packet_row(*, sibling_labels: list[str]) -> dict[str, object]:
                 "source": "type_retrieval",
             }
         ],
-    }
+    } | (
+        {
+            "route_key": {
+                "scope": "child",
+                "declared_type_structure": "复合题",
+                "declared_type_name": "语法选择",
+            }
+        }
+        if include_route_key
+        else {}
+    )
 
 
 class KnowledgeCandidatePoolComparisonTests(unittest.TestCase):
@@ -79,6 +84,7 @@ class KnowledgeCandidatePoolComparisonTests(unittest.TestCase):
         self.assertEqual(row["candidate_sibling_labels"], [existing, newly_exposed])
         self.assertEqual(row["newly_exposed_sibling_labels"], [newly_exposed])
         self.assertEqual(row["target_parent_path"], "知识点->词法->被动语态")
+        self.assertIsNone(row["route_key"])
 
 
 if __name__ == "__main__":

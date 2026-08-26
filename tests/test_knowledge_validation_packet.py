@@ -435,6 +435,14 @@ class KnowledgeValidationPacketTests(unittest.TestCase):
             ["知识点->词法", "知识点->句法"],
         )
         self.assertEqual(
+            rows[0]["route_key"],
+            {
+                "scope": "child",
+                "declared_type_structure": "复合题",
+                "declared_type_name": "语法选择",
+            },
+        )
+        self.assertEqual(
             rows[0]["alternative_labels"][0],
             {
                 "label": "知识点->词法->冠词->the的用法",

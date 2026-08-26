@@ -213,3 +213,12 @@ git add configs/knowledge_candidate_policies/child-knowledge-presence-v0.2.json 
 git commit -m "feat: audit all direct knowledge siblings"
 git push origin HEAD:main
 ```
+
+### Post-implementation correction: support packets created before route persistence
+
+The first server v0.1/v0.2 pair was generated before validation packets retained `route_key`. The comparison tool must compare that frozen pair instead of forcing an expensive rerun.
+
+- [x] Change comparison parsing so `route_key` is optional, while `source_line`, `question_id`, `parent_id` and `canonical_label` remain strict identity fields.
+- [x] Add `route_key` to all newly generated validation packet rows using the selected exact review route.
+- [x] Add regression tests for comparison without route keys and new packet route persistence.
+- [x] Verify focused packet/comparison tests pass before push.

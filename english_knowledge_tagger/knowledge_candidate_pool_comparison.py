@@ -17,8 +17,10 @@ def _nonempty_string(value: object, *, field: str, source: str) -> str:
     return value.strip()
 
 
-def _route_key(row: Mapping[str, Any], *, source: str) -> dict[str, str]:
+def _route_key(row: Mapping[str, Any], *, source: str) -> dict[str, str] | None:
     raw_route = row.get("route_key")
+    if raw_route is None:
+        return None
     if not isinstance(raw_route, Mapping):
         raise ValueError(f"{source}: route_key must be an object")
     return {

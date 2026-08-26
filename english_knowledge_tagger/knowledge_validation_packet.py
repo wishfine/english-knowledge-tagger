@@ -79,6 +79,7 @@ def _validation_row(
     record: Mapping[str, Any],
     *,
     source_line: int,
+    route_key: tuple[str, str, str] | None,
     legacy_label: str,
     canonical_label: str,
     taxonomy_mapping_status: str,
@@ -97,6 +98,15 @@ def _validation_row(
         "question_id": _identifier(record.get("question_id")),
         "parent_id": _identifier(record.get("parent_id")),
         "is_sub_question": record.get("is_sub_question"),
+        "route_key": (
+            {
+                "scope": route_key[0],
+                "declared_type_structure": route_key[1],
+                "declared_type_name": route_key[2],
+            }
+            if route_key is not None
+            else None
+        ),
         "question_context": _model_question_context(record),
         "legacy_label": legacy_label,
         "canonical_label": canonical_label,
@@ -294,6 +304,7 @@ def build_knowledge_validation_packet(
                 row = _validation_row(
                     record,
                     source_line=source_line,
+                    route_key=selected_routes[source_line],
                     legacy_label=legacy_label,
                     canonical_label=canonicalized.canonical_path,
                     taxonomy_mapping_status=canonicalized.status,

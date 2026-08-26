@@ -59,7 +59,7 @@ python3 scripts/compare_knowledge_candidate_pools.py \
   --report "$COVERAGE_REPORT"
 ```
 
-`$COVERAGE_PACKET` 只含 direct sibling 集合增长的标签验证项，不含题干、老师释义或 DS 回复。它记录旧/新同级标签集合、暴露出的新增标签、route 与来源标识。先对其按 `target_parent_path` 抽查，确认新增叶子是合理混淆项且没有错误跨 route 混入；**在此之前不对 v0.2 packet 调用 DS**。通过后，才以 v0.2 packet 跑相同小批 DS 验证，并比较人工金标标签是否进入候选集合、`replace/drop/uncertain` 的变化和 prompt 耗时。
+`$COVERAGE_PACKET` 只含 direct sibling 集合增长的标签验证项，不含题干、老师释义或 DS 回复。它记录旧/新同级标签集合、暴露出的新增标签、route 与来源标识。对照器兼容本功能加入前生成的 packet（当时没有 `route_key` 字段），仍严格核对 `review_id`、来源行、题号、父题号和目标标签；新 packet 会额外保存 route key。先对其按 `target_parent_path` 抽查，确认新增叶子是合理混淆项且没有错误跨 route 混入；**在此之前不对 v0.2 packet 调用 DS**。通过后，才以 v0.2 packet 跑相同小批 DS 验证，并比较人工金标标签是否进入候选集合、`replace/drop/uncertain` 的变化和 prompt 耗时。
 
 模型只可返回 `keep`、`replace`、`drop` 或 `uncertain`。`replace` 的目标必须在包中提供的候选标签内；否则结果标为 `unparsed`，不会作为候选结论。大题知识点绝不参与小题候选池。
 
