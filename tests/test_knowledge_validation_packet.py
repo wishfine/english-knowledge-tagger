@@ -112,8 +112,113 @@ GRAMMAR_RULE = {
     "max_output_labels": 3,
 }
 
+ALL_DIRECT_SIBLING_GRAMMAR_RULE = {
+    "scope": "child",
+    "declared_type_structure": "复合题",
+    "declared_type_name": "语法选择",
+    "allowed_knowledge_prefixes": ["知识点->词法", "知识点->句法"],
+    "max_retrieved_candidates": 12,
+    "sibling_selection": "all_direct_leaves",
+    "max_output_labels": 3,
+}
+
+
+def write_wide_sibling_teacher_csv(path: Path) -> tuple[Path, list[str]]:
+    target = "知识点->词法->被动语态->目标形式"
+    sibling_paths = [f"知识点->词法->被动语态->形式{index}" for index in range(1, 10)]
+    rows = [
+        {
+            "末级知识点": target,
+            "打标解读（标绿的标签，新题不再打）": "目标标签。",
+            "大模型压缩+人工微调的释义": "目标标签。",
+        },
+        *[
+            {
+                "末级知识点": sibling_path,
+                "打标解读（标绿的标签，新题不再打）": f"{sibling_path}。",
+                "大模型压缩+人工微调的释义": f"{sibling_path}。",
+            }
+            for sibling_path in sibling_paths
+        ],
+        {
+            "末级知识点": "知识点->句法->简单句->陈述句",
+            "打标解读（标绿的标签，新题不再打）": "外部分支标签。",
+            "大模型压缩+人工微调的释义": "外部分支标签。",
+        },
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
+    return path, sibling_paths
+
 
 class KnowledgeValidationPacketTests(unittest.TestCase):
+    def test_rulebook_returns_all_active_direct_leaf_siblings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            rulebook = load_knowledge_rulebook(write_teacher_csv(Path(temp_dir) / "teacher.csv"))
+
+        siblings = rulebook.direct_active_leaf_siblings("知识点->词法->冠词->a/an的区别")
+
+        self.assertEqual(
+            [sibling.path for sibling in siblings],
+            ["知识点->词法->冠词->the的用法"],
+        )
+
+    def test_all_direct_leaf_policy_keeps_every_type_allowed_terminal_sibling(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            teacher_csv, expected_siblings = write_wide_sibling_teacher_csv(
+                directory / "teacher.csv"
+            )
+            source = write_jsonl(
+                directory / "source.jsonl",
+                [
+                    {
+                        "question_id": "child-wide-1",
+                        "is_sub_question": True,
+                        "input": "题干：被动语态形式。答案：A。解析：选择正确形式。",
+                        "output": "知识点@词法@被动语态@目标形式",
+                    }
+                ],
+            )
+            review_packet = write_jsonl(
+                directory / "review.jsonl",
+                [
+                    {
+                        "source_line": 1,
+                        "route_key": {
+                            "scope": "child",
+                            "declared_type_structure": "复合题",
+                            "declared_type_name": "语法选择",
+                        },
+                    }
+                ],
+            )
+            output = directory / "packet.jsonl"
+            build_knowledge_validation_packet(
+                source,
+                review_packet_path=review_packet,
+                rulebook=load_knowledge_rulebook(teacher_csv),
+                candidate_policy=load_knowledge_candidate_policy(
+                    write_candidate_policy(
+                        directory / "candidate-policy.json", [ALL_DIRECT_SIBLING_GRAMMAR_RULE]
+                    )
+                ),
+                output_path=output,
+            )
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        sibling_labels = [
+            candidate["label"]
+            for candidate in row["alternative_labels"]
+            if candidate["source"] == "sibling"
+        ]
+        self.assertEqual(sibling_labels, expected_siblings)
+        self.assertEqual(row["candidate_pool"]["sibling_selection"], "all_direct_leaves")
+        self.assertIsNone(row["candidate_pool"]["max_sibling_candidates"])
+        self.assertEqual(row["candidate_pool"]["direct_sibling_count"], 9)
+
     def test_forbidden_rule_has_no_retrieval_pool(self):
         self.assertTrue(
             callable(load_knowledge_candidate_policy),

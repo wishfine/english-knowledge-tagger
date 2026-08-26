@@ -112,7 +112,7 @@ cleaned_final_enhanced_v2.jsonl
 
 ### 2.1 先判断“该类小题是否应该有知识点”
 
-策略文件：`configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json`。
+策略文件：`configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json`。该版本保留为历史 baseline；`v0.2` 仅在两个已确认语法选择 route 上试验“完整直接末级兄弟”候选覆盖，必须先人工审查其 coverage packet。
 
 | `knowledge_policy` | 行为 |
 |---|---|
@@ -146,7 +146,7 @@ build_knowledge_validation_packet.py
     → keep / replace / drop / uncertain
 ```
 
-发送给 DS-V4 的内容是：小题题干、选项、答案、解析和必要父题上下文；**源文本中的“题型结构/题型名称”会移除**。每条历史知识点携带自己的原始老师释义；flat 验证从该 route 的允许前缀内按题面检索至多 12 个候选（`type_retrieval`），再为正在验证的历史标签附至多 8 个同级近邻（`sibling`）。因此 flat 的 alternatives 并非“当前树层的全部叶子”，且总数可能大于 12；不能向模型发送整棵 576 标签树。
+发送给 DS-V4 的内容是：小题题干、选项、答案、解析和必要父题上下文；**源文本中的“题型结构/题型名称”会移除**。每条历史知识点携带自己的原始老师释义；flat 验证从该 route 的允许前缀内按题面检索至多 12 个候选（`type_retrieval`），再附历史标签的直接末级兄弟（`sibling`）。v0.1 最多附 8 个；v0.2 在首个语法选择试验中附全部 type-allowed 直接兄弟。检索候选是跨分支逃逸通道，兄弟候选负责近似标签精判；因此 flat 的 alternatives 并非“当前树层的全部叶子”，且总数可能大于 12；不能向模型发送整棵 576 标签树。
 
 `candidate_coverage` 进一步限制结论：
 
@@ -242,7 +242,7 @@ none（只发末级路径）× 3
 | 增强源 | 已确定为正式上游源，已从 45 同步到 35 并核验 SHA-256 | mentor 新版到来时作为新 source version 审计，不覆盖本版 |
 | 题型 inventory | 已对旧版源形成 112 个 `scope × 结构 × 名称` 观察行 | 以最终增强源重跑并逐 route 填写 policy |
 | 首个小题 route | `child × 复合题 × 语法选择` 已抽取 500 题同质包 | 固化审查结论，继续介词/主谓一致/比较级切片 |
-| flat 验证 | 983 个标签验证项：917 可解析，其中 keep 659、replace 152、drop 105、uncertain 1；63 unparsed、3 legacy taxonomy 未映射 | 先聚类 63 个 unparsed，再对 replace/drop 做分层盲审 |
+| flat 验证 | 983 个标签验证项：917 可解析，其中 keep 659、replace 152、drop 105、uncertain 1；63 unparsed、3 legacy taxonomy 未映射 | 先跑 v0.1/v0.2 同包候选覆盖对照，再对 replace/drop 做分层盲审 |
 | tree 候选 | 126 个任务，其中 125 个由 replace 触发、1 个候选池不足 | 先完成 A/B 解盲与多标签评测，不直接 patch |
 | 释义消融 | 3×2 已完成，不能依据稳定性单独选模式 | 解盲后按知识点节点比较；保留两种模式 |
 | 性能埋点 | 已加入树路由 trace、任务和批次报告 | 新 batch 启用 `--report`，再做并发与节点热点对照 |

@@ -44,6 +44,10 @@ class KnowledgeRulebook:
     ) -> tuple[KnowledgeRulebookRecord, ...]:
         if limit <= 0:
             raise ValueError("nearby record limit must be positive")
+        return self.direct_active_leaf_siblings(path)[:limit]
+
+    def direct_active_leaf_siblings(self, path: str) -> tuple[KnowledgeRulebookRecord, ...]:
+        """Return every active terminal sharing the exact immediate parent of ``path``."""
         parent, separator, _ = path.rpartition("->")
         if not separator:
             return ()
@@ -54,7 +58,7 @@ class KnowledgeRulebook:
             and record.status == "active"
             and candidate_path.startswith(f"{parent}->")
             and candidate_path.count("->") == path.count("->")
-        )[:limit]
+        )
 
     def retrieve_active_records(
         self,

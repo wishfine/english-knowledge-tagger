@@ -128,15 +128,14 @@ def _validation_row(
             "candidate_pool": dict(shared_candidate_pool),
             "target_is_type_allowed": False,
         }
-    sibling_limit = candidate_rule.max_sibling_candidates if candidate_rule is not None else 8
-    all_siblings = rulebook.nearby_active_records(canonical_label, limit=sibling_limit)
+    all_siblings = rulebook.direct_active_leaf_siblings(canonical_label)
     target_is_type_allowed = True
     if candidate_rule is not None:
         target_is_type_allowed = any(
             canonical_label == prefix or canonical_label.startswith(f"{prefix}->")
             for prefix in candidate_rule.allowed_knowledge_prefixes
         )
-        siblings = tuple(
+        type_allowed_siblings = tuple(
             candidate
             for candidate in all_siblings
             if any(
@@ -144,8 +143,15 @@ def _validation_row(
                 for prefix in candidate_rule.allowed_knowledge_prefixes
             )
         )
+        if candidate_rule.sibling_selection == "all_direct_leaves":
+            siblings = type_allowed_siblings
+        else:
+            sibling_limit = candidate_rule.max_sibling_candidates
+            if sibling_limit is None:
+                raise ValueError("limited sibling selection requires max_sibling_candidates")
+            siblings = type_allowed_siblings[:sibling_limit]
     else:
-        siblings = all_siblings
+        siblings = rulebook.nearby_active_records(canonical_label, limit=8)
     sibling_paths = frozenset(candidate.path for candidate in siblings)
     retrieved = tuple(
         candidate
@@ -174,7 +180,12 @@ def _validation_row(
             }
             for candidate in retrieved
         ],
-        "candidate_pool": dict(shared_candidate_pool),
+        "candidate_pool": {
+            **shared_candidate_pool,
+            "direct_sibling_count": len(type_allowed_siblings)
+            if candidate_rule is not None
+            else len(all_siblings),
+        },
         "target_is_type_allowed": target_is_type_allowed,
     }
 
@@ -196,6 +207,8 @@ def _shared_candidate_pool(
             "allowed_prefixes": [],
             "max_retrieved_candidates": 0,
             "max_sibling_candidates": 0,
+            "sibling_selection": "none",
+            "direct_sibling_count": 0,
             "max_output_labels": 0,
             "shared_retrieved_labels": [],
         }
@@ -207,6 +220,8 @@ def _shared_candidate_pool(
             "allowed_prefixes": [],
             "max_retrieved_candidates": 0,
             "max_sibling_candidates": 0,
+            "sibling_selection": "none",
+            "direct_sibling_count": 0,
             "max_output_labels": 0,
             "shared_retrieved_labels": [],
         }
@@ -223,6 +238,8 @@ def _shared_candidate_pool(
         "allowed_prefixes": list(candidate_rule.allowed_knowledge_prefixes),
         "max_retrieved_candidates": candidate_rule.max_retrieved_candidates,
         "max_sibling_candidates": candidate_rule.max_sibling_candidates,
+        "sibling_selection": candidate_rule.sibling_selection,
+        "direct_sibling_count": 0,
         "max_output_labels": candidate_rule.max_output_labels,
         "shared_retrieved_labels": [candidate.path for candidate in retrieved],
     }

@@ -58,6 +58,8 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 小题知识点历史标签验证与 DS-V4 小批运行流程见 [知识点标签验证](docs/knowledge-label-validation.md)。
 题型与知识点从审计到 HQ 的当前端到端闭环见 [当前数据处理 Loop](docs/current-data-loop.md)。
 
+对历史标签的“8 个同级近邻”与“完整直接兄弟叶子”候选覆盖对照，先按 [知识点标签验证](docs/knowledge-label-validation.md#v01--v02完整直接末级兄弟的覆盖校准) 生成并人工审查 packet，不能直接调用 DS 或修改标签。
+
 ## 训练路线
 
 正式训练目标为 `Qwen/Qwen3-VL-8B-Instruct` 的 BF16 全参生成式 SFT，使用 response-only loss 和 DeepSpeed ZeRO-3。全参训练在高质量 `hq-v*` 数据与冻结评测集准备完成前不启动。

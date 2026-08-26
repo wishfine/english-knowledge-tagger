@@ -31,6 +31,17 @@ class KnowledgeCandidatePolicyConfigTests(unittest.TestCase):
             expected,
         )
 
+    def test_child_knowledge_presence_v02_requests_all_direct_sibling_leaves_for_grammar_routes(self):
+        self.assertTrue(callable(load_knowledge_candidate_policy))
+        policy = load_knowledge_candidate_policy(
+            PROJECT_ROOT / "configs" / "knowledge_candidate_policies" / "child-knowledge-presence-v0.2.json"
+        )
+
+        rule = policy.match("child", "复合题", "语法选择")
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.sibling_selection, "all_direct_leaves")
+        self.assertIsNone(rule.max_sibling_candidates)
+
 
 if __name__ == "__main__":
     unittest.main()

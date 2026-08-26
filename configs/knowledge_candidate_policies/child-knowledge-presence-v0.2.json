@@ -1,0 +1,49 @@
+{
+  "schema_version": "knowledge-candidate-policy-v1",
+  "rules": [
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "语法选择",
+      "knowledge_policy": "required",
+      "allowed_knowledge_prefixes": [
+        "知识点->词法",
+        "知识点->句法"
+      ],
+      "max_retrieved_candidates": 12,
+      "sibling_selection": "all_direct_leaves",
+      "max_output_labels": 3
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "完形填空",
+      "declared_type_name": "语法选择",
+      "knowledge_policy": "required",
+      "allowed_knowledge_prefixes": [
+        "知识点->词法",
+        "知识点->句法"
+      ],
+      "max_retrieved_candidates": 12,
+      "sibling_selection": "all_direct_leaves",
+      "max_output_labels": 3
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "完形填空",
+      "knowledge_policy": "forbidden"
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "完形填空",
+      "declared_type_name": "完形填空",
+      "knowledge_policy": "forbidden"
+    },
+    {
+      "scope": "child",
+      "declared_type_structure": "复合题",
+      "declared_type_name": "阅读理解",
+      "knowledge_policy": "forbidden"
+    }
+  ]
+}

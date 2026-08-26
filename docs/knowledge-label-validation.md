@@ -13,6 +13,54 @@
 
 同一道题的所有历史标签共享同一份“题型受限检索 shortlist”；不会因正在验证的旧标签不同而更换 top-k 候选。每个历史标签仍可附加自身、且仍在允许前缀内的同级近邻。因此 12 是 flat 检索 shortlist 的上限，不是 alternatives 总数，也不是 tree 搜索的层宽。旧标签若落在小题允许范围之外，可以作为待验证对象展示，但不能作为 `keep` 或 `replace` 的可选结果。
 
+### v0.1 → v0.2：完整直接末级兄弟的覆盖校准
+
+`child-knowledge-presence-v0.1.json` 保留历史行为：每条标签至多附 8 个直接末级兄弟。它是可复现的基线，不修改。`child-knowledge-presence-v0.2.json` 只对当前已确认的两个语法选择小题 route 启用 `sibling_selection: all_direct_leaves`：该标签同一父节点下、仍在 route 允许前缀内的全部 active 末级兄弟都会进入 packet。
+
+这是为解决近似标签被 8 条上限截断的问题，不是把整棵树发送给 DS。`词法/句法`范围目前有 4 个末级兄弟组超过 8（宾语从句引导词 12、限制性定语从句 10、被动语态 10、情态动词 9），因此先在这一小批已冻结 route 上校准。
+
+对同一份 `$CHILD_KP_CAL` 先生成两份 packet；两次的源、review packet、老师 CSV 和 taxonomy migration 必须完全相同：
+
+```bash
+export KP_POLICY_V01=configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json
+export KP_POLICY_V02=configs/knowledge_candidate_policies/child-knowledge-presence-v0.2.json
+export SIBLING_RUN="$RUNTIME/knowledge-validation/all-direct-siblings-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$SIBLING_RUN"
+
+export V01_PACKET="$SIBLING_RUN/v0.1.packet.jsonl"
+export V01_REPORT="$SIBLING_RUN/v0.1.packet.report.json"
+export V02_PACKET="$SIBLING_RUN/v0.2.packet.jsonl"
+export V02_REPORT="$SIBLING_RUN/v0.2.packet.report.json"
+export COVERAGE_PACKET="$SIBLING_RUN/expanded-direct-siblings.jsonl"
+export COVERAGE_REPORT="$SIBLING_RUN/expanded-direct-siblings.report.json"
+
+python3 scripts/build_knowledge_validation_packet.py \
+  --source "$FINAL_SOURCE" \
+  --review-packet "$CHILD_KP_CAL" \
+  --teacher-csv "$TEACHER_CSV" \
+  --candidate-policy "$KP_POLICY_V01" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$V01_PACKET" \
+  --report "$V01_REPORT"
+
+python3 scripts/build_knowledge_validation_packet.py \
+  --source "$FINAL_SOURCE" \
+  --review-packet "$CHILD_KP_CAL" \
+  --teacher-csv "$TEACHER_CSV" \
+  --candidate-policy "$KP_POLICY_V02" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$V02_PACKET" \
+  --report "$V02_REPORT"
+
+python3 scripts/compare_knowledge_candidate_pools.py \
+  --baseline "$V01_PACKET" \
+  --candidate "$V02_PACKET" \
+  --output "$COVERAGE_PACKET" \
+  --report "$COVERAGE_REPORT"
+```
+
+`$COVERAGE_PACKET` 只含 direct sibling 集合增长的标签验证项，不含题干、老师释义或 DS 回复。它记录旧/新同级标签集合、暴露出的新增标签、route 与来源标识。先对其按 `target_parent_path` 抽查，确认新增叶子是合理混淆项且没有错误跨 route 混入；**在此之前不对 v0.2 packet 调用 DS**。通过后，才以 v0.2 packet 跑相同小批 DS 验证，并比较人工金标标签是否进入候选集合、`replace/drop/uncertain` 的变化和 prompt 耗时。
+
 模型只可返回 `keep`、`replace`、`drop` 或 `uncertain`。`replace` 的目标必须在包中提供的候选标签内；否则结果标为 `unparsed`，不会作为候选结论。大题知识点绝不参与小题候选池。
 
 模型还必须输出 `candidate_coverage`：
@@ -34,7 +82,7 @@
 | `forbidden` | 该小题最终知识点集合应为空 | 不请求 DS；历史知识点写成可审计的 policy conflict | 不可 |
 | `unresolved` | 业务规则还未确认 | 不请求 DS，也不把它解释成空标签 | 不可 |
 
-当前 `configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json` 只固化了老师图片和真实 112 组清单都能对齐的五个路由：
+当前 `configs/knowledge_candidate_policies/child-knowledge-presence-v0.1.json` 作为可复现基线，只固化了老师图片和真实 112 组清单都能对齐的五个路由：
 
 ```text
 required:
