@@ -29,22 +29,23 @@ def _route_key(row: Mapping[str, Any], *, source: str) -> dict[str, str] | None:
     }
 
 
-def _sibling_labels(row: Mapping[str, Any], *, source: str) -> list[str]:
+def _alternative_labels(row: Mapping[str, Any], *, source: str) -> list[tuple[str, str]]:
     raw_candidates = row.get("alternative_labels")
     if not isinstance(raw_candidates, list):
         raise ValueError(f"{source}: alternative_labels must be a list")
-    labels: list[str] = []
+    labels: list[tuple[str, str]] = []
     for index, candidate in enumerate(raw_candidates, 1):
         if not isinstance(candidate, Mapping):
             raise ValueError(f"{source}: alternative_labels[{index}] must be an object")
-        if candidate.get("source") != "sibling":
-            continue
         label = _nonempty_string(
             candidate.get("label"), field=f"alternative_labels[{index}].label", source=source
         )
-        if label in labels:
-            raise ValueError(f"{source}: duplicate sibling label: {label}")
-        labels.append(label)
+        candidate_source = _nonempty_string(
+            candidate.get("source"), field=f"alternative_labels[{index}].source", source=source
+        )
+        if label in {item[0] for item in labels}:
+            raise ValueError(f"{source}: duplicate alternative label: {label}")
+        labels.append((label, candidate_source))
     return labels
 
 
@@ -79,7 +80,12 @@ def _packet_rows(path: Path) -> tuple[list[str], dict[str, dict[str, Any]]]:
                 "route_key": _route_key(raw_row, source=source),
                 "canonical_label": canonical_label,
                 "target_parent_path": parent_path,
-                "sibling_labels": _sibling_labels(raw_row, source=source),
+                "alternative_labels": _alternative_labels(raw_row, source=source),
+                "sibling_labels": [
+                    label
+                    for label, candidate_source in _alternative_labels(raw_row, source=source)
+                    if candidate_source == "sibling"
+                ],
                 "candidate_pool": raw_row.get("candidate_pool"),
             }
             ordered_review_ids.append(review_id)
@@ -120,7 +126,10 @@ def compare_knowledge_candidate_pools(
 
     rows: list[dict[str, object]] = []
     expanded_by_parent: Counter[str] = Counter()
+    effective_expanded_by_parent: Counter[str] = Counter()
     unchanged_rows = 0
+    effective_expanded_rows = 0
+    reclassified_only_rows = 0
     for review_id in ordered_review_ids:
         baseline = baseline_rows[review_id]
         candidate = candidate_rows[review_id]
@@ -128,6 +137,8 @@ def compare_knowledge_candidate_pools(
             raise ValueError(f"candidate-pool packets disagree on immutable identity for review_id: {review_id}")
         baseline_siblings = baseline["sibling_labels"]
         candidate_siblings = candidate["sibling_labels"]
+        baseline_alternatives = baseline["alternative_labels"]
+        candidate_alternatives = candidate["alternative_labels"]
         baseline_paths = set(baseline_siblings)
         candidate_paths = set(candidate_siblings)
         removed = baseline_paths - candidate_paths
@@ -142,6 +153,21 @@ def compare_knowledge_candidate_pools(
             continue
         parent_path = str(baseline["target_parent_path"])
         expanded_by_parent[parent_path] += 1
+        baseline_alternative_paths = {label for label, _ in baseline_alternatives}
+        baseline_retrieval_paths = {
+            label for label, candidate_source in baseline_alternatives if candidate_source == "type_retrieval"
+        }
+        newly_available = [
+            label for label, _ in candidate_alternatives if label not in baseline_alternative_paths
+        ]
+        reclassified_retrieval = [
+            label for label in newly_exposed if label in baseline_retrieval_paths
+        ]
+        if newly_available:
+            effective_expanded_rows += 1
+            effective_expanded_by_parent[parent_path] += 1
+        elif reclassified_retrieval:
+            reclassified_only_rows += 1
         rows.append(
             {
                 "schema_version": SCHEMA_VERSION,
@@ -155,6 +181,8 @@ def compare_knowledge_candidate_pools(
                 "baseline_sibling_labels": baseline_siblings,
                 "candidate_sibling_labels": candidate_siblings,
                 "newly_exposed_sibling_labels": newly_exposed,
+                "newly_available_alternative_labels": newly_available,
+                "reclassified_retrieval_labels": reclassified_retrieval,
                 "baseline_sibling_count": len(baseline_siblings),
                 "candidate_sibling_count": len(candidate_siblings),
                 "baseline_candidate_pool": baseline["candidate_pool"],
@@ -175,4 +203,9 @@ def compare_knowledge_candidate_pools(
         "expanded_rows": len(rows),
         "unchanged_rows": unchanged_rows,
         "expanded_rows_by_target_parent": dict(sorted(expanded_by_parent.items())),
+        "effective_expanded_rows": effective_expanded_rows,
+        "effective_expanded_rows_by_target_parent": dict(
+            sorted(effective_expanded_by_parent.items())
+        ),
+        "reclassified_only_rows": reclassified_only_rows,
     }

@@ -19,7 +19,13 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> Path:
     return path
 
 
-def packet_row(*, sibling_labels: list[str], include_route_key: bool = False) -> dict[str, object]:
+def packet_row(
+    *,
+    sibling_labels: list[str],
+    retrieval_labels: list[str] | None = None,
+    include_route_key: bool = False,
+) -> dict[str, object]:
+    retrieved = retrieval_labels or ["知识点->句法->简单句->陈述句"]
     return {
         "review_id": "kp-validation:q-1:知识点@词法@被动语态@一般现在时的被动语态",
         "source_line": 12,
@@ -35,11 +41,8 @@ def packet_row(*, sibling_labels: list[str], include_route_key: bool = False) ->
             for label in sibling_labels
         ]
         + [
-            {
-                "label": "知识点->句法->简单句->陈述句",
-                "definition": "",
-                "source": "type_retrieval",
-            }
+            {"label": label, "definition": "", "source": "type_retrieval"}
+            for label in retrieved
         ],
     } | (
         {
@@ -83,8 +86,47 @@ class KnowledgeCandidatePoolComparisonTests(unittest.TestCase):
         self.assertEqual(row["baseline_sibling_labels"], [existing])
         self.assertEqual(row["candidate_sibling_labels"], [existing, newly_exposed])
         self.assertEqual(row["newly_exposed_sibling_labels"], [newly_exposed])
+        self.assertEqual(row["newly_available_alternative_labels"], [newly_exposed])
         self.assertEqual(row["target_parent_path"], "知识点->词法->被动语态")
         self.assertIsNone(row["route_key"])
+
+    def test_comparison_separates_reclassified_retrieval_from_new_options(self):
+        existing = "知识点->词法->被动语态->一般过去时的被动语态"
+        reclassified = "知识点->词法->被动语态->过去进行时的被动语态"
+        retained_retrieval = "知识点->句法->简单句->陈述句"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            baseline = write_jsonl(
+                directory / "v01.jsonl",
+                [
+                    packet_row(
+                        sibling_labels=[existing],
+                        retrieval_labels=[reclassified, retained_retrieval],
+                    )
+                ],
+            )
+            candidate = write_jsonl(
+                directory / "v02.jsonl",
+                [
+                    packet_row(
+                        sibling_labels=[existing, reclassified],
+                        retrieval_labels=[retained_retrieval],
+                    )
+                ],
+            )
+            output = directory / "coverage.jsonl"
+
+            report = compare_knowledge_candidate_pools(
+                baseline, candidate, output_path=output
+            )
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(row["newly_exposed_sibling_labels"], [reclassified])
+        self.assertEqual(row["newly_available_alternative_labels"], [])
+        self.assertEqual(row["reclassified_retrieval_labels"], [reclassified])
+        self.assertEqual(report["expanded_rows"], 1)
+        self.assertEqual(report["effective_expanded_rows"], 0)
+        self.assertEqual(report["reclassified_only_rows"], 1)
 
 
 if __name__ == "__main__":
