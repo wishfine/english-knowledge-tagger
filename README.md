@@ -58,6 +58,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 题型逐项映射到老师矩阵的流程见 [题型打标策略映射](docs/type-policy-mapping.md)。
 小题知识点历史标签验证与 DS-V4 小批运行流程见 [知识点标签验证](docs/knowledge-label-validation.md)。
 题型与知识点从审计到 HQ 的当前端到端闭环见 [当前数据处理 Loop](docs/current-data-loop.md)。
+逐末级标签推进、校准、silver、错标/漏标处理与 HQ 门禁的完整执行手册见 [数据清洗手册](docs/data-cleaning-playbook.md)。
 
 对历史标签的“8 个同级近邻”与“完整直接兄弟叶子”候选覆盖对照，先按 [知识点标签验证](docs/knowledge-label-validation.md#v01--v02完整直接末级兄弟的覆盖校准) 生成并人工审查 packet，不能直接调用 DS 或修改标签。
 
