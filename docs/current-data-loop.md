@@ -1,5 +1,7 @@
 # 当前数据处理 Loop（题型 + 知识点）
 
+> 本文记录当前工程运行状态与已完成实验；按步骤执行时优先阅读 [数据清洗执行手册](data-cleaning-playbook.md)，文档适用性见 [文档状态](document-status.md)。
+
 ## 目的与边界
 
 本项目不是把约 320 万历史题目“一次性洗干净”，而是持续产出可以训练生成式 SFT 的 `hq-v*` 高质量数据。当前正式基座数据为 mentor 提供的增强版本：
@@ -38,26 +40,28 @@ cleaned_final_enhanced_v2.jsonl
 ```text
 只读增强源 + 老师 CSV
         │
-        ├─ ① 题型 inventory / 盲审 / 精确题型策略
-        │        │
-        │        └─ 未审批路由 → 隔离，补规则或复核
+        ├─ ① 逐末级历史标签直接判别（当前主入口）
+        │       │
+        │       ├─ 标签级人工校准 policy
+        │       ├─ match=true → silver_label_candidate 或 hold
+        │       ├─ match=false → relabel_candidate 或 hold
+        │       └─ 全历史标签正向覆盖 → silver_question_candidate
         │
-        └─ ② 已审批的小题路由 + 知识点存在性策略
-                 │
-                 ├─ forbidden / unresolved → 审计或隔离，不调用模型
-                 │
-                 └─ required / optional
+        ├─ ② 题型 inventory / 盲审 / 精确题型策略（并行审计）
+        │       │
+        │       └─ 决定 parent/child、知识点存在性和 HQ 门禁
+        │
+        └─ ③ false / 未校准 / 缺标 / 冲突难例
+                │
+                ├─ flat 候选验证或分层树搜索（DS-V4）
+                ├─ 人工或 Gemini 盲审、按标签与 route 分组复核
+                └─ 确认 patch
                          │
-                         ├─ flat 历史标签验证（DS-V4）
-                         ├─ replace / 缺标 → 分层树候选（DS-V4）
-                         ├─ 人工或 Gemini 盲审、按知识点分组复核
-                         └─ 确认 patch
-                                   │
-                                   ├─ 构造并冻结 hq-v* + dev/test
-                                   └─ SFT 评测错误 → 新问题簇 → 回到 ①/②
+                         ├─ 构造并冻结 hq-v* + dev/test
+                         └─ SFT 评测错误 → 新问题簇 → 回到 ①/②/③
 ```
 
-一次 loop 的最小单位是一个**同质问题簇**，例如“`child × 复合题 × 语法选择` 的介词小题”，不是全量数据，也不是一个模糊的“阅读题”大类。
+当前主线一次 loop 的最小单位是一个**末级知识点标签**；需要时可扩展为一个定义和根因一致的同质问题簇，例如“介词中的时间/地点/其他边界”。route 只是该标签的分层维度，不是先决候选池。
 
 ## 0. 每个 batch 先冻结输入
 

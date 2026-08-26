@@ -1,4 +1,6 @@
-# English Knowledge Tagger Design
+# English Knowledge Tagger Design（历史归档）
+
+> 本文记录项目最初的 Qwen3.5 + LoRA/MS-Swift 设计，不是当前训练或数据清洗规范。当前数据主线是逐末级标签直接判别、人工校准和保守 silver；当前训练目标是 Qwen3-VL-8B BF16 全参 SFT。请改读 [数据清洗执行手册](../data-cleaning-playbook.md) 与 [文档状态](../document-status.md)。
 
 ## Goal
 

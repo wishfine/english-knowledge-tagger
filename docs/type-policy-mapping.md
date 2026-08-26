@@ -1,6 +1,8 @@
 # 题型打标策略映射
 
-高质量数据先做“每种题应该如何打标”的映射，再清洗历史标签。题型策略的唯一键为：
+> 题型 route 是题型清洗、父/子 scope、知识点存在性和 HQ 准入的重要规则；但它**不是**逐末级历史标签直接判别的前置候选过滤条件。当前数据清洗主线见 [数据清洗执行手册](data-cleaning-playbook.md)，文档适用性见 [文档状态](document-status.md)。
+
+题型清洗要先完成“每种题应该如何打标”的映射；它与逐末级历史标签直接判别并行推进，而不是后者的阻塞前置。题型策略的唯一键为：
 
 ```text
 scope(parent | child) × 题型结构 × 题型名称
@@ -35,7 +37,7 @@ python3 scripts/sample_type_review_packet.py \
 
 该命令以 `scope × 题型结构 × 题型名称` 分层，在每一层稳定抽取至多 5 道题，约得到 560 条可审查记录。它只保留题面、题号、父题号和来源行号；题型复核完成后，如确需比较历史标签，另起新目录并加 `--include-legacy-labels`，不要覆盖盲审包。
 
-当进入某一类题的知识点处理、flat 验证或 tree 实验时，改用一个 exact route 样本包，不要混入其它题型。例如首个语法选择小题切片：
+当进入某一类题的 **flat 验证或 tree 替换实验** 时，改用一个 exact route 样本包，不要混入其它题型。例如首个语法选择小题切片：
 
 ```bash
 python3 scripts/sample_type_review_packet.py \
@@ -49,6 +51,8 @@ python3 scripts/sample_type_review_packet.py \
 ```
 
 三个 route 参数必须同时给出，且只做 exact match。冻结该 packet 后，flat 验证、tree 任务和 3×2 提示消融都必须使用同一份 packet；不要在不同实验间重新抽题。
+
+逐末级标签直接判别则按“历史 canonical label”建立样本池，可以在 route 仍在并行清洗时运行；但每条证据仍必须保留 `scope` 和 route，供后续按题型分层抽检、定位误判和决定是否需要知识点。
 
 ## 生成路由策略骨架
 
@@ -112,4 +116,4 @@ python3 scripts/route_question_types.py \
 1. 每一行先由业务/老师确认题型路由 `policy_status=approved`。
 2. 规则先在同质小批样本上生成审查包并复核；模型复核只能是候选证据。
 3. 审核通过的标签变更以 patch 保存，不能覆写源 JSONL。
-4. 只有 approved 题型路由、且其知识点策略也已确认的样本才能进入 `hq-v*` 高质量版本。
+4. 只有 approved 题型路由、且其知识点策略也已确认的样本才能进入 `hq-v*` 高质量版本；这条 HQ 门禁不阻止未完成 route 的题先生成 `hold` 或标签级审计证据。

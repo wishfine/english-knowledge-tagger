@@ -1,5 +1,7 @@
 # 增强版题型清单
 
+> 这是旧源版本上的 inventory 运行说明。最终上游源已经切换为 `cleaned_final_enhanced_v2.jsonl`；如需重新生成清单，必须为新源新建输出目录和 manifest，不能复用本页示例产物。题型 route 在当前流程中用于审计与 HQ 门禁，不是逐标签直接判别的前置过滤。
+
 增强版清单是独立的 `type-inventory-v2` 产物。它不会修改原有
 `type_inventory.py`、`inventory_question_types.py` 或旧清单文件。
 
