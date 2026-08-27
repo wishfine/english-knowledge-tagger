@@ -239,6 +239,52 @@ Run: `.venv/bin/python -m pytest tests/test_silver_post_sweep_sample.py -q`
 
 Expected: PASS.
 
+### Task 6: Partition a full-label packet by the human-approved route scope
+
+**Files:**
+- Create: `english_knowledge_tagger/mentor_label_rollout_partition.py`
+- Create: `scripts/partition_mentor_label_rollout_packet.py`
+- Create: `configs/terminal_label_rollout_policies/mentor-direct-v1-noun-discrimination-20260827.json`
+- Create: `tests/test_mentor_label_rollout_partition.py`
+- Modify: `docs/data-cleaning-playbook.md`
+
+**Interfaces:**
+
+```python
+partition_mentor_label_rollout_packet(
+    packet_path: Path, *, policy_path: Path, eligible_output_path: Path,
+    quarantine_output_path: Path
+) -> dict[str, object]
+```
+
+The first manual policy allows only `parent × 单选题 × 选择题` for `知识点@词汇@词汇辨析@名词（短语）辨析`. Exact route mismatches must be written unchanged to quarantine with a policy reason; they are not passed to the full DS verifier.
+
+- [x] **Step 1: Write the failing partition test**
+
+```python
+def test_partitioner_keeps_only_the_exact_human_approved_route():
+    report = partition_mentor_label_rollout_packet(packet, policy_path=policy, ...)
+    assert report["eligible_records"] == 1
+    assert eligible[0]["rollout_route_decision"] == "eligible"
+    assert quarantine[0]["rollout_route_decision"] == "quarantine"
+```
+
+- [x] **Step 2: Verify red**
+
+Run: `.venv/bin/python -m pytest tests/test_mentor_label_rollout_partition.py -q`
+
+Expected: FAIL because the partition module does not exist.
+
+- [x] **Step 3: Implement exact route policy and streamable partitioner**
+
+Reject packets containing a different verify label, malformed route key, duplicate policy routes, or pre-existing outputs. Report each route count and both destination paths; source packet remains unchanged.
+
+- [x] **Step 4: Verify green**
+
+Run: `.venv/bin/python -m pytest tests/test_mentor_label_rollout_partition.py -q`
+
+Expected: PASS.
+
 ## Self-Review
 
 - Yield threshold, error gate, minimum true count, and no accuracy claim are all covered by Task 1.

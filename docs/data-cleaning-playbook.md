@@ -578,11 +578,34 @@ wc -l "$RUN/full.packet.jsonl"
 cat "$RUN/full.packet.report.json"
 ```
 
-先做 20 条 smoke，检查 JSON 解析、prompt version、模型输出和 source identity；确认无误后才显式带 `--allow-full` 启动全量。全量输出每条记录都是后续 gate 可读的标准 evidence：
+完整 packet 不是全部都可进入本标签 rollout。该标签老师定义限制为“非复合单选”，因此按人工冻结的 exact route policy 划分：
+
+```text
+eligible：parent × 单选题 × 选择题
+quarantine：翻译、完形、阅读、填空、复合小题及其他 route
+```
+
+当前冻结 packet 的实际计数为 `32,747` 条 eligible 和 `7,009` 条 quarantine。quarantine 不是删除；它是后续由题型负责人确认、或作为该标签错标问题簇处理的只读证据。先执行分流：
+
+```bash
+export ROUTE_POLICY=configs/terminal_label_rollout_policies/mentor-direct-v1-noun-discrimination-20260827.json
+
+python3 scripts/partition_mentor_label_rollout_packet.py \
+  --input "$RUN/full.packet.jsonl" \
+  --policy "$ROUTE_POLICY" \
+  --eligible-output "$RUN/eligible.packet.jsonl" \
+  --quarantine-output "$RUN/route-quarantine.packet.jsonl" \
+  --report "$RUN/route-partition.report.json"
+
+wc -l "$RUN/eligible.packet.jsonl" "$RUN/route-quarantine.packet.jsonl"
+cat "$RUN/route-partition.report.json"
+```
+
+只对 eligible packet 做 20 条 smoke，检查 JSON 解析、prompt version、模型输出和 source identity；确认无误后才显式带 `--allow-full` 启动该 32,747 条范围。全量输出每条记录都是后续 gate 可读的标准 evidence：
 
 ```bash
 python3 scripts/validate_mentor_label_rollout.py \
-  --input "$RUN/full.packet.jsonl" \
+  --input "$RUN/eligible.packet.jsonl" \
   --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
   --teacher-csv "$TEACHER_CSV" \
   --taxonomy-migration "$KP_MIGRATION" \
@@ -592,7 +615,7 @@ python3 scripts/validate_mentor_label_rollout.py \
   --concurrency 16
 
 python3 scripts/validate_mentor_label_rollout.py \
-  --input "$RUN/full.packet.jsonl" \
+  --input "$RUN/eligible.packet.jsonl" \
   --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
   --teacher-csv "$TEACHER_CSV" \
   --taxonomy-migration "$KP_MIGRATION" \
