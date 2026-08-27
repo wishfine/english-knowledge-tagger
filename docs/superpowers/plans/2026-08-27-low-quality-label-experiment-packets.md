@@ -75,7 +75,7 @@ It selects every `llm_match=true` row in the exact legal route `parent × 单选
 - [x] **Step 1: Document server commands.** Include conversion packet generation plus DS tree run command, and mixed-POS blind/audit packet generation plus human/Gemini review boundary.
 - [x] **Step 2: Run both builders on the supplied local JSONL files.** Confirm conversion has 60 rows and M1 has 100 rows (52 legal true + 48 false) before claiming readiness.
 - [x] **Step 3: Run `.venv/bin/python -m pytest -q && git diff --check`.**
-- [ ] **Step 4: Commit and push only implementation, tests, docs and this plan.**
+- [x] **Step 4: Commit and push only implementation, tests, docs and this plan.**
 
 ## Self-Review
 
