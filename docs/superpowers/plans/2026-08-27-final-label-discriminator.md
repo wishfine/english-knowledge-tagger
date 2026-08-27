@@ -150,3 +150,25 @@ The final command sequence must process each label separately and must not claim
 - [x] **Step 3: Run the full suite, check formatting, commit and push.**
 
 Run: `.venv/bin/python -m pytest -q && git diff --check`.
+
+### Task 4: Select final-prompt calibration rows from existing human reviews
+
+**Files:**
+- Create: `english_knowledge_tagger/final_label_calibration_packet.py`
+- Create: `scripts/build_final_label_calibration_packet.py`
+- Create: `tests/test_final_label_calibration_packet.py`
+- Modify: `docs/final-discriminator-ready-data.md`
+
+```python
+def build_final_label_calibration_packet(
+    final_packet_path: Path, *, review_sample_path: Path, verify_label: str,
+    output_path: Path
+) -> dict[str, object]: ...
+```
+
+The selector uses the existing review sample only for exact label/question identity, review ID and original stratum. It joins only question IDs in the current final packet, preserves final packet content, reports missing reviewed IDs explicitly and never feeds review labels, historical `output_all` or type metadata to the model.
+
+- [x] **Step 1: Write and verify a failing identity-join test.** The test contains two route-eligible review IDs, one missing ID and one other-label record; expected output has exactly the two eligible rows in review-sample order and reports the missing ID.
+- [x] **Step 2: Implement streamable selector and CLI.** Reject duplicate final packet IDs and duplicate review IDs for the target label; refuse overwrite.
+- [x] **Step 3: Verify green.** Run `.venv/bin/python -m pytest tests/test_final_label_calibration_packet.py -q`.
+- [x] **Step 4: Document the server destination, per-label commands and missing-ID interpretation.**

@@ -127,6 +127,44 @@ done
 6. `assemble_silver_questions.py` 只会在同题所有 active 历史知识点都有正向 evidence 时生成 `silver_question_candidate`。
 7. 从每个标签全量新 positive 中独立抽 60 条；60/60 retain 后才更新为 `released_silver`。之后还需过 HQ 的完整标签集和多模态门禁，才是 `train_candidate`。
 
+### 离线：从既有人审样本构造 final-v1 校准包
+
+已有的 `knowledge-label-calibration-sample.jsonl` 给出每条人工复核样本的 `verify_label`、题号、历史 DS 分层和 review ID。`build_final_label_calibration_packet.py` 只用这些身份字段，把它们与当前 `final.packet.jsonl` 取交集；最终 runner 依旧只会读取其清洗后的题目内容与候选标签。
+
+需要先让 35 上能读到该 9,191 条样本文件。建议统一放到：
+
+```text
+/local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl
+```
+
+在 35 上确认文件存在后，按四个标签分别生成校准包：
+
+```bash
+export REVIEW_SAMPLE=/local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl
+test -r "$REVIEW_SAMPLE" || { echo "缺少人工复核样本：$REVIEW_SAMPLE"; exit 1; }
+
+prepare_calibration () {
+  local slug="$1"
+  local label="$2"
+  local run="$BATCH/$slug"
+
+  python3 scripts/build_final_label_calibration_packet.py \
+    --input "$run/final.packet.jsonl" \
+    --review-sample "$REVIEW_SAMPLE" \
+    --verify-label "$label" \
+    --output "$run/final.calibration.packet.jsonl" \
+    --report "$run/final.calibration.report.json"
+  cat "$run/final.calibration.report.json"
+}
+
+prepare_calibration noun-discrimination '知识点@词汇@词汇辨析@名词（短语）辨析'
+prepare_calibration adverb-discrimination '知识点@词汇@词汇辨析@副词（短语）辨析'
+prepare_calibration verb-discrimination '知识点@词汇@词汇辨析@动词（短语）辨析'
+prepare_calibration adjective-discrimination '知识点@词汇@词汇辨析@形容词（短语）辨析'
+```
+
+报告中的 `missing_from_final_packet_question_ids` 是人工样本不属于当前 `label × route` 的证据，不能删除或补造；`eligible_calibration_records` 才是给 final-v1 重新校准的样本。DS 部署后先运行这些较小 calibration packet，再比对已有人工复核结论。
+
 最终 runner 的 smoke 命令模板：
 
 ```bash
