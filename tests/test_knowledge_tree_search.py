@@ -34,6 +34,7 @@ def _tree() -> object:
             records={
                 "知识点->词法->名词->可数名词": _record("知识点->词法->名词->可数名词"),
                 "知识点->词法->冠词->a/an的区别": _record("知识点->词法->冠词->a/an的区别"),
+                "知识点->词汇->构词法->转化法": _record("知识点->词汇->构词法->转化法"),
             }
         )
     )
@@ -54,6 +55,27 @@ def _choices(*values: str):
 
 
 class KnowledgeTreeSearchTests(unittest.TestCase):
+    def test_whole_taxonomy_root_starts_with_active_top_level_children(self):
+        self.assertTrue(callable(search_one_candidate), "search_one_candidate must be implemented")
+
+        result = search_one_candidate(
+            _tree(),
+            question_context="题干：text 既可作名词也可作动词。",
+            allowed_prefixes=("知识点",),
+            choose=_choices(
+                "知识点->词汇",
+                "知识点->词汇->构词法",
+                "知识点->词汇->构词法->转化法",
+            ),
+        )
+
+        self.assertEqual(result.status, "tree_candidate")
+        self.assertEqual(result.candidate_label, "知识点->词汇->构词法->转化法")
+        self.assertCountEqual(
+            result.trace[0]["candidate_paths"],
+            ("知识点->词法", "知识点->词汇"),
+        )
+
     def test_search_descends_to_a_terminal_leaf_without_backtracking(self):
         self.assertTrue(callable(search_one_candidate), "search_one_candidate must be implemented")
 

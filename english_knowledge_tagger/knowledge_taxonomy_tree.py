@@ -58,6 +58,10 @@ class KnowledgeTaxonomyTree:
                 raise ValueError(f"allowed knowledge prefix is not in taxonomy: {prefix}")
         if len(set(allowed_prefixes)) != len(allowed_prefixes):
             raise ValueError("allowed knowledge prefixes contain duplicates")
+        if self.root_path in allowed_prefixes:
+            if allowed_prefixes != (self.root_path,):
+                raise ValueError("whole-taxonomy root cannot be combined with narrower prefixes")
+            return self.children(self.root_path)
         return tuple(sorted(allowed_prefixes))
 
     def is_terminal(self, path: str) -> bool:

@@ -234,6 +234,36 @@ python3 scripts/validate_knowledge_labels.py \
 
 树搜索不是最终多标签输出，也不替换原有 flat 验证。输出只进入 `relabel_candidates`，应和 flat `replace` 分层抽检比较。首轮每题最多 8 次选择、最多 2 次回退。
 
+### mentor 直接判别低产量标签：whole-tree 纠错实验包
+
+当一个末级历史标签的 direct-verifier `match=true` 产量很低，且人工复核发现其中同时存在 false positive 和 false negative 时，不能直接把 `false` 视为删除，也不能把 `true` 视为保留。先把该标签的 mentor 判别明细转换成现有树任务：
+
+```text
+direct true                 -> direct_match_recheck：树可回到原标签或选择其他叶子
+direct false + 标签型建议   -> direct_mismatch：树从全 taxonomy 找一个候选叶子
+direct false + “正确”       -> direct_contract_conflict hold
+direct false + 非标签/信息不足 -> direct_insufficient hold
+```
+
+whole-tree task 的 `allowed_knowledge_prefixes` 是 `知识点`。这是一个**搜索根**，运行时会展开为 active taxonomy 的顶层分支，绝不是模型可以输出的知识点标签。模型仍在每层只选择一个直接子节点或 `__NO_MATCH__`，并受既有 `max_steps` 和回退预算限制。
+
+以转化法为例，直接判别器会把“发生词形变化的派生”误判为转化法，也会漏掉同形多词性题。因此 500 条原始 mentor 结果先只做离线任务准备，不运行 DS、不读写增强源：
+
+```bash
+export MENTOR_VERDICTS=/path/to/知识点_词汇_构词法_转化法.jsonl
+export TREE_DIR="$RUNTIME/knowledge-tree/conversion-v0.1-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$TREE_DIR"
+
+python3 scripts/build_mentor_tree_correction_tasks.py \
+  --input "$MENTOR_VERDICTS" \
+  --verify-label '知识点@词汇@构词法@转化法' \
+  --output "$TREE_DIR/tasks.jsonl" \
+  --hold-output "$TREE_DIR/hold.jsonl" \
+  --report "$TREE_DIR/tasks.report.json"
+```
+
+`tasks.jsonl` 之后才能作为 `scripts/route_knowledge_tree.py` 的小批输入；先运行 50--100 条并人工比较 `tree_candidate`、`uncovered`、`budget_exhausted` 与原始 direct verdict。`hold.jsonl` 不能进入树搜索，也不能因它包含 `false` 就成为删除或替换 patch。
+
 ```bash
 export TREE_RUN=knowledge-tree-v0.1-$(date +%Y%m%d-%H%M%S)
 export TREE_DIR="$RUNTIME/knowledge-tree/$TREE_RUN"

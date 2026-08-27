@@ -63,6 +63,8 @@ cleaned_final_enhanced_v2.jsonl
 
 当前主线一次 loop 的最小单位是一个**末级知识点标签**；需要时可扩展为一个定义和根因一致的同质问题簇，例如“介词中的时间/地点/其他边界”。route 只是该标签的分层维度，不是先决候选池。
 
+对于 `match=true` 低、且已确认 direct verifier 同时有 false positive/false negative 的标签，进入“whole-tree 纠错实验”支路：先把原始判别明细分为 tree task 与 hold，再以小批树搜索探索一个 active 末级候选。树的结论仍只是 `relabel_candidate`，不产生 patch；详见[知识点标签验证](knowledge-label-validation.md#mentor-直接判别低产量标签whole-tree-纠错实验包)。
+
 ## 0. 每个 batch 先冻结输入
 
 每次运行先创建独立目录和 manifest，至少记录：
