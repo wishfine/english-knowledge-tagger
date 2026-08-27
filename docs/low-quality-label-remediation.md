@@ -138,6 +138,32 @@ uncovered / budget_exhausted 是否应当保持 hold；
 
 通过条件：四个边界簇（同形、派生、屈折、普通翻译）都不能出现系统性方向错误；`tree_candidate` 的人工正确率达到预先约定阈值后，才扩大到其同质簇。无论结果如何，第一轮只生成 `relabel_candidate`，不生成 patch。
 
+T1 的离线 packet builder 已完成。它以固定 SHA-256 排序构造 60 条 DS 输入：9 条已知同形转化、3 条已知派生/拼写反例、3 条 direct-true 补样、35 条按 direct false 建议分层的候选，以及 10 条翻译/拼写/父题填空 route 覆盖。DS 输入保持 `knowledge-tree-task-v1` 原样，stratum 只存在独立 audit index 中。
+
+```bash
+export TASKS=/path/to/conversion-v0.1/tasks.jsonl
+export T1_DIR="$RUNTIME/low-quality-label-experiments/conversion-t1-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$T1_DIR"
+
+python3 scripts/build_conversion_tree_t1_packet.py \
+  --input "$TASKS" \
+  --output "$T1_DIR/tree-input-60.jsonl" \
+  --audit-index "$T1_DIR/audit-index.jsonl" \
+  --report "$T1_DIR/packet.report.json" \
+  --seed 'conversion-tree-t1-20260827'
+
+# DS 服务恢复后才运行；结果仍只是 relabel_candidate evidence。
+python3 scripts/route_knowledge_tree.py \
+  --input "$T1_DIR/tree-input-60.jsonl" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --output "$T1_DIR/tree-results.jsonl" \
+  --report "$T1_DIR/tree-timing.report.json" \
+  --limit 60 \
+  --concurrency 16 \
+  --max-steps 8 \
+  --max-backtracks 2
+```
+
 #### 实验 T2：候选叶子分簇验证
 
 按 T1 的 tree 候选叶子分组，例如“派生法”“词汇音形义”“主谓一致”“无覆盖”。每个达到可用数量的 `原转化法 × 候选叶子 × route` 簇独立抽 12 条人工复核：
@@ -205,6 +231,33 @@ M1b 从 131 条同 route false 中按模型建议去向分层抽检，每个高�
 只有先确认“选项是否混合词性”这个前置事实，才决定是否使用 direct validator 或 tree。预计需要的规则不是“看到多个词性就保留”，而是“词汇/短语的语义辨析是否为必要解题依赖”。
 
 验收：在这四类样本上，先把历史错标、题型污染和真实混合词性三类分开。只有 M1a 的某个**定义一致的细簇**达到 12/12 retain，才为该 `标签 × route × 选项模式` 建立 preliminary policy；全标签在此之前全部 hold。M1b 的 false 不因抽检正确就直接生成 patch，后续仍须走树候选和分簇复核。
+
+#### M1 离线盲审包
+
+M1 packet builder 已完成。它严格只保留 `parent × 单选题 × 选择题`：全量放入该 route 的 52 条 direct true，再从 direct false 的四个高频建议方向各稳定抽 12 条，共 100 条。reviewer-facing 包没有 `llm_match`、`llm_reason`、`llm_should_be` 和 `output_all`；这四个字段只留在 audit index，用于审核结束后对齐。
+
+```bash
+export MIXED_VERDICTS=/path/to/知识点_词汇_词汇辨析_词汇辨析（混合词性）.jsonl
+export M1_DIR="$RUNTIME/low-quality-label-experiments/mixed-pos-m1-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$M1_DIR"
+
+python3 scripts/build_mixed_pos_m1_review_packet.py \
+  --input "$MIXED_VERDICTS" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --verify-label '知识点@词汇@词汇辨析@词汇辨析（混合词性）' \
+  --blind-output "$M1_DIR/blind-review-100.jsonl" \
+  --audit-index "$M1_DIR/audit-index.jsonl" \
+  --report "$M1_DIR/packet.report.json" \
+  --seed 'mixed-pos-m1-20260827'
+```
+
+交给人工或 Gemini 的只能是 `blind-review-100.jsonl`。每条应返回：
+
+```json
+{"review_id":"...","decision":"keep|remove|uncertain","reason":"一句话说明是否满足非复合单选、选项词性和实际解题依赖"}
+```
+
+不要把 `audit-index.jsonl` 同时发送给 reviewer；它会泄露原 DS 的 true/false 和 `should_be`，使 M1 失去盲审意义。收到 review 结果后，再将 `review_id` 与 audit index 对齐，按选项模式分簇决定是否做树搜索或建立 policy。
 
 ## 6. P1：介词（短语）辨析
 
