@@ -1,0 +1,13 @@
+{
+  "schema_version": "terminal-label-rollout-route-policy-v1",
+  "verify_label": "知识点@词汇@词汇辨析@形容词（短语）辨析",
+  "prompt_version": "mentor-direct-v1",
+  "eligible_routes": [
+    {
+      "scope": "parent",
+      "declared_type_structure": "单选题",
+      "declared_type_name": "选择题"
+    }
+  ],
+  "quarantine_reason": "outside_teacher_approved_non_composite_single_choice_route"
+}

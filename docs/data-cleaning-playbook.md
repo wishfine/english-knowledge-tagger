@@ -523,18 +523,18 @@ match=true 样本数 ≥ 12
 
 满 500 条时，至少 `367/500 = 73.4%` 才满足该下界；日常可用更容易理解的 `≥75%` 作为优先阈值。样本少于 500 时必须按实际 `n` 计算，不能机械套用 75%。通过产量门槛后，仍必须有 `true` 的 12 条人工复核全对，才能写入 `screened_12` preliminary policy。
 
-首个按此门槛进入 rollout 的标签为：
+第一批已完成 `true` 12/12 人审复核、可离线准备的标签为：
 
 ```text
-知识点@词汇@词汇辨析@名词（短语）辨析
-初筛：448/500 = 89.6%，单侧 95% 下界 87.1%
-人工 true：12/12 retain
-人工 false：1 retain、10 remove、1 uncertain
+名词（短语）辨析：448/500 = 89.6%，单侧 95% 下界 87.1%
+副词（短语）辨析：439/500 = 87.8%，单侧 95% 下界 85.2%
+动词（短语）辨析：429/500 = 85.8%，单侧 95% 下界 83.0%
+形容词（短语）辨析：423/500 = 84.6%，单侧 95% 下界 81.8%
 ```
 
-因此它的初始 policy 只放行 positive `match=true` 为 `silver_label_candidate`；任何 false 都保持 `hold`。全量运行完成后，必须从**新产生的 true** 中独立随机抽取 60 条做人工复核；60/60 retain 才能将该标签升级为 `released_post_sweep`。
+四个标签的人工 `true` 样本均为 `12/12 retain`，故其初始 policy 都只放行 positive `match=true` 为 `silver_label_candidate`；任何 false 都保持 `hold`。它们的 false 样本并非全部为错标，因此不能因为 `match=false` 自动删除。每个标签的全量运行完成后，必须分别从**新产生的 true** 中独立随机抽取 60 条做人工复核；60/60 retain 才能把该标签升级为 `released_post_sweep`。
 
-#### mentor-direct-v1：名词（短语）辨析的首轮全量运行
+#### mentor-direct-v1：名词（短语）辨析的首轮全量运行（示例）
 
 这轮要复用 mentor 初筛时的 definition JSON 和 prompt 行为，不能换成另一套 prompt 后继续沿用原来的 12/12 校准结论。准备下列输入：
 
@@ -652,6 +652,59 @@ python3 scripts/sample_silver_post_sweep.py \
 ```
 
 若独立 60 条全为 retain，人工创建新 policy 版本，将 `calibration_stage` 改为 `released_post_sweep`；若任何一条为 remove 或 uncertain，停止该标签放大，保留已产出 evidence，并新建该标签的误判问题簇。无论哪种结果，都不修改 source `output`。
+
+#### DS 服务暂停期间：准备四个标签的离线 packet
+
+在 DS 服务没有部署时，可以先构造 packet、按 route 分流、记录每个标签的真实 source 数量；这些步骤不发网络请求，也不改写 source 或历史标签。四个标签结论必须保持独立，不能把它们的后续 60 条复核合并计算。
+
+下面命令会顺序扫描 source 四次，避免并发读取同一个 4 GB 源文件造成不必要的 IO 竞争。每个标签都会生成独立目录；重复运行同一 `BATCH` 会因输出已存在而失败，不会覆盖已有结果。
+
+```bash
+export FINAL_SOURCE=/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl
+export MENTOR_LABEL_DEFINITIONS=/local_data/zhangyonglin/english-knowledge-tagger-data/mentor-direct-v1/label_definitions_for_verification.json
+export RUNTIME=/local_data/zhangyonglin/english-knowledge-tagger-runtime
+export BATCH="$RUNTIME/direct-label/lexical-pos-v0.1-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$BATCH"
+
+prepare_label () {
+  local slug="$1"
+  local label="$2"
+  local route_policy="$3"
+  local label_run="$BATCH/$slug"
+
+  mkdir -p "$label_run"
+  python3 scripts/build_mentor_label_rollout_packet.py \
+    --source "$FINAL_SOURCE" \
+    --verify-label "$label" \
+    --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+    --output "$label_run/full.packet.jsonl" \
+    --report "$label_run/full.packet.report.json"
+
+  python3 scripts/partition_mentor_label_rollout_packet.py \
+    --input "$label_run/full.packet.jsonl" \
+    --policy "$route_policy" \
+    --eligible-output "$label_run/eligible.packet.jsonl" \
+    --quarantine-output "$label_run/route-quarantine.packet.jsonl" \
+    --report "$label_run/route-partition.report.json"
+
+  wc -l "$label_run/eligible.packet.jsonl" "$label_run/route-quarantine.packet.jsonl"
+}
+
+prepare_label noun-discrimination \
+  '知识点@词汇@词汇辨析@名词（短语）辨析' \
+  configs/terminal_label_rollout_policies/mentor-direct-v1-noun-discrimination-20260827.json
+prepare_label adverb-discrimination \
+  '知识点@词汇@词汇辨析@副词（短语）辨析' \
+  configs/terminal_label_rollout_policies/mentor-direct-v1-adverb-discrimination-20260827.json
+prepare_label verb-discrimination \
+  '知识点@词汇@词汇辨析@动词（短语）辨析' \
+  configs/terminal_label_rollout_policies/mentor-direct-v1-verb-discrimination-20260827.json
+prepare_label adjective-discrimination \
+  '知识点@词汇@词汇辨析@形容词（短语）辨析' \
+  configs/terminal_label_rollout_policies/mentor-direct-v1-adjective-discrimination-20260827.json
+```
+
+服务恢复后，仍须对每个 `<label_run>/eligible.packet.jsonl` 先做 20 条 smoke，再启动对应的全量 DS 验证；不能把四个 eligible packet 串成一个文件后共用一个标签 policy。
 
 ---
 

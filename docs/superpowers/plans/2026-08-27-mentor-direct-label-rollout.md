@@ -292,3 +292,20 @@ Expected: PASS.
 - Full-run model evidence, error handling, taxonomy canonicalization and existing gate integration are covered by Task 3.
 - The first label's human-approved policy and 60-sample operational gate are covered by Task 4.
 - No task parses the unfinished Markdown ledgers, mutates source labels, or sends false results directly to replacement.
+
+### Task 7: Prepare the approved lexical POS batch while DS is paused
+
+**Files:**
+- Create: three `configs/terminal_label_rollout_policies/mentor-direct-v1-*-discrimination-20260827.json` policy files.
+- Modify: `configs/terminal_label_calibration_policies/mentor-direct-v1-preliminary-20260827.json`
+- Modify: `tests/test_terminal_label_rollout_policy_configs.py`
+- Modify: `tests/test_terminal_label_calibration_policy_configs.py`
+- Modify: `docs/data-cleaning-playbook.md`, `docs/document-status.md`, `README.md`
+
+The four labels are noun/adverb/verb/adjective `(短语)辨析`. Each was a separate 500-record yield candidate and has a complete positive `12/12 retain` review. All use the same manually approved route, `parent × 单选题 × 选择题`, but retain separate route policies, packets, DS runs and independent 60-positive release samples.
+
+- [x] **Step 1: Extend config tests to require the four distinct route and calibration policies.**
+- [x] **Step 2: Verify red.** Both new route policies and preliminary calibration entries are absent, causing expected test failures.
+- [x] **Step 3: Freeze the three new route files and their reviewed audit counts.** All negative outcomes remain `hold`.
+- [x] **Step 4: Verify green.** Run `.venv/bin/python -m pytest tests/test_terminal_label_rollout_policy_configs.py tests/test_terminal_label_calibration_policy_configs.py -q`.
+- [x] **Step 5: Document sequential offline packet preparation and the per-label DS/release boundary.**
