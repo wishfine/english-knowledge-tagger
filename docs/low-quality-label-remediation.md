@@ -160,9 +160,42 @@ uncovered / budget_exhausted 是否应当保持 hold；
 
 老师定义要求“非复合单选，选项确实含不同词性的词汇/短语”。完整复核中只有 `whenever/whatever/...`、`another/more/other/others` 等少数题符合；复合题、完形和词性变化语法题被错误继承该标签。
 
+### M1 基线诊断（mentor 500 条明细）
+
+输入：`知识点_词汇_词汇辨析_词汇辨析（混合词性）.jsonl`，共 500 条；mentor direct verifier 给出 `true=217`、`false=283`。
+
+| 切片 | true | false | 解读 |
+|---|---:|---:|---|
+| `child × 完形填空 × 语法选择` | 90 | 71 | CSV 明确排除，所有历史标签先 route quarantine |
+| `child × 复合题 × 语法选择` | 70 | 46 | CSV 明确排除，所有历史标签先 route quarantine |
+| `parent × 填空题 × 选词填空` | 4 | 10 | CSV 明确排除，先 route quarantine |
+| `parent × 完形填空 × 完形填空` | 1 | 4 | CSV 明确排除，先 route quarantine |
+| `parent × 单选题 × 选择题` | 52 | 131 | 唯一可进入“选项与语义”二次诊断的 route |
+| 其他复合/阅读/判断 route | 0 | 21 | CSV 明确排除，先 route quarantine |
+
+因此 direct true 中至少 `165/217 = 76.0%` 已被题型硬规则否定；这不是可用于评价语义判别能力的 true。过滤到老师允许的单选大题后，direct true 仅 `52/183 = 28.4%`，仍不能直接放行。
+
+对这 52 条 true 的题面级快速形态统计：
+
+- 16 条是纯 `how` 疑问词组（`how often/how long/...`）；完整人工样本已显示这类通常应归特殊疑问句，而非混合词性。
+- 3 条是普通 `what/where/who/...` 疑问句；需与 `wh-ever` 分开，不能混用规则。
+- 2 条全为 `wh-ever` 形式、3 条混有 `wh-ever`；完整人工样本中 `whenever/whatever/...` 可能是可保留边界，必须人工审。
+- 28 条是其他混合候选，混有真实语义辨析（`another/more/other/others`、`other/else`、`alone/lonely` 等）以及明显语法主导的词性/数量/词形题（如 `succeed/success/successful/successfully`）。
+
+在同一合法 route 的 131 条 false 中，模型建议的主要去向是：`how` 类特殊疑问句 33、固定搭配 24、同词性词汇辨析 21、连词辨析 12。这些仅是 tree / 人工复核的假设，不是自动替换标签。
+
 ### 实验 M1：先诊断，不做 tree 全量搜索
 
-先从 mentor 500 条明细中建立 `scope × route × 选项词性形态` 统计包。人工抽样至少覆盖：
+M1a 不应再随机抽 12 条 true。经过 route 过滤后只有 52 条 true，且定义边界是本标签的核心风险，应对**全部 52 条**进行盲审并记录：选项词性、实际解题依赖、是否为普通疑问句/连词/词形语法、以及 keep/remove/uncertain。这样可先冻结“普通 how”与“wh-ever”不应混用的可执行边界。
+
+M1b 从 131 条同 route false 中按模型建议去向分层抽检，每个高频簇至多 12 条：
+
+- `how` 类特殊疑问句；
+- 固定搭配/句型；
+- 同词性词汇辨析；
+- 连词辨析。
+
+人工抽样至少覆盖：
 
 - 非复合单选、选项真的混合词性；
 - 非复合单选、选项词性实际相同；
@@ -171,7 +204,7 @@ uncovered / budget_exhausted 是否应当保持 hold；
 
 只有先确认“选项是否混合词性”这个前置事实，才决定是否使用 direct validator 或 tree。预计需要的规则不是“看到多个词性就保留”，而是“词汇/短语的语义辨析是否为必要解题依赖”。
 
-验收：在这四类样本上，先把历史错标、题型污染和真实混合词性三类分开。此标签在完成新的 true/false 校准前，全部 hold。
+验收：在这四类样本上，先把历史错标、题型污染和真实混合词性三类分开。只有 M1a 的某个**定义一致的细簇**达到 12/12 retain，才为该 `标签 × route × 选项模式` 建立 preliminary policy；全标签在此之前全部 hold。M1b 的 false 不因抽检正确就直接生成 patch，后续仍须走树候选和分簇复核。
 
 ## 6. P1：介词（短语）辨析
 
