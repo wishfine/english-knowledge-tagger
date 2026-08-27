@@ -179,6 +179,20 @@ class TerminalLabelDiscriminatorGateTests(unittest.TestCase):
                     rulebook=rulebook,
                 )
 
+    def test_holds_error_evidence_without_requiring_a_boolean_match(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            policy, rulebook = self._policy_and_rulebook(Path(temp_dir))
+            error_row = evidence(
+                review_id="service-error", question_id="101", canonical_label=LABEL_A, llm_match=True
+            )
+            error_row["status"] = "error"
+            error_row["llm_match"] = None
+            result = gate_terminal_label_discriminator([error_row], policy=policy, rulebook=rulebook)
+
+        self.assertEqual(result.silver, ())
+        self.assertEqual(result.relabel, ())
+        self.assertEqual(result.hold[0]["disposition_reason"], "discriminator_status_error")
+
 
 if __name__ == "__main__":
     unittest.main()

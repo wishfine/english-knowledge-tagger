@@ -509,6 +509,127 @@ llm_match=false 样本
 
 两类都要看，因为 false 不必然表示历史标签错：模型可能漏判共标、过度追求“唯一主考点”、缺少图片/听力信息，或不理解释义边界。
 
+### 8.6 全量 rollout 的优先级门槛
+
+500 条初筛的 `match=true` 比例只用于判断一个标签是否值得优先投入全量模型成本；它不是标签正确率。前提是“每标签最多 500 条”的抽样是随机或稳定分层抽样，而不是文件前 500 条。
+
+对某标签的初筛 `X ~ Binomial(n, p)`，使用**单侧 95% Wilson 下界**估计其 true 产量；只有满足下列条件才进入全量 rollout 队列：
+
+```text
+one-sided Wilson lower bound ≥ 70%
+无服务/解析错误
+match=true 样本数 ≥ 12
+```
+
+满 500 条时，至少 `367/500 = 73.4%` 才满足该下界；日常可用更容易理解的 `≥75%` 作为优先阈值。样本少于 500 时必须按实际 `n` 计算，不能机械套用 75%。通过产量门槛后，仍必须有 `true` 的 12 条人工复核全对，才能写入 `screened_12` preliminary policy。
+
+首个按此门槛进入 rollout 的标签为：
+
+```text
+知识点@词汇@词汇辨析@名词（短语）辨析
+初筛：448/500 = 89.6%，单侧 95% 下界 87.1%
+人工 true：12/12 retain
+人工 false：1 retain、10 remove、1 uncertain
+```
+
+因此它的初始 policy 只放行 positive `match=true` 为 `silver_label_candidate`；任何 false 都保持 `hold`。全量运行完成后，必须从**新产生的 true** 中独立随机抽取 60 条做人工复核；60/60 retain 才能将该标签升级为 `released_post_sweep`。
+
+#### mentor-direct-v1：名词（短语）辨析的首轮全量运行
+
+这轮要复用 mentor 初筛时的 definition JSON 和 prompt 行为，不能换成另一套 prompt 后继续沿用原来的 12/12 校准结论。准备下列输入：
+
+为保证可比性，`mentor-direct-v1` 会保留 `output_all` 作为模型输入中的历史标签上下文；这不是长期默认推荐的无锚定 prompt，而是本轮对已有 v1 校准结论的**冻结复现**。未来若改为不发 `output_all` 的 v2，必须重新做每标签 500 条初筛和 12/12 校准，不能沿用本轮 policy。
+
+```bash
+export FINAL_SOURCE=/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
+export KP_MIGRATION=configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json
+
+# 这两个文件必须来自 mentor 运行 24 万初筛时的同一版本。
+export MENTOR_LABEL_DEFINITIONS=/path/to/label_definitions_for_verification.json
+export MENTOR_CALIBRATION_SAMPLE=/path/to/knowledge-label-calibration-sample.jsonl
+
+export LABEL='知识点@词汇@词汇辨析@名词（短语）辨析'
+export POLICY=configs/terminal_label_calibration_policies/mentor-direct-v1-preliminary-20260827.json
+export RUN="$RUNTIME/direct-label/noun-discrimination-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$RUN"
+```
+
+第一步用 mentor 的机器可读 `overall_summary.json` 排序。该步骤只是重现优先级，不修改数据：
+
+```bash
+python3 scripts/rank_mentor_verification_report.py \
+  --summary /path/to/verification_results/overall_summary.json \
+  --output-json "$RUN/mentor-priority.json" \
+  --output-csv "$RUN/mentor-priority.csv"
+```
+
+然后构造该标签在最终 source 上的完整 packet。脚本会全量流式扫描一次，保存所有匹配记录的题号、父题号、source line、scope、route、原始 `input` 和 `output_all`：
+
+```bash
+python3 scripts/build_mentor_label_rollout_packet.py \
+  --source "$FINAL_SOURCE" \
+  --verify-label "$LABEL" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --output "$RUN/full.packet.jsonl" \
+  --report "$RUN/full.packet.report.json"
+
+wc -l "$RUN/full.packet.jsonl"
+cat "$RUN/full.packet.report.json"
+```
+
+先做 20 条 smoke，检查 JSON 解析、prompt version、模型输出和 source identity；确认无误后才显式带 `--allow-full` 启动全量。全量输出每条记录都是后续 gate 可读的标准 evidence：
+
+```bash
+python3 scripts/validate_mentor_label_rollout.py \
+  --input "$RUN/full.packet.jsonl" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$RUN/smoke.evidence.jsonl" \
+  --report "$RUN/smoke.verdict.report.json" \
+  --limit 20 \
+  --concurrency 16
+
+python3 scripts/validate_mentor_label_rollout.py \
+  --input "$RUN/full.packet.jsonl" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$RUN/full.evidence.jsonl" \
+  --report "$RUN/full.verdict.report.json" \
+  --allow-full \
+  --concurrency 64
+```
+
+全量完成后通过人工冻结的 preliminary policy 分流。该 policy 只允许这个标签的 positive 进入 `silver`，false 仍全部进入 hold：
+
+```bash
+python3 scripts/gate_terminal_label_discriminator.py \
+  --input "$RUN/full.evidence.jsonl" \
+  --teacher-csv "$TEACHER_CSV" \
+  --policy "$POLICY" \
+  --silver-output "$RUN/silver-label-evidence.jsonl" \
+  --relabel-output "$RUN/relabel-candidates.jsonl" \
+  --hold-output "$RUN/hold.jsonl" \
+  --report "$RUN/gate.report.json"
+```
+
+最后从**本次全量运行新得到的** positive silver 中抽 60 条，并排除最初 12/12 校准题。抽样包不附加人工结论；业务方审核完成后再决定是否升级 policy：
+
+```bash
+python3 scripts/sample_silver_post_sweep.py \
+  --input "$RUN/silver-label-evidence.jsonl" \
+  --verify-label "$LABEL" \
+  --exclude-jsonl "$MENTOR_CALIBRATION_SAMPLE" \
+  --output "$RUN/post-sweep-60.review.jsonl" \
+  --report "$RUN/post-sweep-60.report.json" \
+  --sample-size 60 \
+  --seed "noun-discrimination-mentor-direct-v1-20260827"
+```
+
+若独立 60 条全为 retain，人工创建新 policy 版本，将 `calibration_stage` 改为 `released_post_sweep`；若任何一条为 remove 或 uncertain，停止该标签放大，保留已产出 evidence，并新建该标签的误判问题簇。无论哪种结果，都不修改 source `output`。
+
 ---
 
 ## 9. 阶段 3：标签校准与保守 silver 分流

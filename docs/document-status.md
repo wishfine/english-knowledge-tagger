@@ -15,6 +15,16 @@
 | [知识点标签验证](knowledge-label-validation.md) | flat/tree 的替换与补标难例链路 | 直接判别 false、未校准、缺标后 |
 | [DS-V4-Flash 候选打标说明](ds-v4-flash-labeling.md) | 内部服务与旧生成候选脚本的边界 | 需要模型候选或接入原始判别结果时 |
 
+当前唯一已进入全量 rollout 的 preliminary label policy 位于：
+
+```text
+configs/terminal_label_calibration_policies/mentor-direct-v1-preliminary-20260827.json
+```
+
+它只放行“名词（短语）辨析”的正向结果；该文件不是从 Markdown 台账自动生成的，而是依据完成的完整样本人工复核手工冻结。
+
+该标签的全量执行命令、60 条独立复核与停止条件见 [数据清洗执行手册](data-cleaning-playbook.md#mentor-direct-v1名词短语辨析的首轮全量运行)。
+
 当前数据高质量提取的首入口是：
 
 ```text

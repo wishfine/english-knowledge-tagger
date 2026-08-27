@@ -1,0 +1,23 @@
+{
+  "schema_version": "terminal-label-calibration-policy-v1",
+  "labels": [
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->名词（短语）辨析",
+      "positive_disposition": "silver_label_candidate",
+      "negative_disposition": "hold",
+      "calibration_stage": "screened_12",
+      "audit": {
+        "positive": {
+          "retain": 12,
+          "remove": 0,
+          "uncertain": 0
+        },
+        "negative": {
+          "retain": 1,
+          "remove": 10,
+          "uncertain": 1
+        }
+      }
+    }
+  ]
+}

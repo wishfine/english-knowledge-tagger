@@ -68,8 +68,10 @@ def _normalise_evidence(
     if status not in _SUPPORTED_STATUSES:
         raise ValueError(f"{source}: unsupported status {status!r}")
     llm_match = raw_row.get("llm_match")
-    if not isinstance(llm_match, bool):
-        raise ValueError(f"{source}: llm_match must be a boolean")
+    if status == "candidate" and not isinstance(llm_match, bool):
+        raise ValueError(f"{source}: candidate llm_match must be a boolean")
+    if status == "error" and llm_match is not None and not isinstance(llm_match, bool):
+        raise ValueError(f"{source}: error llm_match must be null or a boolean")
     is_sub_question = raw_row.get("is_sub_question")
     if not isinstance(is_sub_question, bool):
         raise ValueError(f"{source}: is_sub_question must be a boolean")
@@ -155,13 +157,14 @@ def gate_terminal_label_discriminator(
     for line_number, raw_row in enumerate(rows, 1):
         row = _normalise_evidence(raw_row, line_number=line_number, rulebook=rulebook)
         evidence_key = (row["question_id"], row["canonical_label"])
-        prior_verdict = seen_verdicts.get(evidence_key)
-        if prior_verdict is not None and prior_verdict != row["llm_match"]:
-            raise ValueError(
-                f"evidence line {line_number}: conflicting duplicate question_id × canonical_label "
-                f"evidence for {row['question_id']} × {row['canonical_label']}"
-            )
-        seen_verdicts[evidence_key] = row["llm_match"]
+        if isinstance(row["llm_match"], bool):
+            prior_verdict = seen_verdicts.get(evidence_key)
+            if prior_verdict is not None and prior_verdict != row["llm_match"]:
+                raise ValueError(
+                    f"evidence line {line_number}: conflicting duplicate question_id × canonical_label "
+                    f"evidence for {row['question_id']} × {row['canonical_label']}"
+                )
+            seen_verdicts[evidence_key] = row["llm_match"]
         policy_rule = policy.for_label(row["canonical_label"])
         disposition, reason = _disposition(row, policy_rule)
         output_row = {
