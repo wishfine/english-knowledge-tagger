@@ -103,6 +103,7 @@ def _normalise_evidence(
 
 def _policy_snapshot(policy_rule: Any) -> dict[str, Any]:
     return {
+        "prompt_version": policy_rule.prompt_version,
         "calibration_stage": policy_rule.calibration_stage,
         "positive_disposition": policy_rule.positive_disposition,
         "negative_disposition": policy_rule.negative_disposition,
@@ -124,6 +125,8 @@ def _policy_snapshot(policy_rule: Any) -> dict[str, Any]:
 def _disposition(row: Mapping[str, Any], policy_rule: Any) -> tuple[str, str]:
     if row["status"] != "candidate":
         return "hold", f"discriminator_status_{row['status']}"
+    if policy_rule.prompt_version is not None and row["prompt_version"] != policy_rule.prompt_version:
+        return "hold", "calibration_prompt_version_mismatch"
     if row["llm_match"]:
         if policy_rule.positive_disposition == "silver_label_candidate":
             return "silver_label_candidate", "policy_positive_silver"

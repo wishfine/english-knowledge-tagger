@@ -15,6 +15,7 @@
 | [题型打标策略映射](type-policy-mapping.md) | `scope × 结构 × 名称` 的题型审计与 policy | 处理题型、route 或知识点存在性规则时 |
 | [知识点标签验证](knowledge-label-validation.md) | flat/tree 的替换与补标难例链路 | 直接判别 false、未校准、缺标后 |
 | [DS-V4-Flash 候选打标说明](ds-v4-flash-labeling.md) | 内部服务与旧生成候选脚本的边界 | 需要模型候选或接入原始判别结果时 |
+| [最终判别器待处理数据](final-discriminator-ready-data.md) | 终判 prompt 契约、准备数据量和从 evidence 到训练候选的进度 | DS 恢复、构造终判包或发布 silver 前 |
 
 当前已完成正例 `12/12 retain` 校准、可进入各自全量 rollout 队列的 preliminary label policy 位于：
 
@@ -23,6 +24,8 @@ configs/terminal_label_calibration_policies/mentor-direct-v1-preliminary-2026082
 ```
 
 它分别放行“名词/副词/动词/形容词（短语）辨析”的正向结果；四个标签均只允许 `parent × 单选题 × 选择题` route 进入 DS。该文件不是从 Markdown 台账自动生成的，而是依据已完成的完整样本人工复核手工冻结。各标签的 60 条独立复核、发布与停止条件均独立计算。
+
+该 policy 现在明确锁定 `prompt_version=mentor-direct-v1`。无历史标签锚定的最终判别器使用 `final-label-discriminator-v1`，必须在同一 `label × route` 的人工样本上重新校准；在新 policy 冻结前，final evidence 会被 gate 保守地写入 hold。
 
 离线 packet 准备、全量执行命令、60 条独立复核与停止条件见 [数据清洗执行手册](data-cleaning-playbook.md#mentor-direct-v1名词短语辨析的首轮全量运行示例)。
 

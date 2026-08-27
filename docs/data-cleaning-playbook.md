@@ -728,6 +728,7 @@ prepare_label adjective-discrimination \
 | 字段 | 说明 |
 |---|---|
 | `canonical_label` | 当前老师 taxonomy 的末级路径 |
+| `prompt_version` | 人审结论所对应的精确 prompt；不同 prompt 版本不得互相复用放行结论 |
 | label 释义版本 | 原始/压缩释义和 CSV SHA |
 | 判别器配置 | model、prompt_version、是否视觉、是否 reasoning |
 | 样本池定义 | source SHA、筛选条件、route 与 scope 分布 |
@@ -754,6 +755,7 @@ calibration_stage = unreviewed
 ```json
 {
   "canonical_label": "知识点->词法->冠词->a/an的区别",
+  "prompt_version": "example-direct-label-v1",
   "positive_disposition": "silver_label_candidate",
   "negative_disposition": "hold",
   "calibration_stage": "screened_12",

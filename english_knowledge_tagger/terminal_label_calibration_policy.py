@@ -30,6 +30,7 @@ class CalibrationAuditCounts:
 @dataclass(frozen=True)
 class TerminalLabelCalibrationRule:
     canonical_label: str
+    prompt_version: str | None
     positive_disposition: str
     negative_disposition: str
     calibration_stage: str
@@ -39,6 +40,7 @@ class TerminalLabelCalibrationRule:
 
 _UNREVIEWED = TerminalLabelCalibrationRule(
     canonical_label="",
+    prompt_version=None,
     positive_disposition="hold",
     negative_disposition="hold",
     calibration_stage="unreviewed",
@@ -58,6 +60,7 @@ class TerminalLabelCalibrationPolicy:
             return rule
         return TerminalLabelCalibrationRule(
             canonical_label=canonical_label,
+            prompt_version=_UNREVIEWED.prompt_version,
             positive_disposition=_UNREVIEWED.positive_disposition,
             negative_disposition=_UNREVIEWED.negative_disposition,
             calibration_stage=_UNREVIEWED.calibration_stage,
@@ -98,6 +101,7 @@ def _rule(raw_rule: object, *, source: str, rulebook: KnowledgeRulebook) -> Term
     positive_disposition = _string(
         raw_rule.get("positive_disposition"), field="positive_disposition", source=source
     )
+    prompt_version = _string(raw_rule.get("prompt_version"), field="prompt_version", source=source)
     negative_disposition = _string(
         raw_rule.get("negative_disposition"), field="negative_disposition", source=source
     )
@@ -131,6 +135,7 @@ def _rule(raw_rule: object, *, source: str, rulebook: KnowledgeRulebook) -> Term
             )
     return TerminalLabelCalibrationRule(
         canonical_label=canonical_label,
+        prompt_version=prompt_version,
         positive_disposition=positive_disposition,
         negative_disposition=negative_disposition,
         calibration_stage=stage,

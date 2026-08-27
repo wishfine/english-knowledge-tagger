@@ -66,6 +66,7 @@ class TerminalLabelCalibrationPolicyTests(unittest.TestCase):
                     [
                         {
                             "canonical_label": LABEL_A,
+                            "prompt_version": "direct-label-v1",
                             "positive_disposition": "silver_label_candidate",
                             "negative_disposition": "hold",
                             "calibration_stage": "screened_12",
@@ -95,6 +96,7 @@ class TerminalLabelCalibrationPolicyTests(unittest.TestCase):
                         [
                             {
                                 "canonical_label": LABEL_A,
+                                "prompt_version": "direct-label-v1",
                                 "positive_disposition": "silver_label_candidate",
                                 "negative_disposition": "hold",
                                 "calibration_stage": "screened_12",

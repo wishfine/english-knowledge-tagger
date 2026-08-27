@@ -41,6 +41,7 @@ class TerminalLabelCalibrationPolicyConfigTests(unittest.TestCase):
             with self.subTest(label=label):
                 rule = policy.for_label(label)
 
+                self.assertEqual(rule.prompt_version, "mentor-direct-v1")
                 self.assertEqual(rule.positive_disposition, "silver_label_candidate")
                 self.assertEqual(rule.negative_disposition, "hold")
                 self.assertEqual(rule.calibration_stage, "screened_12")

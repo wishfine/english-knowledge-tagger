@@ -3,6 +3,7 @@
   "labels": [
     {
       "canonical_label": "知识点->词汇->词汇辨析->名词（短语）辨析",
+      "prompt_version": "mentor-direct-v1",
       "positive_disposition": "silver_label_candidate",
       "negative_disposition": "hold",
       "calibration_stage": "screened_12",
@@ -21,6 +22,7 @@
     },
     {
       "canonical_label": "知识点->词汇->词汇辨析->副词（短语）辨析",
+      "prompt_version": "mentor-direct-v1",
       "positive_disposition": "silver_label_candidate",
       "negative_disposition": "hold",
       "calibration_stage": "screened_12",
@@ -39,6 +41,7 @@
     },
     {
       "canonical_label": "知识点->词汇->词汇辨析->动词（短语）辨析",
+      "prompt_version": "mentor-direct-v1",
       "positive_disposition": "silver_label_candidate",
       "negative_disposition": "hold",
       "calibration_stage": "screened_12",
@@ -57,6 +60,7 @@
     },
     {
       "canonical_label": "知识点->词汇->词汇辨析->形容词（短语）辨析",
+      "prompt_version": "mentor-direct-v1",
       "positive_disposition": "silver_label_candidate",
       "negative_disposition": "hold",
       "calibration_stage": "screened_12",

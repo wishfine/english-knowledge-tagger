@@ -50,6 +50,7 @@ def write_policy(path: Path) -> Path:
                 "labels": [
                     {
                         "canonical_label": LABEL_A,
+                        "prompt_version": "direct-label-v1",
                         "positive_disposition": "silver_label_candidate",
                         "negative_disposition": "hold",
                         "calibration_stage": "screened_12",
@@ -192,6 +193,20 @@ class TerminalLabelDiscriminatorGateTests(unittest.TestCase):
         self.assertEqual(result.silver, ())
         self.assertEqual(result.relabel, ())
         self.assertEqual(result.hold[0]["disposition_reason"], "discriminator_status_error")
+
+    def test_holds_positive_evidence_when_the_prompt_version_was_not_calibrated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            policy, rulebook = self._policy_and_rulebook(Path(temp_dir))
+            final_prompt_evidence = evidence(
+                review_id="different-prompt", question_id="101", canonical_label=LABEL_A, llm_match=True
+            )
+            final_prompt_evidence["prompt_version"] = "final-label-discriminator-v1"
+            result = gate_terminal_label_discriminator(
+                [final_prompt_evidence], policy=policy, rulebook=rulebook
+            )
+
+        self.assertEqual(result.silver, ())
+        self.assertEqual(result.hold[0]["disposition_reason"], "calibration_prompt_version_mismatch")
 
 
 if __name__ == "__main__":

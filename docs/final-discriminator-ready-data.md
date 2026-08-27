@@ -1,0 +1,162 @@
+# 最终判别器待处理数据与进度
+
+> 更新日期：2026-08-27。此表是训练数据的**准备台账**，不是训练集清单；只有通过本页所有相应门禁的题目才可成为训练候选。
+
+## 最终判别器的边界
+
+最终判别器版本为 `final-label-discriminator-v1`。它参考 mentor 判别器的定义加载、结构化 JSON 输出、禁用 thinking、可审计 evidence 与重试机制，但与 `mentor-direct-v1` 有关键区别：
+
+| 字段 | mentor 初筛 / `mentor-direct-v1` | 最终判别 / `final-label-discriminator-v1` |
+|---|---|---|
+| 题型结构、题型名称 | 从模型输入移除 | 从模型输入移除 |
+| 候选标签 | 发送 | 发送 |
+| 候选标签释义 | 发送 | 发送 |
+| 历史 `output_all`、其他历史标签 | 发送，用于复现 mentor 初筛 | **不发送** |
+| `instruction` | 发送 | **不发送** |
+| route / scope | 仅审计保存 | 仅在模型外作业务过滤，模型不可见 |
+| 输出 | `match / reason / should_be` | `match / confidence / reason` |
+
+因此，旧的 `mentor-direct-v1` 校准 policy 不能直接放行最终判别器结果。gate 已强制检查 `prompt_version`：若 final evidence 使用的是 mentor policy，结果会进入 `hold`，而不是 silver。
+
+最终 prompt 实际发送的内容只有：
+
+```text
+待验证标签
++ 该标签老师释义
++ 去除题型结构/名称后的题目内容（题干、选项、答案、解析等）
+```
+
+没有历史标签锚定，意味着它更适合作为最终数据筛选器；也意味着需要在已有人工复核样本上重新完成 `label × route × final-label-discriminator-v1` 校准。
+
+## 状态定义
+
+```text
+route_eligible_packet_ready
+  = 历史带标签，且通过老师明确的 route 硬规则；仅代表“允许被最终判别”。
+
+final_packet_ready
+  = 已从 eligible packet 生成；模型输入已经去掉题型元数据、历史 output 和 instruction。
+
+final_calibrated_screened_12
+  = 最终判别器在该 label × route 的既有人审样本上，true 结果 12/12 retain。
+
+silver_label_candidate
+  = 通过 final 判别且受到同一 final prompt 版本 policy 放行的单标签证据。
+
+silver_question_candidate
+  = 同一道题的每个历史 active 知识点均有独立正向 evidence；仍不证明没有漏标。
+
+released_silver
+  = 每标签从新产生的 positive 中独立随机抽 60 条复核，60/60 retain 后发布。
+
+train_candidate
+  = released silver 之外，仍通过完整标签集、图片/音频状态和 HQ 批次门禁的题目。
+```
+
+任何 `match=false`、服务错误、route 不符或未完成最终 prompt 校准的记录均为 `hold`，绝不自动删除 source 标签。
+
+## 当前最终源与定义版本
+
+| 项目 | 值 |
+|---|---|
+| 最终源 | `/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl` |
+| 最终源记录数 | 3,203,122 |
+| 最终源 SHA-256 | `995191fb78f9ef0b9e9958563704b8d3bd2752809ef838815c443a80fe2b77ec` |
+| mentor 定义文件 | `mentor-direct-v1/label_definitions_for_verification.json` |
+| 定义 SHA-256 | `2eef1146ef601808e4995d3aeda3228867a0a6b7dff6df13c9a0dfa368d08b62` |
+| route packet 批次 | `lexical-pos-v0.1-20260827-140630` |
+
+## 已准备数据
+
+这四个标签的 CSV 均明确规定：只用于“非复合单选题”。因此 `parent × 单选题 × 选择题` 是教师显式规则，不是从 DS 结果推断。
+
+| 候选历史标签 | 原始带标签数 | route eligible | route quarantine | 当前阶段 | 下一步 |
+|---|---:|---:|---:|---|---|
+| 名词（短语）辨析 | 39,756 | 32,747 | 7,009 | `route_eligible_packet_ready` | 生成 final packet；在既有人审样本上校准 final v1 |
+| 副词（短语）辨析 | 21,551 | 17,495 | 4,056 | `route_eligible_packet_ready` | 同上 |
+| 动词（短语）辨析 | 62,986 | 55,236 | 7,750 | `route_eligible_packet_ready` | 同上 |
+| 形容词（短语）辨析 | 35,752 | 29,769 | 5,983 | `route_eligible_packet_ready` | 同上 |
+| **合计** | **160,045** | **135,247** | **24,798** | — | — |
+
+route quarantine 是问题簇证据，而不是删除队列。它可能是历史知识点错标，也可能是题型元数据有误；在题型清洗确认前保持只读隔离。
+
+当前对应文件均在：
+
+```text
+/local_data/zhangyonglin/english-knowledge-tagger-runtime/direct-label/
+  lexical-pos-v0.1-20260827-140630/
+    <noun|adverb|verb|adjective>-discrimination/
+      eligible.packet.jsonl
+      route-quarantine.packet.jsonl
+      route-partition.report.json
+```
+
+## 离线：构造最终判别 packet
+
+这一步不调用 DS。输出的 `final.packet.jsonl` 不含 `input`、`instruction`、`output_all`，只有已清洗的 `question_text`、候选标签、身份与血缘字段。题目内容保留题干、选项、答案和解析（若源数据存在），但不保留题型元数据或末尾 SFT 分类指令。
+
+```bash
+cd /local_data/zhangyonglin/english-knowledge-tagger
+
+export RUNTIME=/local_data/zhangyonglin/english-knowledge-tagger-runtime
+export BATCH="$RUNTIME/direct-label/lexical-pos-v0.1-20260827-140630"
+export MENTOR_LABEL_DEFINITIONS=/local_data/zhangyonglin/english-knowledge-tagger-data/mentor-direct-v1/label_definitions_for_verification.json
+
+for slug in noun-discrimination adverb-discrimination verb-discrimination adjective-discrimination; do
+  run="$BATCH/$slug"
+  python3 scripts/build_final_label_discriminator_packet.py \
+    --input "$run/eligible.packet.jsonl" \
+    --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+    --output "$run/final.packet.jsonl" \
+    --report "$run/final.packet.report.json"
+  wc -l "$run/final.packet.jsonl"
+done
+```
+
+上述四个 `final.packet.jsonl` 的行数应分别为 `32,747`、`17,495`、`55,236`、`29,769`；若不一致，先查看对应 `final.packet.report.json`，不要调用 DS。
+
+## DS 恢复后的逐标签流程
+
+每个标签单独执行，不能合并 evidence、policy 或 60 条审核。
+
+1. 使用已有完整人工复核样本，筛出该标签且 route 合规的记录，运行最终判别器；这些人工结论可复用，但**模型结果不可复用**。
+2. 审核本版 prompt 产生的 true：至少 12 条均为 retain，才能人为新建 `final-label-discriminator-v1` policy。已有 `mentor-direct-v1` policy 只会导致 final evidence hold，这是设计预期。
+3. 先跑 20 条 smoke，核对 `prompt_version`、题目内容清洗、JSON 成功率与耗时。
+4. 获得新 policy 后，显式 `--allow-full` 跑该标签完整 `final.packet.jsonl`。
+5. gate 只把该 prompt/version 的 true 正例分入 `silver_label_candidate`；false、低置信度和错误仍保留在 hold。`confidence` 是抽检优先级，不是放行开关。
+6. `assemble_silver_questions.py` 只会在同题所有 active 历史知识点都有正向 evidence 时生成 `silver_question_candidate`。
+7. 从每个标签全量新 positive 中独立抽 60 条；60/60 retain 后才更新为 `released_silver`。之后还需过 HQ 的完整标签集和多模态门禁，才是 `train_candidate`。
+
+最终 runner 的 smoke 命令模板：
+
+```bash
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
+export KP_MIGRATION=configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json
+export RUN="$BATCH/noun-discrimination"
+
+python3 scripts/validate_final_label_discriminator.py \
+  --input "$RUN/final.packet.jsonl" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$RUN/final.smoke.evidence.jsonl" \
+  --report "$RUN/final.smoke.report.json" \
+  --limit 20 \
+  --concurrency 16
+```
+
+全量命令只有在 final-v1 的该标签 policy 已人工冻结后才能执行：
+
+```bash
+python3 scripts/validate_final_label_discriminator.py \
+  --input "$RUN/final.packet.jsonl" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$RUN/final.full.evidence.jsonl" \
+  --report "$RUN/final.full.report.json" \
+  --allow-full \
+  --concurrency 64
+```
+
+在任何版本中，最终判别器都不修改 `cleaned_final_enhanced_v2.jsonl`，所有结果写入 runtime 目录。
