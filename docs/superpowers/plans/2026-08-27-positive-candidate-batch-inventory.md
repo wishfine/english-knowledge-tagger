@@ -121,4 +121,4 @@ The guide distinguishes the existing four final packets from 65 labels pending i
 
 - [x] **Step 1: Document exact outputs and non-release boundary.**
 - [x] **Step 2: Document 35-server commands for manifest + one-pass inventory.**
-- [ ] **Step 3: Run full tests, check diff, commit and push without staging concurrent human/low-quality work.**
+- [x] **Step 3: Run full tests, check diff, commit and push without staging concurrent human/low-quality work.**
