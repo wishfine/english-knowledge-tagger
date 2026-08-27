@@ -16,6 +16,7 @@
 | [知识点标签验证](knowledge-label-validation.md) | flat/tree 的替换与补标难例链路 | 直接判别 false、未校准、缺标后 |
 | [DS-V4-Flash 候选打标说明](ds-v4-flash-labeling.md) | 内部服务与旧生成候选脚本的边界 | 需要模型候选或接入原始判别结果时 |
 | [最终判别器待处理数据](final-discriminator-ready-data.md) | 终判 prompt 契约、准备数据量和从 evidence 到训练候选的进度 | DS 恢复、构造终判包或发布 silver 前 |
+| [正例候选批次流程](positive-candidate-batch-workflow.md) | 69 标签工作队列、一次扫描 route inventory 与完整标签覆盖预测 | 扩大现有 4 标签以外的正例候选处理范围时 |
 
 当前已完成正例 `12/12 retain` 校准、可进入各自全量 rollout 队列的 preliminary label policy 位于：
 

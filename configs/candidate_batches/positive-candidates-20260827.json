@@ -1,0 +1,2415 @@
+{
+  "candidates": [
+    {
+      "canonical_label": "知识点->词法->代词->物主代词->名词性物主代词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@物主代词@名词性物主代词",
+      "raw_yield": {
+        "match_rate": 0.946,
+        "matches": 473,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9268457191257043
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->must->must表示推测",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@must@must表示推测",
+      "raw_yield": {
+        "match_rate": 0.946,
+        "matches": 473,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9268457191257043
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的语序",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的语序",
+      "raw_yield": {
+        "match_rate": 0.94,
+        "matches": 470,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9200492584543775
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->感叹句->what引导的感叹句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@感叹句@what引导的感叹句",
+      "raw_yield": {
+        "match_rate": 0.94,
+        "matches": 470,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9200492584543775
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->反身代词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@反身代词",
+      "raw_yield": {
+        "match_rate": 0.94,
+        "matches": 470,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9200492584543775
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->how引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@how引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.938,
+        "matches": 469,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9177947191946979
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->if/whether引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@if/whether引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.938,
+        "matches": 469,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9177947191946979
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->why引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@why引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.934,
+        "matches": 467,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9133006312564345
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->疑问句->反意疑问句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@反意疑问句",
+      "raw_yield": {
+        "match_rate": 0.934,
+        "matches": 467,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9133006312564345
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->had better",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@had better",
+      "raw_yield": {
+        "match_rate": 0.932,
+        "matches": 466,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9110606673349093
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->when引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@when引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.928,
+        "matches": 464,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9065939702826558
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->物主代词->形容词性物主代词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@物主代词@形容词性物主代词",
+      "raw_yield": {
+        "match_rate": 0.928,
+        "matches": 464,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9065939702826558
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->并列句->含so并列复合句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@并列句@含so并列复合句",
+      "raw_yield": {
+        "match_rate": 0.922,
+        "matches": 461,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8999245773351628
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->could->could表示委婉语气",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@could@could表示委婉语气",
+      "raw_yield": {
+        "match_rate": 0.922,
+        "matches": 461,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8999245773351628
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->may ->may表示推测",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@may @may表示推测",
+      "raw_yield": {
+        "match_rate": 0.918,
+        "matches": 459,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8954970984252308
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->助动词->do/does/did作助动词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@助动词@do/does/did作助动词",
+      "raw_yield": {
+        "match_rate": 0.916,
+        "matches": 458,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8932886200229226
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->目的状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@目的状语从句",
+      "raw_yield": {
+        "match_rate": 0.912,
+        "matches": 456,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8888816334548894
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->近/反义词->反义词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@近/反义词@反义词",
+      "raw_yield": {
+        "match_rate": 0.9066666666666666,
+        "matches": 204,
+        "sample_size": 225,
+        "wilson_lower_one_sided_95": 0.8697597019745638
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->表语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@表语从句",
+      "raw_yield": {
+        "match_rate": 0.906,
+        "matches": 453,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8822946017300648
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->原因状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@原因状语从句",
+      "raw_yield": {
+        "match_rate": 0.904,
+        "matches": 452,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8801048193973666
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->祈使句->祈使句+and/or+陈述句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@祈使句@祈使句+and/or+陈述句",
+      "raw_yield": {
+        "match_rate": 0.904,
+        "matches": 452,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8801048193973666
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->补语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@补语",
+      "raw_yield": {
+        "match_rate": 0.902,
+        "matches": 451,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8779178486877928
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->who引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@who引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.9,
+        "matches": 450,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8757336141785858
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->冠词->不定冠词（a/an）->a/an的区别",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@冠词@不定冠词（a/an）@a/an的区别",
+      "raw_yield": {
+        "match_rate": 0.9,
+        "matches": 450,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8757336141785858
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->直接引语和间接引语的转换",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@直接引语和间接引语的转换",
+      "raw_yield": {
+        "match_rate": 0.898,
+        "matches": 449,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8735520441100524
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->名词（短语）辨析",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@名词（短语）辨析",
+      "raw_yield": {
+        "match_rate": 0.896,
+        "matches": 448,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8713730701406058
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的时态->客观真理仍用现",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的时态@客观真理仍用现",
+      "raw_yield": {
+        "match_rate": 0.896,
+        "matches": 448,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8713730701406058
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->结果状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@结果状语从句",
+      "raw_yield": {
+        "match_rate": 0.896,
+        "matches": 448,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8713730701406058
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->感叹句->how引导的感叹句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@感叹句@how引导的感叹句",
+      "raw_yield": {
+        "match_rate": 0.89,
+        "matches": 445,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8648510881025832
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->使役动词->使役动词make",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@使役动词@使役动词make",
+      "raw_yield": {
+        "match_rate": 0.884,
+        "matches": 442,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8583502951544805
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->might",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@might",
+      "raw_yield": {
+        "match_rate": 0.882,
+        "matches": 441,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8561878246797278
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->固定搭配/句型",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@固定搭配/句型",
+      "raw_yield": {
+        "match_rate": 0.878,
+        "matches": 439,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8518692849523977
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->副词（短语）辨析",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@副词（短语）辨析",
+      "raw_yield": {
+        "match_rate": 0.878,
+        "matches": 439,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8518692849523977
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->相互代词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@相互代词",
+      "raw_yield": {
+        "match_rate": 0.874,
+        "matches": 437,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8475589840772573
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->主语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@主语从句",
+      "raw_yield": {
+        "match_rate": 0.87374749498998,
+        "matches": 436,
+        "sample_size": 499,
+        "wilson_lower_one_sided_95": 0.8472586316026979
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->that引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@that引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.87374749498998,
+        "matches": 436,
+        "sample_size": 499,
+        "wilson_lower_one_sided_95": 0.8472586316026979
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->there be 句型",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@there be 句型",
+      "raw_yield": {
+        "match_rate": 0.87,
+        "matches": 435,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8432565906996172
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->other/the other/others/the others/another的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@other/the other/others/the others/another的用法",
+      "raw_yield": {
+        "match_rate": 0.87,
+        "matches": 435,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8432565906996172
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的否定转移",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的否定转移",
+      "raw_yield": {
+        "match_rate": 0.8699360341151386,
+        "matches": 408,
+        "sample_size": 469,
+        "wilson_lower_one_sided_95": 0.8422510104683393
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->冠词->不定冠词（a/an）->不定冠词的常见用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@冠词@不定冠词（a/an）@不定冠词的常见用法",
+      "raw_yield": {
+        "match_rate": 0.868,
+        "matches": 434,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8411082626327914
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->时间状语从句->时间状语从句的引导词和时态",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@时间状语从句@时间状语从句的引导词和时态",
+      "raw_yield": {
+        "match_rate": 0.866,
+        "matches": 433,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8389617982875386
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的时态->主过从必过",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的时态@主过从必过",
+      "raw_yield": {
+        "match_rate": 0.864,
+        "matches": 432,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8368171628122617
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->must->must表示必须",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@must@must表示必须",
+      "raw_yield": {
+        "match_rate": 0.86,
+        "matches": 430,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8325332452738888
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->动词（短语）辨析",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@动词（短语）辨析",
+      "raw_yield": {
+        "match_rate": 0.858,
+        "matches": 429,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8303938995340766
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->who/whom引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@who/whom引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.856,
+        "matches": 428,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8282562551982008
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->should",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@should",
+      "raw_yield": {
+        "match_rate": 0.854,
+        "matches": 427,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8261202831027508
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->形容词（短语）辨析",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@形容词（短语）辨析",
+      "raw_yield": {
+        "match_rate": 0.846,
+        "matches": 423,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8175925672348964
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->must->mustn't表示禁止",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@must@mustn't表示禁止",
+      "raw_yield": {
+        "match_rate": 0.846,
+        "matches": 423,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8175925672348964
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->疑问句->选择疑问句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@选择疑问句",
+      "raw_yield": {
+        "match_rate": 0.844,
+        "matches": 422,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8154645516723942
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->陈述句->肯定句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@陈述句@肯定句",
+      "raw_yield": {
+        "match_rate": 0.842,
+        "matches": 421,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8133380524633241
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->which引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@which引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.838,
+        "matches": 419,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8090895111655729
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->one/it/that的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@one/it/that的用法",
+      "raw_yield": {
+        "match_rate": 0.838,
+        "matches": 419,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8090895111655729
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的简化",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的简化",
+      "raw_yield": {
+        "match_rate": 0.832,
+        "matches": 416,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8027275153635792
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->使役动词->使役动词let",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@使役动词@使役动词let",
+      "raw_yield": {
+        "match_rate": 0.828,
+        "matches": 414,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7984931564575665
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->some/any的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@some/any的用法",
+      "raw_yield": {
+        "match_rate": 0.814,
+        "matches": 407,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7837144889815242
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->非限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@非限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.8137755102040817,
+        "matches": 319,
+        "sample_size": 392,
+        "wilson_lower_one_sided_95": 0.7793229465767509
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->定语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@定语",
+      "raw_yield": {
+        "match_rate": 0.808,
+        "matches": 404,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7773995794204543
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->近/反义词->同/近义词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@近/反义词@同/近义词",
+      "raw_yield": {
+        "match_rate": 0.806,
+        "matches": 403,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7752970052670669
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->人称代词->人称代词的宾格",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@人称代词@人称代词的宾格",
+      "raw_yield": {
+        "match_rate": 0.804,
+        "matches": 402,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7731956055686338
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->代词->指示代词->指示代词this/that/these/those",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@指示代词@指示代词this/that/these/those",
+      "raw_yield": {
+        "match_rate": 0.802,
+        "matches": 401,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7710953668277782
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->疑问句->一般疑问句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@一般疑问句",
+      "raw_yield": {
+        "match_rate": 0.798,
+        "matches": 399,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7668983199305706
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->can->can表示请求/许可",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@can@can表示请求/许可",
+      "raw_yield": {
+        "match_rate": 0.798,
+        "matches": 399,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7668983199305706
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->may ->may表示请求/许可",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@may @may表示请求/许可",
+      "raw_yield": {
+        "match_rate": 0.784,
+        "matches": 392,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7522433950251706
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->which引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@which引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.7696969696969697,
+        "matches": 254,
+        "sample_size": 330,
+        "wilson_lower_one_sided_95": 0.7294734588783713
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->whose引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@whose引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.7604938271604939,
+        "matches": 308,
+        "sample_size": 405,
+        "wilson_lower_one_sided_95": 0.7239558008695594
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->同位语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@同位语从句",
+      "raw_yield": {
+        "match_rate": 0.7576601671309192,
+        "matches": 272,
+        "sample_size": 359,
+        "wilson_lower_one_sided_95": 0.7186233197906732
+      }
+    },
+    {
+      "canonical_label": "知识点->词汇->构词法->缩写/简写法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@构词法@缩写/简写法",
+      "raw_yield": {
+        "match_rate": 0.7572254335260116,
+        "matches": 262,
+        "sample_size": 346,
+        "wilson_lower_one_sided_95": 0.717410012807365
+      }
+    },
+    {
+      "canonical_label": "知识点->词法->动词->使役动词->使役动词have",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@使役动词@使役动词have",
+      "raw_yield": {
+        "match_rate": 0.7554744525547445,
+        "matches": 207,
+        "sample_size": 274,
+        "wilson_lower_one_sided_95": 0.710403017036442
+      }
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->条件状语从句->条件状语从句的引导词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@条件状语从句@条件状语从句的引导词",
+      "raw_yield": {
+        "match_rate": 0.744,
+        "matches": 372,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7106431584552668
+      }
+    }
+  ],
+  "criteria": {
+    "canonical_label_status": "active",
+    "human_true_audit": {
+      "retain": 12,
+      "reviewed": 12
+    },
+    "wilson_lower_one_sided_95_minimum": 0.7
+  },
+  "excluded": [
+    {
+      "canonical_label": "知识点->词汇->构词法->合成法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@构词法@合成法",
+      "raw_yield": {
+        "match_rate": 0.6418269230769231,
+        "matches": 267,
+        "sample_size": 416,
+        "wilson_lower_one_sided_95": 0.602358112697065
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->构词法->派生法（词根词缀）",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@构词法@派生法（词根词缀）",
+      "raw_yield": {
+        "match_rate": 0.438,
+        "matches": 219,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.4019343105353959
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->构词法->转化法",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@构词法@转化法",
+      "raw_yield": {
+        "match_rate": 0.14,
+        "matches": 70,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.116408259807375
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->介词（短语）辨析",
+      "human_true_audit": {
+        "retain": 10,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@介词（短语）辨析",
+      "raw_yield": {
+        "match_rate": 0.808,
+        "matches": 404,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7773995794204543
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇辨析->词汇辨析（混合词性）",
+      "human_true_audit": {
+        "retain": 2,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇辨析@词汇辨析（混合词性）",
+      "raw_yield": {
+        "match_rate": 0.434,
+        "matches": 217,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3979935060003202
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇（音/形/义）->副词（短语）的音/形/义",
+      "human_true_audit": {
+        "retain": 10,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇（音/形/义）@副词（短语）的音/形/义",
+      "raw_yield": {
+        "match_rate": 0.41,
+        "matches": 205,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3743993125260501
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇（音/形/义）->动词（短语）的音/形/义",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇（音/形/义）@动词（短语）的音/形/义",
+      "raw_yield": {
+        "match_rate": 0.388,
+        "matches": 194,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3528488552621123
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇（音/形/义）->名词（短语）的音/形/义",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇（音/形/义）@名词（短语）的音/形/义",
+      "raw_yield": {
+        "match_rate": 0.594,
+        "matches": 297,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.5574636629442142
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇（音/形/义）->形容词（短语）的音/形/义",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇（音/形/义）@形容词（短语）的音/形/义",
+      "raw_yield": {
+        "match_rate": 0.422,
+        "matches": 211,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3861855068397394
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->as引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 9
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@as引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.375,
+        "matches": 9,
+        "sample_size": 24,
+        "wilson_lower_one_sided_95": 0.23305153214508628
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词汇->词汇（音/形/义）->介词（短语）的音/形/义",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@词汇@词汇（音/形/义）@介词（短语）的音/形/义",
+      "raw_yield": {
+        "match_rate": 0.314,
+        "matches": 157,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.2809378864211154
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->when引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@when引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.375,
+        "matches": 9,
+        "sample_size": 24,
+        "wilson_lower_one_sided_95": 0.23305153214508628
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->where引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@where引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.8288770053475936,
+        "matches": 310,
+        "sample_size": 374,
+        "wilson_lower_one_sided_95": 0.7945104390920833
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->whom引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@whom引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.5217391304347826,
+        "matches": 180,
+        "sample_size": 345,
+        "wilson_lower_one_sided_95": 0.4775059894960321
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->why引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@why引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.6097560975609756,
+        "matches": 100,
+        "sample_size": 164,
+        "wilson_lower_one_sided_95": 0.5458054083382936
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->定语从句->限制性定语从句->介词+关系代词引导限制性定语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@定语从句@限制性定语从句@介词+关系代词引导限制性定语从句",
+      "raw_yield": {
+        "match_rate": 0.4845360824742268,
+        "matches": 188,
+        "sample_size": 388,
+        "wilson_lower_one_sided_95": 0.44305535111944466
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->that引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@that引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.676,
+        "matches": 338,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6407063529013033
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->what引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@what引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.728,
+        "matches": 364,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6941045657189734
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->where引导宾语从句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@where引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.954,
+        "matches": 477,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.9359953413941742
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->whose引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@whose引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.6896551724137931,
+        "matches": 140,
+        "sample_size": 203,
+        "wilson_lower_one_sided_95": 0.6340451481796548
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->连接副词wh-ever/however引导宾语从句",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 9
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@连接副词wh-ever/however引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.6846846846846847,
+        "matches": 76,
+        "sample_size": 111,
+        "wilson_lower_one_sided_95": 0.6084828670864221
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的引导词->连接代词wh-ever引导宾语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@连接代词wh-ever引导宾语从句",
+      "raw_yield": {
+        "match_rate": 0.6846846846846847,
+        "matches": 76,
+        "sample_size": 111,
+        "wilson_lower_one_sided_95": 0.6084828670864221
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->宾语从句->宾语从句的时态->主现从不限",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的时态@主现从不限",
+      "raw_yield": {
+        "match_rate": 0.496,
+        "matches": 248,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.45934175810085726
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->时间状语从句->when和while引导的时间状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@时间状语从句@when和while引导的时间状语从句",
+      "raw_yield": {
+        "match_rate": 0.646,
+        "matches": 323,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6101231142173457
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->地点状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@地点状语从句",
+      "raw_yield": {
+        "match_rate": 0.4602510460251046,
+        "matches": 110,
+        "sample_size": 239,
+        "wilson_lower_one_sided_95": 0.407961736124377
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->方式状语从句",
+      "human_true_audit": {
+        "retain": 10,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@方式状语从句",
+      "raw_yield": {
+        "match_rate": 0.4931506849315068,
+        "matches": 72,
+        "sample_size": 146,
+        "wilson_lower_one_sided_95": 0.4258390108586858
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->条件状语从句->条件状语从句的时态",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@条件状语从句@条件状语从句的时态",
+      "raw_yield": {
+        "match_rate": 0.634,
+        "matches": 317,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.5979323500723072
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->比较状语从句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@比较状语从句",
+      "raw_yield": {
+        "match_rate": 0.36,
+        "matches": 180,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3255317150784686
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->主从复合句->状语从句->让步状语从句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@让步状语从句",
+      "raw_yield": {
+        "match_rate": 0.918,
+        "matches": 459,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8954970984252308
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->主语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@主语",
+      "raw_yield": {
+        "match_rate": 0.208,
+        "matches": 104,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.17975420576776385
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->宾语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@宾语",
+      "raw_yield": {
+        "match_rate": 0.378,
+        "matches": 189,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.34307827596018986
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->插入语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@插入语",
+      "raw_yield": {
+        "match_rate": 0.7475247524752475,
+        "matches": 151,
+        "sample_size": 202,
+        "wilson_lower_one_sided_95": 0.694202095071268
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->状语",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@状语",
+      "raw_yield": {
+        "match_rate": 0.522,
+        "matches": 261,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.48523599259561445
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->表语",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@表语",
+      "raw_yield": {
+        "match_rate": 0.656,
+        "matches": 328,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.620300399580716
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->谓语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子成分@谓语",
+      "raw_yield": {
+        "match_rate": 0.12,
+        "matches": 60,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.09811779632241463
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->特殊句式->强调句",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@特殊句式@强调句",
+      "raw_yield": {
+        "match_rate": 0.672686230248307,
+        "matches": 298,
+        "sample_size": 443,
+        "wilson_lower_one_sided_95": 0.6350641808863248
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->特殊句式->省略句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@特殊句式@省略句",
+      "raw_yield": {
+        "match_rate": 0.5414507772020726,
+        "matches": 209,
+        "sample_size": 386,
+        "wilson_lower_one_sided_95": 0.49959036861475775
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->特殊句式->倒装句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@特殊句式@倒装句",
+      "raw_yield": {
+        "match_rate": 0.914,
+        "matches": 457,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8910834997183386
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->祈使句->祈使句否定形式",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@祈使句@祈使句否定形式",
+      "raw_yield": {
+        "match_rate": 0.862,
+        "matches": 431,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8346743226094971
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->祈使句->祈使句肯定形式",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@祈使句@祈使句肯定形式",
+      "raw_yield": {
+        "match_rate": 0.804,
+        "matches": 402,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.7731956055686338
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->陈述句->否定句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@陈述句@否定句",
+      "raw_yield": {
+        "match_rate": 0.666,
+        "matches": 333,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6304946896384934
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->并列句->含and并列复合句",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@并列句@含and并列复合句",
+      "raw_yield": {
+        "match_rate": 0.284,
+        "matches": 142,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.25206051601980095
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->并列句->含but并列复合句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@并列句@含but并列复合句",
+      "raw_yield": {
+        "match_rate": 0.544,
+        "matches": 272,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.507223793571765
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->并列句->含or并列复合句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@并列句@含or并列复合句",
+      "raw_yield": {
+        "match_rate": 0.544,
+        "matches": 272,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.507223793571765
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->简单句->主+系+表",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@简单句@主+系+表",
+      "raw_yield": {
+        "match_rate": 0.254,
+        "matches": 127,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.22336228210508155
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->简单句->主+谓+宾+宾",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@简单句@主+谓+宾+宾",
+      "raw_yield": {
+        "match_rate": 0.61,
+        "matches": 305,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.5736208371965054
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->简单句->主+谓+宾+宾补",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@简单句@主+谓+宾+宾补",
+      "raw_yield": {
+        "match_rate": 0.618,
+        "matches": 309,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.58171445835659
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->简单句->主+谓+宾",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@简单句@主+谓+宾",
+      "raw_yield": {
+        "match_rate": 0.296,
+        "matches": 148,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.26359089543943515
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->句法->简单句->主+谓",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@简单句@主+谓",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->主谓一致->就近/就远原则",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@主谓一致@就近/就远原则",
+      "raw_yield": {
+        "match_rate": 0.694,
+        "matches": 347,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6591324501340637
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->主谓一致->意义一致",
+      "human_true_audit": {
+        "retain": 2,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@主谓一致@意义一致",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->主谓一致->语法一致",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@主谓一致@语法一致",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->with复合结构",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@with复合结构",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->其他介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@其他介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->地点/方位/方向介词->地点介词",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@地点/方位/方向介词@地点介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->地点/方位/方向介词->方位介词",
+      "human_true_audit": {
+        "retain": 8,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@地点/方位/方向介词@方位介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->地点/方位/方向介词->方向介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@地点/方位/方向介词@方向介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->时间介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@时间介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->表“除······以外”的介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@表“除······以外”的介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->表示原因/目的/让步/替代的介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@表示原因/目的/让步/替代的介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->介词->表示方式/手段/工具/材料的介词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@介词@表示方式/手段/工具/材料的介词",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->it 的用法->it 作形式主语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 作形式主语",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->it 的用法->it 作形式宾语",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 作形式宾语",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->it 的用法->it 指代性别/身份不明的人",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 指代性别/身份不明的人",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->it 的用法->it 指天气/时间/距离/价值等",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 指天气/时间/距离/价值等",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->复合不定代词->复合不定代词的词义与用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@复合不定代词@复合不定代词的词义与用法",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->复合不定代词->形容词修饰复合不定代词时的位置",
+      "human_true_audit": {
+        "retain": 9,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@复合不定代词@形容词修饰复合不定代词时的位置",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->a few/few/a little/little/a lot (of)的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@a few/few/a little/little/a lot (of)的用法",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->both/all/none/either/neither的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@both/all/none/either/neither的用法",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->代词与动词短语的位置关系",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@代词与动词短语的位置关系",
+      "raw_yield": {
+        "match_rate": 0.3471337579617834,
+        "matches": 109,
+        "sample_size": 314,
+        "wilson_lower_one_sided_95": 0.3044195473113901
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->指示代词->指示代词的其他用法",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@指示代词@指示代词的其他用法",
+      "raw_yield": {
+        "match_rate": 0.38263665594855306,
+        "matches": 119,
+        "sample_size": 311,
+        "wilson_lower_one_sided_95": 0.33850079801590965
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->each/every的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@each/every的用法",
+      "raw_yield": {
+        "match_rate": 0.352,
+        "matches": 176,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.3177502889486057
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->many/much的用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@many/much的用法",
+      "raw_yield": {
+        "match_rate": 0.73,
+        "matches": 365,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6961689355628661
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->人称代词->人称代词的主格",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@人称代词@人称代词的主格",
+      "raw_yield": {
+        "match_rate": 0.58,
+        "matches": 290,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.5433585057621123
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->代词->人称代词->人称代词的顺序",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@代词@人称代词@人称代词的顺序",
+      "raw_yield": {
+        "match_rate": 0.6653225806451613,
+        "matches": 165,
+        "sample_size": 248,
+        "wilson_lower_one_sided_95": 0.6144858609973662
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->冠词->定冠词（the）",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@冠词@定冠词（the）",
+      "raw_yield": {
+        "match_rate": 0.882,
+        "matches": 441,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8561878246797278
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->词法->冠词->零冠词",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@冠词@零冠词",
+      "raw_yield": {
+        "match_rate": 0.866,
+        "matches": 433,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8389617982875386
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->使役动词->其他使役动词",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@使役动词@其他使役动词",
+      "raw_yield": {
+        "match_rate": 0.4583333333333333,
+        "matches": 33,
+        "sample_size": 72,
+        "wilson_lower_one_sided_95": 0.3650086568260683
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->助动词->be动词作助动词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@助动词@be动词作助动词",
+      "raw_yield": {
+        "match_rate": 0.65,
+        "matches": 325,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6141920099122494
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->助动词->其他助动词",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@助动词@其他助动词",
+      "raw_yield": {
+        "match_rate": 0.6115702479338843,
+        "matches": 222,
+        "sample_size": 363,
+        "wilson_lower_one_sided_95": 0.5688148149189315
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->could->could表示能力/能够",
+      "human_true_audit": {
+        "retain": 10,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@could@could表示能力/能够",
+      "raw_yield": {
+        "match_rate": 0.74,
+        "matches": 370,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.706503384612558
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->(don't/doesn't/didn't) have to",
+      "human_true_audit": {
+        "retain": 11,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@(don't/doesn't/didn't) have to",
+      "raw_yield": {
+        "match_rate": 0.404,
+        "matches": 202,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.36851447536740356
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->could->could表示推测",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@could@could表示推测",
+      "raw_yield": {
+        "match_rate": 0.6086956521739131,
+        "matches": 126,
+        "sample_size": 207,
+        "wilson_lower_one_sided_95": 0.5518411165479249
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->实义动词->及物动词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@实义动词@及物动词",
+      "raw_yield": {
+        "match_rate": 0.066,
+        "matches": 33,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.049972176555137325
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->实义动词->不及物动词",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@实义动词@不及物动词",
+      "raw_yield": {
+        "match_rate": 0.288,
+        "matches": 144,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.2559008506516759
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->can->can表示能力/能够",
+      "human_true_audit": {
+        "retain": 10,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@can@can表示能力/能够",
+      "raw_yield": {
+        "match_rate": 0.658,
+        "matches": 329,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.6223378859407829
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->may ->may表示祝愿",
+      "human_true_audit": {
+        "retain": 8,
+        "reviewed": 8
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@may @may表示祝愿",
+      "raw_yield": {
+        "match_rate": 1.0,
+        "matches": 8,
+        "sample_size": 8,
+        "wilson_lower_one_sided_95": 0.7472764025762368
+      },
+      "reason": "human_true_audit_not_12_of_12"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->shall",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@shall",
+      "raw_yield": {
+        "match_rate": 0.5229681978798587,
+        "matches": 148,
+        "sample_size": 283,
+        "wilson_lower_one_sided_95": 0.47414540171903713
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->will",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@will",
+      "raw_yield": {
+        "match_rate": 0.40425531914893614,
+        "matches": 171,
+        "sample_size": 423,
+        "wilson_lower_one_sided_95": 0.3657362292683221
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->would",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@would",
+      "raw_yield": {
+        "match_rate": 0.5642458100558659,
+        "matches": 202,
+        "sample_size": 358,
+        "wilson_lower_one_sided_95": 0.5208168905600599
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->情态动词的定义和基本用法",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@情态动词的定义和基本用法",
+      "raw_yield": {
+        "match_rate": 0.446,
+        "matches": 223,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.4098230814492756
+      },
+      "reason": "wilson_lower_below_0_70"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->ought to",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@ought to",
+      "raw_yield": {
+        "match_rate": 0.6406779661016949,
+        "matches": 189,
+        "sample_size": 295,
+        "wilson_lower_one_sided_95": 0.5936416804099437
+      },
+      "reason": "wilson_lower_below_0_70"
+    }
+  ],
+  "inputs": {
+    "full_sample_ledger_path": "docs/knowledge-label-calibration-ledger-full-sample.md",
+    "full_sample_ledger_sha256": "cc9003872ff327da7fd39f0ab9a6bc0511995da5d170e7beb0f22415e3e294d8",
+    "raw_yield_ledger_path": "docs/knowledge-label-calibration-ledger.md",
+    "raw_yield_ledger_sha256": "ab19806c8438e500c7ad19374cfe7b620ed2403871e99c3de05b06a30d695ad3"
+  },
+  "purpose": "non_releasing_positive_candidate_work_queue",
+  "schema_version": "positive-candidate-manifest-v1",
+  "taxonomy_blocked": [
+    {
+      "canonical_label": "知识点->句法->句子种类->疑问句->特殊疑问句->how类特殊疑问句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@特殊疑问句@how类特殊疑问句",
+      "raw_yield": {
+        "match_rate": 0.812,
+        "matches": 406,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.781608306867836
+      },
+      "reason": "canonical_label_not_active"
+    },
+    {
+      "canonical_label": "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问句",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@特殊疑问句@wh-类特殊疑问句",
+      "raw_yield": {
+        "match_rate": 0.864,
+        "matches": 432,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8368171628122617
+      },
+      "reason": "canonical_label_not_active"
+    },
+    {
+      "canonical_label": "知识点->词法->动词->情态动词->can->can/can't表示推测",
+      "human_true_audit": {
+        "retain": 12,
+        "reviewed": 12
+      },
+      "legacy_label": "知识点@语法词法@动词@情态动词@can@can/can't表示推测",
+      "raw_yield": {
+        "match_rate": 0.834,
+        "matches": 417,
+        "sample_size": 500,
+        "wilson_lower_one_sided_95": 0.8048467664214289
+      },
+      "reason": "canonical_label_not_active"
+    }
+  ]
+}
