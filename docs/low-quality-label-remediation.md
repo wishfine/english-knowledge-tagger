@@ -387,6 +387,46 @@ T0 的决策规则：
 
 DS 服务恢复后，tree 只对 T0-B 中人工确认“原标签不适用且题面足够”的小簇运行；其结果仅为 `relabel_candidate`。通过人工复核前，禁止替换历史及物动词标签。
 
+### 5.5 T0 盲审结果：保持 P0，不得全量 rollout
+
+已收齐 `93/93` 个 review result，`review_id` 与 true packet、false packet、audit index 完整一一对应，无重复、无未知 ID。结果和可复跑的机器可读报告如下：
+
+```text
+english-knowledge-tagger-runtime/low-quality-labels/transitive-verb-t0-20260828-v4/
+├─ reviewer-results.jsonl
+└─ review-analysis.json
+```
+
+| 审核集合 | keep | remove | uncertain | 可判样本 | 可判 keep 比率 | 结论 |
+|---|---:|---:|---:|---:|---:|---|
+| 33 条 direct true（全量） | 24 | 9 | 0 | 33 | 72.7% | true 自身已不纯，禁止将全标签 direct true 作为 silver |
+| 60 条 direct false（刻意分层） | 14 | 38 | 8 | 52 | 26.9% | false 中确有结构共标漏删；该比例仅描述本分层 packet，不得外推到 467 条 false |
+
+true 侧最明显的错误模式是“单词拼写题中自然出现直接宾语”：`parent × 填空题 × 单词拼写` 为 `6 keep / 8 remove`。相对地，本轮 `parent × 单选题 × 选择题` 是 `9/9 keep`，`parent × 填空题 × 完成句子` 是 `4/5 keep`；但样本数小，二者只是后续分簇假设，**不是**立即放行的 policy。
+
+false 侧保留的强结构包括双宾语（`offer sb sth`）、宾语补足语（`make sb do`、`hear sb doing`）、被动（`be influenced by`）、及/不及物对比（`read/look`、`achieve/come true`）和宾格选择。它证明 direct verifier 把“存在更具体标签”错误理解为互斥，但并不证明任何一个历史 false 记录应被保留。
+
+#### 已发现的 policy 冲突与二次裁决集
+
+已有 24 条校准记录中，`2763348356975136768`（`trust someone`）和 `2506263048647131136`（`feed chickens and pigs`）先前被判为保留，本轮盲审判为删除。两题都是“词汇/拼写或时态为直接作答目标，直接宾语只是已给上下文”的边界。当前工作台采用的严格口径应倾向删除，但不能静默覆盖较早结论；应把它们与下面边界题一起交给业务老师裁决并冻结 micro-policy。
+
+| 题号 | 当前盲审结论 | 需要裁决的原因 |
+|---:|---|---|
+| `2763348356975136768` | remove | `trust someone` 的直接宾语是否足以让单词拼写题共标及物动词 |
+| `2506263048647131136` | remove | `feed chickens and pigs` 的三单/拼写题是否应因直接宾语共标 |
+| `3120750759128346624` | keep | `take the orange to him` 同样是拼写/三单题，和前两题的严格口径冲突 |
+| `2735187241526140930` | keep | `operate on` 是“介词动词短语可被动”的业务分类；需确认是否纳入本末级“及物动词” |
+| `2141810373476298752` | keep | `get` 表“到达”在无宾语时的归类，与标准及物/不及物分析存在歧义 |
+| `2765880206472548352` | keep | `claim + that` 宾语从句是否属于 CSV 中及物动词宾语范围 |
+| `2768597858236551168` | keep | 连词成句中的 `guess + 宾语从句` 是否算“及物性实际约束答案” |
+
+在这 7 条得到业务裁决前：
+
+- 33 条 direct true 中的 24 条仅可登记为 `silver_label_candidate`，不可发布；
+- 14 条 false keep 中，只有已由独立旧校准和本轮同时支持的 `make + 宾补`、`be influenced by` 可作为 tree / prompt 的正向边界例；
+- `operate on`、裸 `get`、宾语从句宾语与“拼写题自然宾语”均不得写成自动化 keep/remove 规则；
+- 所有 direct false 的 `remove` 仍然只是 `hold`，不可批量删标。
+
 ## 6. P1：词汇辨析（混合词性）
 
 ### 根因假设
