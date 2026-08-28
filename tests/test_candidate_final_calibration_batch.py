@@ -138,6 +138,7 @@ class CandidateFinalCalibrationBatchTests(unittest.TestCase):
         self.assertEqual(label_a["eligible_calibration_records"], 1)
         self.assertEqual(label_a["missing_from_final_packet_question_ids"], ["q3"])
         self.assertEqual(label_a["eligible_by_review_stratum"], {"historical_match_true": 1})
+        self.assertEqual(label_a["missing_by_review_stratum"], {"historical_match_false": 1})
         self.assertEqual(packet_rows[0]["calibration_source_review_id"], "manual-a-true")
         self.assertNotIn("manual_verdict", packet_rows[0])
         self.assertNotIn("input", packet_rows[0])

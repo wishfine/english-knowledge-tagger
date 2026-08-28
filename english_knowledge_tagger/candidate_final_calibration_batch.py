@@ -176,6 +176,10 @@ def build_candidate_final_calibration_batch(
             eligible_rows.append(output_row)
             strata[review["review_stratum"] or "missing"] += 1
         missing_question_ids = sorted(set(review_bucket) - set(final_rows))
+        missing_strata: Counter[str] = Counter(
+            review_bucket[question_id]["review_stratum"] or "missing"
+            for question_id in missing_question_ids
+        )
         relative_path: str | None = None
         if review_bucket:
             relative_path = str(Path("packets") / _packet_filename(details["packet_relative_path"]))
@@ -193,6 +197,7 @@ def build_candidate_final_calibration_batch(
             "eligible_calibration_records": len(eligible_rows),
             "missing_from_final_packet_question_ids": missing_question_ids,
             "eligible_by_review_stratum": dict(sorted(strata.items())),
+            "missing_by_review_stratum": dict(sorted(missing_strata.items())),
         }
 
     index = {

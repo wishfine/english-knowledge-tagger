@@ -215,4 +215,4 @@ python3 scripts/build_candidate_final_calibration_batch.py \
 cat "$CALIBRATION_RUN/build.report.json"
 ```
 
-`calibration.index.json` 将逐标签记录：人工样本数、与当前 final packet 的交集数、缺失题号以及交集的原 DS 分层。它只说明 final-v1 校准**输入已经准备好**；只有 DS 恢复、运行这个版本 prompt 并对本次 true 结果完成人审后，才能冻结 final-v1 policy。
+`calibration.index.json` 将逐标签记录：人工样本数、与当前 final packet 的交集数、缺失题号，以及交集和缺失项各自的原 DS 分层。缺失项若包含人工 true 分层，意味着该 label 的当前 packet 无法覆盖完整 12 条正例校准，必须补充对应 route 的人工样本或保持 hold。它只说明 final-v1 校准**输入已经准备好**；只有 DS 恢复、运行这个版本 prompt 并对本次 true 结果完成人审后，才能冻结 final-v1 policy。
