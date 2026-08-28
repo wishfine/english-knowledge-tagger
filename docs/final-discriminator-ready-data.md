@@ -91,6 +91,12 @@ route quarantine 是问题簇证据，而不是删除队列。它可能是历史
       route-partition.report.json
 ```
 
+## 69 标签候选批次：离线 packet 物化
+
+现有四个词性辨析 packet 是老师释义明确限定 route 的首批。其余 65 个正例候选标签不能根据 CSV“常见题型”预先过滤；它们在题面完整时应作为全 route 的逐题终判候选。`build_candidate_final_packet_batch.py` 会一次扫描最终源、为 69 个标签分别生成 `final-label-discriminator-packet-v1` 文件，并只对四个词性辨析应用已冻结的硬限制。
+
+这一步仅代表 `final_packet_ready`，不是 final-v1 校准、更不是 silver。详细命令和 index 结构见 [正例候选批次流程](positive-candidate-batch-workflow.md#一次扫描物化-final-v1-packet)。
+
 ## 离线：构造最终判别 packet
 
 这一步不调用 DS。输出的 `final.packet.jsonl` 不含 `input`、`instruction`、`output_all`，只有已清洗的 `question_text`、候选标签、身份与血缘字段。题目内容保留题干、选项、答案和解析（若源数据存在），但不保留题型元数据或末尾 SFT 分类指令。

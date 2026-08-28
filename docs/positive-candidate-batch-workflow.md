@@ -152,3 +152,36 @@ PY
 | 题面缺失、音频/图片决定信息 | 标记输入不完整，等待多模态或文本补全 |
 
 即使通过 route policy，仍要在 `final-label-discriminator-v1` 下重新用 24 条人工样本校准；现有 mentor-v1 policy 不能复用。
+
+## 一次扫描物化 final-v1 packet
+
+route guidance 已明确区分：只有四个词性（短语）辨析标签使用硬 route 过滤；其余 65 个候选标签的 CSV“常见题型”只用于结果切片，所有 route 都保持候选。详见 [正例候选标签题型约束解释](candidate-route-guidance.md)。
+
+因此 DS 停止期间可用一次全源扫描创建 69 个**非放行** final-v1 packet，避免以后逐标签重复扫描 4.3GB source。它只会写 runtime 目录；`final.packet.jsonl` 不包含 `input`、`instruction`、历史 `output` 或题型头，不能直接视为 silver。
+
+```bash
+cd /local_data/zhangyonglin/english-knowledge-tagger
+
+export FINAL_SOURCE=/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl
+export MANIFEST=configs/candidate_batches/positive-candidates-20260827.json
+export GUIDANCE=configs/candidate_batches/positive-candidates-20260827.route-guidance.json
+export TEACHER_CSV=data/rulebooks/初中英语知识点题型方法释义.csv
+export MENTOR_LABEL_DEFINITIONS=/local_data/zhangyonglin/english-knowledge-tagger-data/mentor-direct-v1/label_definitions_for_verification.json
+export RUNTIME=/local_data/zhangyonglin/english-knowledge-tagger-runtime
+export RUN="$RUNTIME/candidate-final-packets/positive-candidates-20260827-$(date +%Y%m%d-%H%M%S)"
+
+mkdir -p "$RUN"
+
+python3 scripts/build_candidate_final_packet_batch.py \
+  --source "$FINAL_SOURCE" \
+  --manifest "$MANIFEST" \
+  --guidance "$GUIDANCE" \
+  --teacher-csv "$TEACHER_CSV" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --output-dir "$RUN/packets" \
+  --report "$RUN/build.report.json"
+
+cat "$RUN/build.report.json"
+```
+
+输出目录中的 `batch.index.json` 是唯一运行索引，记录每个标签的 packet 路径、全量命中数、选中数、硬 route hold、题面不完整 hold 以及每个 route 的分布。DS 恢复后，仍按**一个标签一个标签**读取对应 packet，先完成该 label 的 final-v1 校准，再执行 smoke 与全量判别。
