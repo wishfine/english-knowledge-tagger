@@ -282,6 +282,25 @@ conversion-prep-20260828-172631/tree-run-20260828-172818/
 
 本结果**只证明接口、全树搜索和 timing 记录可用**，不证明 59 个候选标签正确。下一动作是把 `tree-input-60.jsonl + audit-index.jsonl + results-all.jsonl` 合并为网页 GPT 候选复核包：按 selection stratum 审核候选叶子是否解释题目，`budget_exhausted` 是否应保持 hold。未完成 60 条候选复核前，T1 不得进入 T2、不得生成 patch。
 
+#### T1 候选复核结果：`revise_tree`，禁止进入 T2
+
+网页 GPT 对 60 条候选复核包返回了 60 个唯一 `review_id` 和一个标签级结论，JSONL 结构完整；结果如下：
+
+| 候选复核决定 | 数量 | 含义 |
+|---|---:|---|
+| `candidate_correct` | 51 | tree 候选末级标签能实际解释作答 |
+| `candidate_incorrect` | 8 | tree 候选不合理，不能进入候选簇放大 |
+| `hold` | 1 | `budget_exhausted` 或业务边界，保持隔离 |
+
+网页 GPT 的实验级结论为 `revise_tree`，老师待裁决题为 `3348636953588649985`。已确认的系统性问题是：同形转化（如 `run`、`wonder`、`gold`、`graduate`）可合理回到转化法；屈折变化和普通翻译多数已落到合理语法/词汇叶子；但派生边界仍会把 `build→building`、`weigh→weight`、`warmth→warm` 错留在转化法。故 51/60 不是可接受的 T2 放大门槛，且 8 个错误不能当作随机噪声。
+
+**T1.1 的唯一下一实验**：不再重跑全部 60 条。固定使用 `8 candidate_incorrect + 1 hold + 12 candidate_correct` 控制题，比较：
+
+1. 现有全树 prompt；
+2. 在转化法终端选择前附加老师冻结的负向约束：`词缀、拼写增删、-ing/-ed、复数、三单、比较级等词形变化不是转化法；只有词形不变而词性改变才可选转化法`。
+
+两个条件必须使用同一 21 条、同一 endpoint 配额、同一 `max_steps=8/max_backtracks=2`；人工只看 8 个已知派生错误是否全部不再返回转化法，以及 12 个同形/合理控制题是否仍保持正确。若任一派生错误仍返回转化法，或控制题出现方向性退化，继续 `hold` 并修订约束，不进入 T2。
+
 #### 实验 T2：候选叶子分簇验证
 
 按 T1 的 tree 候选叶子分组，例如“派生法”“词汇音形义”“主谓一致”“无覆盖”。每个达到可用数量的 `原转化法 × 候选叶子 × route` 簇独立抽 12 条人工复核：
