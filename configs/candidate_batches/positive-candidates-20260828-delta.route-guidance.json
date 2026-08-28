@@ -1,0 +1,11 @@
+{
+  "schema_version": "candidate-route-guidance-v1",
+  "purpose": "non_releasing_teacher_route_interpretation",
+  "manifest_sha256": "f968cf708c910721d34fdc56242a4aea2af2d4750b2ae5df0727aecc276a838b",
+  "default": {
+    "mode": "soft_typical",
+    "allowed_routes": [],
+    "reason": "本增量的 64 个标签在老师 CSV 中均未出现明确题型排他限制；“常见题型”仅用于分层诊断和抽检，不构成来源数据的 route 过滤条件。"
+  },
+  "hard_exclusive_overrides": []
+}

@@ -18,6 +18,7 @@
 | [最终判别器待处理数据](final-discriminator-ready-data.md) | 终判 prompt 契约、准备数据量和从 evidence 到训练候选的进度 | DS 恢复、构造终判包或发布 silver 前 |
 | [正例候选批次流程](positive-candidate-batch-workflow.md) | 69 标签工作队列、一次扫描 route inventory 与完整标签覆盖预测 | 扩大现有 4 标签以外的正例候选处理范围时 |
 | [正例候选标签题型约束解释](candidate-route-guidance.md) | 哪些 CSV 题型描述是硬限制，哪些仅为诊断切片 | 物化 69 标签的终判 packet 或讨论 route 时 |
+| [2026-08-28 正例增量批次](positive-candidate-delta-20260828.md) | 最新台账新增的 64 标签快筛队列及服务器物化命令 | 扩展 69 标签首批队列、但不重复扫描已物化标签时 |
 
 当前已完成正例 `12/12 retain` 校准、可进入各自全量 rollout 队列的 preliminary label policy 位于：
 

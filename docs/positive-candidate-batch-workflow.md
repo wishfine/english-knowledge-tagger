@@ -19,6 +19,8 @@ cc9003872ff327da7fd39f0ab9a6bc0511995da5d170e7beb0f22415e3e294d8
 
 它**不包含** `positive_disposition`、`negative_disposition` 或 route policy；不能直接放行任何 DS true，也不能删除任何 DS false。
 
+最新权威台账已产生独立的 64 标签增量快照；它与本 69 标签批次并行，不覆盖本批次。详见 [2026-08-28 正例增量批次](positive-candidate-delta-20260828.md)。
+
 ## 为什么先盘点、后物化 packet
 
 69 个标签不能各自扫描一次 4.3 GB 最终源，也不能在 route 未确认前复制 69 套完整题面。正确顺序是：
