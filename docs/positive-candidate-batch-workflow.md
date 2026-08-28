@@ -185,3 +185,34 @@ cat "$RUN/build.report.json"
 ```
 
 输出目录中的 `batch.index.json` 是唯一运行索引，记录每个标签的 packet 路径、全量命中数、选中数、硬 route hold、题面不完整 hold 以及每个 route 的分布。DS 恢复后，仍按**一个标签一个标签**读取对应 packet，先完成该 label 的 final-v1 校准，再执行 smoke 与全量判别。
+
+## 离线：批量构造 final-v1 校准包
+
+终判 packet 已物化后，仍不能直接调用 DS。需要先将已有人工复核身份样本放到 35 的统一位置：
+
+```text
+/local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl
+```
+
+批处理器只读取该样本的 `verify_label`、题号、review ID 和分层字段；人工结论字段不会复制到模型 prompt。它只读取前一步的 `batch.index.json` 所列 packet，不重新扫描 4.3GB source。
+
+```bash
+export PACKET_BATCH=/local_data/zhangyonglin/english-knowledge-tagger-runtime/candidate-final-packets/positive-candidates-20260827-<run-id>/packets
+export REVIEW_SAMPLE=/local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl
+export RUNTIME=/local_data/zhangyonglin/english-knowledge-tagger-runtime
+export CALIBRATION_RUN="$RUNTIME/candidate-final-calibration/positive-candidates-20260827-$(date +%Y%m%d-%H%M%S)"
+
+test -r "$PACKET_BATCH/batch.index.json"
+test -r "$REVIEW_SAMPLE"
+mkdir -p "$CALIBRATION_RUN"
+
+python3 scripts/build_candidate_final_calibration_batch.py \
+  --packet-batch-index "$PACKET_BATCH/batch.index.json" \
+  --review-sample "$REVIEW_SAMPLE" \
+  --output-dir "$CALIBRATION_RUN/packets" \
+  --report "$CALIBRATION_RUN/build.report.json"
+
+cat "$CALIBRATION_RUN/build.report.json"
+```
+
+`calibration.index.json` 将逐标签记录：人工样本数、与当前 final packet 的交集数、缺失题号以及交集的原 DS 分层。它只说明 final-v1 校准**输入已经准备好**；只有 DS 恢复、运行这个版本 prompt 并对本次 true 结果完成人审后，才能冻结 final-v1 policy。

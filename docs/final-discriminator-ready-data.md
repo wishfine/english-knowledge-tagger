@@ -143,6 +143,8 @@ done
 /local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl
 ```
 
+若已通过 69 标签批量物化得到 `batch.index.json`，优先使用 `scripts/build_candidate_final_calibration_batch.py` 一次读取该人工样本、再依次连接各 label 的 final packet。它会生成 `calibration.index.json`，但不会读取原始题库、调用 DS 或复制人工结论进模型输入。完整命令见 [正例候选批次流程](positive-candidate-batch-workflow.md#离线批量构造-final-v1-校准包)。
+
 在 35 上确认文件存在后，按四个标签分别生成校准包：
 
 ```bash
