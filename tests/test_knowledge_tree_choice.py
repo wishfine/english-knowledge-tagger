@@ -109,6 +109,39 @@ class KnowledgeTreeChoiceTests(unittest.TestCase):
         self.assertEqual(result.prompt_chars, len(prompt))
         self.assertEqual(result.response_chars, len(result.raw_response))
 
+    def test_conversion_negative_constraint_only_appears_at_conversion_terminal(self):
+        conversion = "知识点->词汇->构词法->转化法"
+        tree = KnowledgeTaxonomyTree.from_rulebook(
+            KnowledgeRulebook(
+                records={
+                    conversion: KnowledgeRulebookRecord(
+                        path=conversion,
+                        status="active",
+                        marking_interpretation="同形词性转换。",
+                        compressed_definition="同形词性转换。",
+                    )
+                }
+            )
+        )
+        terminal = TreeChoiceRequest(
+            question_context="题干：warmth 变为 warm。",
+            parent_path="知识点->词汇->构词法",
+            candidate_paths=(conversion,),
+            excluded_paths=(),
+        )
+        non_terminal = TreeChoiceRequest(
+            question_context="题干：warmth 变为 warm。",
+            parent_path="知识点",
+            candidate_paths=("知识点->词汇",),
+            excluded_paths=(),
+        )
+
+        constrained = build_tree_choice_prompt(terminal, tree, conversion_negative_constraint=True)
+        unconstrained = build_tree_choice_prompt(non_terminal, tree, conversion_negative_constraint=True)
+
+        self.assertIn("词缀、拼写增删", constrained)
+        self.assertNotIn("词缀、拼写增删", unconstrained)
+
     def test_parser_rejects_a_child_not_offered_by_the_current_step(self):
         self.assertTrue(callable(parse_tree_choice_response), "parse_tree_choice_response must be implemented")
 

@@ -135,6 +135,11 @@ def main() -> None:
         choices=sorted(TERMINAL_DEFINITION_MODES),
         default="compressed",
     )
+    parser.add_argument(
+        "--conversion-negative-constraint",
+        action="store_true",
+        help="Apply the versioned no-derived-form rule only when conversion is a terminal choice.",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     parser.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
     args = parser.parse_args()
@@ -169,6 +174,7 @@ def main() -> None:
         ),
         tree,
         terminal_definition_mode=args.terminal_definition_mode,
+        conversion_negative_constraint=args.conversion_negative_constraint,
     )
 
     queued_rows: list[tuple[int, dict[str, Any], Exception | None]] = []

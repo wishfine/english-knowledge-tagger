@@ -20,6 +20,11 @@ from .knowledge_tree_search import TreeChoice, TreeChoiceRequest
 PROMPT_VERSION = "knowledge-tree-choice-ds-v4-v1"
 _COVERAGE = frozenset({"covered", "insufficient", "unknown"})
 TERMINAL_DEFINITION_MODES = frozenset({"compressed", "none"})
+CONVERSION_PATH = "知识点->词汇->构词法->转化法"
+CONVERSION_NEGATIVE_CONSTRAINT = (
+    "转化法额外约束：词缀、拼写增删、-ing/-ed、复数、三单、比较级等词形变化不是转化法；"
+    "只有词形不变而词性改变才可选转化法。\n"
+)
 
 
 @dataclass(frozen=True)
@@ -86,6 +91,7 @@ def build_tree_choice_prompt(
     tree: KnowledgeTaxonomyTree,
     *,
     terminal_definition_mode: str = "compressed",
+    conversion_negative_constraint: bool = False,
 ) -> str:
     """Render only the current siblings and a separate no-match control option."""
     if terminal_definition_mode not in TERMINAL_DEFINITION_MODES:
@@ -98,6 +104,11 @@ def build_tree_choice_prompt(
         else:
             candidates.append(f"- {path}")
     candidates.append(f"- {NO_MATCH}\n  含义：当前节点的所有候选均不是本题核心考点。")
+    constraint = (
+        CONVERSION_NEGATIVE_CONSTRAINT
+        if conversion_negative_constraint and CONVERSION_PATH in request.candidate_paths
+        else ""
+    )
     return (
         "你正在为一道英语小题定位一个知识点候选的下一层 taxonomy 节点。"
         "只能依据题干、选项、答案和解析判断，不得臆造未给出的节点。\n"
@@ -110,6 +121,7 @@ def build_tree_choice_prompt(
         '"candidate_coverage":"covered|insufficient|unknown",'
         '"evidence":"题干、答案或解析中的短证据"}\n\n'
         f"当前节点：{request.parent_path}\n"
+        f"{constraint}"
         "当前层候选：\n"
         f"{'\n'.join(candidates)}\n\n"
         "题目信息：\n"
@@ -126,6 +138,7 @@ class KnowledgeTreeChoiceClient:
         tree: KnowledgeTaxonomyTree,
         *,
         terminal_definition_mode: str = "compressed",
+        conversion_negative_constraint: bool = False,
         transport: Transport | None = None,
     ):
         if not config.endpoint:
@@ -135,6 +148,7 @@ class KnowledgeTreeChoiceClient:
         self._config = config
         self._tree = tree
         self._terminal_definition_mode = terminal_definition_mode
+        self._conversion_negative_constraint = conversion_negative_constraint
         self._transport = transport or _http_transport
 
     def choose(self, request: TreeChoiceRequest) -> TreeChoice:
@@ -151,6 +165,7 @@ class KnowledgeTreeChoiceClient:
             request,
             self._tree,
             terminal_definition_mode=self._terminal_definition_mode,
+            conversion_negative_constraint=self._conversion_negative_constraint,
         )
         payload = {
             "model": self._config.model,

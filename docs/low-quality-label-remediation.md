@@ -301,6 +301,8 @@ conversion-prep-20260828-172631/tree-run-20260828-172818/
 
 两个条件必须使用同一 21 条、同一 endpoint 配额、同一 `max_steps=8/max_backtracks=2`；人工只看 8 个已知派生错误是否全部不再返回转化法，以及 12 个同形/合理控制题是否仍保持正确。若任一派生错误仍返回转化法，或控制题出现方向性退化，继续 `hold` 并修订约束，不进入 T2。
 
+T1/T1.1 的网页 GPT 候选复核包统一由 `scripts/build_tree_candidate_review_packet.py` 生成；它只传题面、route、候选标签和候选释义，不传 DS raw response 或 tree trace。T1.1 的 tree 命令在现有参数上额外加入 `--conversion-negative-constraint`；该开关只在转化法位于当前末级候选集合时生效。
+
 #### 实验 T2：候选叶子分簇验证
 
 按 T1 的 tree 候选叶子分组，例如“派生法”“词汇音形义”“主谓一致”“无覆盖”。每个达到可用数量的 `原转化法 × 候选叶子 × route` 簇独立抽 12 条人工复核：
