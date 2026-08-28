@@ -1,0 +1,32 @@
+{
+  "schema_version": "label-micro-policy-v1",
+  "policy_id": "conversion-vs-derivation-v1",
+  "status": "active_for_manual_or_rule_audit_only",
+  "scope": {
+    "historical_label": "知识点@词汇@构词法@转化法",
+    "active_conversion_label": "知识点->词汇->构词法->转化法",
+    "active_derivation_label": "知识点->词汇->构词法->派生法（词根词缀）"
+  },
+  "rules": [
+    {
+      "decision": "conversion_candidate",
+      "condition": "同一词形不改变，直接以不同词性或词义功能使用。",
+      "examples": ["water n. -> water v.", "answer n. -> answer v."]
+    },
+    {
+      "decision": "derivation_candidate",
+      "condition": "通过显性前缀、后缀、字母增删或其他词形变化构成目标词。",
+      "examples": ["direct adj. -> director n.（添加 -or）", "predict -> prediction（添加 -ion）", "warmth -> warm（词形变化）", "weigh -> weight（词形变化）"]
+    },
+    {
+      "decision": "not_conversion_candidate",
+      "condition": "仅考查时态、复数、三单、比较级/最高级等屈折变化，或普通翻译、默写、固定搭配。",
+      "examples": ["say -> says", "stay at home"]
+    }
+  ],
+  "guardrails": [
+    "本 policy 只产生人工/规则分流证据，不自动修改 source 或发布 replacement patch。",
+    "题目必须确实要求从源词构成或识别目标词；词框已直接给出目标词时，不能仅凭词形关系推断派生法。",
+    "未提供 question_id 的业务示例不替代任何已有单题待裁决记录。"
+  ]
+}
