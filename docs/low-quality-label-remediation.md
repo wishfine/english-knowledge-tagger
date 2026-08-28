@@ -427,6 +427,29 @@ false 侧保留的强结构包括双宾语（`offer sb sth`）、宾语补足语
 - `operate on`、裸 `get`、宾语从句宾语与“拼写题自然宾语”均不得写成自动化 keep/remove 规则；
 - 所有 direct false 的 `remove` 仍然只是 `hold`，不可批量删标。
 
+### 5.6 网页 GPT 原始文件直审：500 条问题筛查证据
+
+为节省协作 token，网页 GPT 直接审核了 mentor 的完整 500 条原始 verifier JSONL。它可看见历史标签和 DS 字段，因此 `reviewer_mode=anchored_raw_source_review`，不是独立盲审。Codex 已以 `question_id + parent_id` 校验：500 条输入、500 条返回、无重复、无未知题号、无空理由，结果被规范化为：
+
+```text
+english-knowledge-tagger-runtime/low-quality-labels/transitive-verb-t0-20260828-v4/
+├─ web-gpt-raw-review-evidence.jsonl    # 500 条可审计 reviewer evidence
+└─ web-gpt-raw-review-analysis.json
+```
+
+| 来源切片 | keep | remove | uncertain | 解释 |
+|---|---:|---:|---:|---|
+| 网页 GPT 全部 500 条 | 81 | 391 | 28 | 问题筛查，不可直接删/留 |
+| mentor direct `match` 33 条 | 17 | 15 | 1 | DS true 也有明显不纯 |
+| mentor direct `mismatch` 467 条 | 64 | 376 | 27 | DS false 有大量结构漏删，但不能外推为全量错误率 |
+| mentor `false + should_be=正确` 11 条 | 0 | 4 | 7 | 再次证明这批字段冲突应保持 hold |
+
+当前网页 GPT 的强信号是：单词拼写 route 仅 `6 keep / 203 remove`，而单选 route 为 `44 keep / 66 remove`、完成句子为 `14 keep / 69 remove`。这支持“拼写题中自然出现宾语”是主要过标簇，但它仍需老师确认是否与 CSV 业务口径一致。
+
+与既有 24 条独立校准相比，网页 GPT 在 `20/24` 条上同结论；另有 4 条“旧校准 keep、网页 GPT remove”：`avoid doing`、`trust someone`、连词成句 `take the medicine`、`feed chickens and pigs`。四条都落在“动宾/非谓语结构是否必须直接决定空格答案”的同一严格度分歧，不能把网页 GPT 的 remove 自动覆盖旧结论。
+
+因此本标签最终状态不变：`hold`。网页 GPT 原始直审可作为下一轮 route/结构分簇和老师边界裁决的输入；它既不产出 `released_silver`，也不产出自动删除 patch。
+
 ## 6. P1：词汇辨析（混合词性）
 
 ### 根因假设
