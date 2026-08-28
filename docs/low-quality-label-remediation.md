@@ -230,7 +230,7 @@ knowledge-tree/conversion-v0.1-20260827-152549/
 - 15 条 `direct_mismatch`，且 mentor 建议为词汇辨析、固定搭配或语法；
 - 10 条来自翻译、单词拼写、语法填空等不同 route。
 
-DS 恢复后运行 whole-tree，首轮预算固定为：`max_steps=8`、`max_backtracks=2`、`concurrency=16`，保留 timing report。人工审核的对象不是“模型是否和旧标签相同”，而是：
+DS 恢复后运行 whole-tree，首轮预算固定为：`max_steps=8`、`max_backtracks=2`、两个 endpoint 各并发 5（总并发 10），保留 timing report。人工审核的对象不是“模型是否和旧标签相同”，而是：
 
 ```text
 tree_candidate 是否是本题的合理末级知识点；
@@ -266,6 +266,21 @@ python3 scripts/route_knowledge_tree.py \
   --max-steps 8 \
   --max-backtracks 2
 ```
+
+#### T1 首次运行结果：通过“可运行性”，未通过“候选正确性”验收
+
+首次完整运行使用 `DeepSeek-V4-Flash` 的 `9102`、`9103` 两个 vLLM endpoint，各 30 题、各并发 5：
+
+```text
+conversion-prep-20260828-172631/tree-run-20260828-172818/
+├─ results-9102.jsonl   30 条：30 tree_candidate
+├─ results-9103.jsonl   30 条：29 tree_candidate、1 budget_exhausted
+└─ results-all.jsonl    60 条：59 tree_candidate、1 budget_exhausted、0 error
+```
+
+性能结果：两个 endpoint 的 wall time 分别为 `99.3s`、`101.8s`；单任务 p50 约 `12s`，慢任务可到 `45–48s`；p95 queue 约 `87–89s`。这是多层树搜索（每题多次串行 choice）在共享服务上的预期排队，不应在优质标签仍占用 endpoint 时提高并发。下一轮继续保持“每端 5、总 10”。
+
+本结果**只证明接口、全树搜索和 timing 记录可用**，不证明 59 个候选标签正确。下一动作是把 `tree-input-60.jsonl + audit-index.jsonl + results-all.jsonl` 合并为网页 GPT 候选复核包：按 selection stratum 审核候选叶子是否解释题目，`budget_exhausted` 是否应保持 hold。未完成 60 条候选复核前，T1 不得进入 T2、不得生成 patch。
 
 #### 实验 T2：候选叶子分簇验证
 
