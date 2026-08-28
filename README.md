@@ -53,6 +53,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 - `scripts/rank_mentor_verification_report.py`、`scripts/build_mentor_label_rollout_packet.py`、`scripts/partition_mentor_label_rollout_packet.py`、`scripts/validate_mentor_label_rollout.py` 与 `scripts/sample_silver_post_sweep.py`：对 mentor 的 500 条初筛按 Wilson 产量下界排序；为每个标签独立构造 packet 并按人工 route policy 隔离；复用同一 `mentor-direct-v1` prompt 跑全量题；由该标签独立的 60 条复核决定是否从 preliminary silver 升级。
 - `scripts/build_final_label_discriminator_packet.py` 与 `scripts/validate_final_label_discriminator.py`：构造并运行无历史标签锚定的最终判别器；模型只接收候选标签释义和清洗题目内容。它的 `final-label-discriminator-v1` policy 与 mentor 初筛 policy 严格隔离，避免把不同 prompt 的人工校准混用。当前可处理数据与进度见 [最终判别器待处理数据](docs/final-discriminator-ready-data.md)。
 - `scripts/build_positive_candidate_manifest.py` 与 `scripts/inventory_positive_candidate_batch.py`：从人工 true 复核与原始 DS 产量快照生成不放行的正例工作队列，并只扫描最终源一次，输出 `标签 × route` 分布、route 复核样本及同题全标签覆盖潜力。详见 [正例候选批次流程](docs/positive-candidate-batch-workflow.md)。
+- `scripts/validate_candidate_route_guidance.py`：将老师 CSV 的“题型范畴限定”与“常见题型”区分为硬 route 过滤和软诊断切片；不会因常见题型描述而排除其他题型。详见 [正例候选标签题型约束解释](docs/candidate-route-guidance.md)。
 - `scripts/build_knowledge_tree_tasks.py` 与 `scripts/route_knowledge_tree.py`：从历史 `replace`、候选池不足和 required 缺标构建单标签树搜索任务；逐层路由得到候选及回退轨迹，不生成最终多标签集合。
 - `scripts/analyze_knowledge_tree_runs.py`：对三次 `compressed` 与三次 `none` 树路由运行做可重复性和 replace 候选波动汇总，不自动选择提示版本。
 - `configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json`：历史渲染标签树到当前老师 taxonomy 的版本化路径迁移规则。

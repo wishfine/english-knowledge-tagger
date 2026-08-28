@@ -1,0 +1,36 @@
+{
+  "schema_version": "candidate-route-guidance-v1",
+  "purpose": "non_releasing_teacher_route_interpretation",
+  "manifest_sha256": "b3b0b1a5fcee2d72bed6b789f037ff4897d9e111cdc9711f211dea2a3fa8b275",
+  "default": {
+    "mode": "soft_typical",
+    "allowed_routes": [],
+    "reason": "老师 CSV 的“常见题型”仅用于分层诊断和抽检，不构成来源数据的 route 过滤条件；最终仍以题目内容与标签释义的直接语义判断为准。"
+  },
+  "hard_exclusive_overrides": [
+    {
+      "legacy_label": "知识点@词汇@词汇辨析@名词（短语）辨析",
+      "canonical_label": "知识点->词汇->词汇辨析->名词（短语）辨析",
+      "allowed_routes": ["parent × 单选题 × 选择题"],
+      "csv_evidence": "① 题型范畴限定在：单选题（非复合题）"
+    },
+    {
+      "legacy_label": "知识点@词汇@词汇辨析@副词（短语）辨析",
+      "canonical_label": "知识点->词汇->词汇辨析->副词（短语）辨析",
+      "allowed_routes": ["parent × 单选题 × 选择题"],
+      "csv_evidence": "① 题型范畴限定在：单选题（非复合题）"
+    },
+    {
+      "legacy_label": "知识点@词汇@词汇辨析@动词（短语）辨析",
+      "canonical_label": "知识点->词汇->词汇辨析->动词（短语）辨析",
+      "allowed_routes": ["parent × 单选题 × 选择题"],
+      "csv_evidence": "① 题型范畴限定在：单选题（非复合题）"
+    },
+    {
+      "legacy_label": "知识点@词汇@词汇辨析@形容词（短语）辨析",
+      "canonical_label": "知识点->词汇->词汇辨析->形容词（短语）辨析",
+      "allowed_routes": ["parent × 单选题 × 选择题"],
+      "csv_evidence": "① 题型范畴限定在：单选题（非复合题）"
+    }
+  ]
+}
