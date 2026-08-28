@@ -266,7 +266,128 @@ python3 scripts/route_knowledge_tree.py \
 - 不只限制在构词法子树；
 - 在 T1/T2 通过前不扫描或调用转化法的全量历史数据。
 
-## 5. P1：词汇辨析（混合词性）
+## 5. P0：及物动词
+
+### 5.1 事实画像
+
+输入是 mentor 对该精确末级标签的 500 条 direct-verifier 明细：
+
+```text
+知识点@语法词法@动词@实义动词@及物动词
+输入：english-knowledge-tagger-runtime/知识点_语法词法_动词_实义动词_及物动词.jsonl
+```
+
+该文件的历史渲染路径 `知识点@语法词法@动词@实义动词@及物动词` 必须先经版本化 migration `legacy-grammar-wording-to-morphology` 映射为当前启用路径 `知识点->词法->动词->实义动词->及物动词`。两种路径都会保存在审计产物中；不能因路径名称不同把它计为语义错标。
+
+| 项目 | 数量 | 解释 |
+|---|---:|---|
+| `llm_match=true` | 33 | 原始匹配率 `33/500 = 6.6%`；不是 33 条已经确认的 silver |
+| `llm_match=false` | 467 | 不能批量删除；其中包含信息不足和共标遗漏风险 |
+| 可进入后续 tree 任务 | 483 | `33` 条 direct true recheck + `450` 条 direct mismatch |
+| `direct_contract_conflict` | 11 | `llm_match=false`，但 `llm_should_be=正确`；其 `llm_reason` 实际又说明“不符合”，字段自相矛盾 |
+| `direct_insufficient` | 6 | 只有题型说明、词表或缺具体句子，无法判断 |
+| 音频 / 整题图片 | 0 / 0 | 本批的低匹配率不是多模态信息缺失导致 |
+
+三个主要 route 占 `404/500 = 80.8%`，但都只有约 6%--8% 的 direct true，说明问题不是一个 route 的偶发录入错误，而是历史标签在多个常见题型中被系统性扩大：
+
+| route | true / total | 原始匹配率 |
+|---|---:|---:|
+| `parent × 填空题 × 单词拼写` | 14 / 209 | 6.7% |
+| `parent × 单选题 × 选择题` | 9 / 112 | 8.0% |
+| `parent × 填空题 × 完成句子` | 5 / 83 | 6.0% |
+
+`output_all` 中最常与该标签共现的是固定搭配/句型（85）、一般现在时定义/判定（73）、`do/does/did` 作助动词（68）、情态动词基本用法（49）和一般疑问句（43）。这只是历史共标分布，**不能**证明这些共标本身错误；但它解释了为什么“句中出现及物动词”不能作为保留规则。
+
+初步 tree 分流产物如下，未调用任何模型、未改源数据：
+
+```text
+english-knowledge-tagger-runtime/low-quality-labels/transitive-verb-t0-20260827/
+├─ tree-tasks.jsonl          483 条
+├─ hold.jsonl                 17 条
+└─ tree-tasks.report.json
+```
+
+T0 盲审 packet 使用 migration 后的 active taxonomy，并和 tree 分流独立保存：
+
+```text
+english-knowledge-tagger-runtime/low-quality-labels/transitive-verb-t0-20260828-v4/
+├─ true-blind-review-33.jsonl    # 所有 direct true；供独立人工/Gemini 审核
+├─ false-blind-review-60.jsonl   # 固定分层 false；供独立人工/Gemini 审核
+├─ review-audit-index.jsonl      # 仅供审核完成后回连 DS 结果，不能给 reviewer
+└─ review-packets.report.json
+```
+
+### 5.2 当前可执行定义
+
+沿用 CSV 和已有 24 条独立复核的共同边界，而不是把“题目里出现及物动词”当作依据：
+
+**可保留候选**必须有可观察的结构约束，即答案或句型判断依赖于以下至少一项：
+
+- 及物与不及物的对比，如 `raise/rise`、`hear/listen (to)`、`reach/arrive`、`run out/run out of`；
+- 直接宾语或宾格的选择实际受谓语及物性约束；
+- 双宾语、宾语补足语，如 `show sb sth`、`give sb sth`、`make + 宾语 + 补足语`；
+- 被动结构以动词可带宾语为必要前提，如 `be influenced by`。
+
+**应删除或 hold** 的典型情形：
+
+- 只考时态、三单、助动词、拼写、词义，而宾语只是已给出的自然上下文；
+- 固定搭配中虽有动词和宾语，但宾语结构没有参与答案选择；
+- 题面只有题型标题、词表或空白，无法恢复具体句子。
+
+已有 24 条独立复核显示：direct true 的抽样 `12/12` 可保留；direct false 中 `make + 宾语 + 宾补` 与被动 `be influenced by` 两条应保留，故 false 错判率为 `2/12 = 16.7%`。这足以禁止“false 直接删除”，但不足以保证剩余 21 条 direct true 全部都符合上述更严格边界。
+
+### 5.3 根因判断（当前阶段）
+
+1. **历史过标是主问题。** 6.6% 的 raw match 在单词拼写、单选、完成句子三大 route 上同时出现，符合“把所有含及物动词的题都继承标签”的模式。
+2. **direct true 仍有边界污染风险。** 33 条数量很小，应全部盲审；其中既有明确的 `raise/rise`、`show sb sth`、`hear/listen`，也有仅在单词拼写题中自然出现 `hide the truth`、`trust someone` 等直接宾语的候选，不能只抽 12 条就全量放行。
+3. **direct false 的主要风险是结构共标漏删。** 现有反例已覆盖宾语补足语和被动；后续还需检查双宾语、宾格选择和及/不及物对比。固定搭配、时态和拼写类 false 不能被默认视为“安全删除”，只能作为分层审核的来源。
+4. **判别器输出契约有独立问题。** 11 条 `false + 正确` 的矛盾记录必须保持 `hold`，不得根据 `llm_should_be` 创建 replacement，也不得计入 false 准确率。
+
+### 5.4 T0：先完成可人工验收的盲审，不跑全量
+
+T0-A 对 33 条 direct true **全部**盲审，审稿人只看清洗后的题面和当前老师释义，不看 `llm_match`、历史 `output_all`、`llm_reason` 或 `llm_should_be`。每条返回：
+
+```json
+{"review_id":"...","decision":"keep|remove|uncertain","reason":"及物性是否实际约束答案；若是，指出直接宾语/双宾语/宾补/被动/及不及物对比"}
+```
+
+T0-B 从 450 条直接 false 中按 `route × 模型建议族` 抽取固定的 60 条盲审，并强制包含已有人工复核中确认的两条 DS false 漏删：`2624065286149791744`（`make + 宾语 + 宾补`）和 `2797969086460768256`（被动结构）。其余样本覆盖：
+
+- 时态/三单/助动词主考但有直接宾语；
+- 固定搭配；
+- 宾格选择；
+- 双宾语与宾语补足语；
+- 被动结构；
+- 及物/不及物动词或短语对比；
+- 单词拼写、完成句子、单选三大 route。
+
+可复跑 packet 的命令如下。盲审文件会删除 `llm_match`、`llm_reason`、`llm_should_be`、`output_all` 和 source line；这些字段只保留在 audit index，避免 reviewer 被 DS 结论锚定。
+
+```bash
+python3 scripts/build_p0_direct_diagnosis_packets.py \
+  --input "$MENTOR_LABEL_JSONL" \
+  --verify-label '知识点@语法词法@动词@实义动词@及物动词' \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --taxonomy-migration configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json \
+  --true-output "$RUN/true-blind-review-33.jsonl" \
+  --false-output "$RUN/false-blind-review-60.jsonl" \
+  --audit-output "$RUN/review-audit-index.jsonl" \
+  --report "$RUN/review-packets.report.json" \
+  --false-sample-size 60 \
+  --false-boundary-question-id 2624065286149791744 \
+  --false-boundary-question-id 2797969086460768256 \
+  --seed 'transitive-verb-t0-20260828'
+```
+
+T0 的决策规则：
+
+- 33 条 true 全部通过，才可将这 33 条登记为 `silver_label_candidate`，并为其定义一致的细簇准备后续补量实验；该标签的历史总体仍维持 P0，不能因此构造全标签 silver 包。任一 true 错误则先按错误模式拆分。
+- false 的审核只决定哪些结构簇可进入 tree 小批；即使 60 条全为 remove，也不直接删除其余 false。
+- 11 条 contract conflict 和 6 条信息不足始终维持 `hold`，等待题面补全或 mentor 判别器解析修复。
+
+DS 服务恢复后，tree 只对 T0-B 中人工确认“原标签不适用且题面足够”的小簇运行；其结果仅为 `relabel_candidate`。通过人工复核前，禁止替换历史及物动词标签。
+
+## 6. P1：词汇辨析（混合词性）
 
 ### 根因假设
 
@@ -345,7 +466,7 @@ python3 scripts/build_mixed_pos_m1_review_packet.py \
 
 不要把 `audit-index.jsonl` 同时发送给 reviewer；它会泄露原 DS 的 true/false 和 `should_be`，使 M1 失去盲审意义。收到 review 结果后，再将 `review_id` 与 audit index 对齐，按选项模式分簇决定是否做树搜索或建立 policy。
 
-## 6. P2：介词（短语）辨析
+## 7. P2：介词（短语）辨析
 
 老师定义明确限定为非复合单选、多个介词/介词短语选项的辨析。当前完整复核发现 DS 同时存在两类问题：
 
@@ -359,7 +480,7 @@ python3 scripts/build_mixed_pos_m1_review_packet.py \
 3. 对新 prompt 的 true、false 各抽 12 条人审；false 不通过时只能保持 hold。
 4. true 12/12 后，才允许该 route 构建全量 DS packet；全量 true 再独立抽 60 条。
 
-## 7. P1：词汇（音/形/义）填空族
+## 8. P1：词汇（音/形/义）填空族
 
 | 标签 | 初筛 signal | 已知判别器问题 | 实验重点 |
 |---|---:|---|---|
@@ -371,13 +492,13 @@ python3 scripts/build_mixed_pos_m1_review_packet.py \
 
 这一族优先做一个共享 prompt 对照实验，但每个末级标签仍单独计算 500 产量、true/false 人审和 policy；不能因为它们都叫“音/形/义”合并放行。
 
-## 8. 已有可用数据与仍需警惕的问题
+## 9. 已有可用数据与仍需警惕的问题
 
 名词、副词、动词、形容词（短语）辨析已完成正例 12/12 校准，并已生成各自 `parent × 单选题 × 选择题` 的 DS 待验证 packet。它们不是“干净数据完成版”：四个标签合计还有 24,798 条历史记录因 route 与老师定义冲突而进入 quarantine，后续要等题型链路确认后处理。
 
 它们当前的合法用途仅是：服务恢复后按标签独立跑 DS、从 true 产出 preliminary silver、再做每标签独立 60 条复核。它们的 false 和 route quarantine 都不自动删除。
 
-## 9. 每次新增问题标签必须填写的字段
+## 10. 每次新增问题标签必须填写的字段
 
 复制此模板追加到第 3 节之后：
 
@@ -409,10 +530,10 @@ python3 scripts/build_mixed_pos_m1_review_packet.py \
 - 禁止动作：
 ```
 
-## 10. 当前执行顺序
+## 11. 当前执行顺序
 
 1. 转化法 T1：实验包已就绪；DS 恢复后直接验证 whole-tree 是否能纠正“同形/派生/屈折/翻译”边界；
-2. 及物动词：P0 中原始匹配率最低；先提取 500 条明细，完成 true/false × route × 题面完整性分诊；
+2. 及物动词：已完成 500 条 `true/false × route × 题面完整性` 分诊；先执行 T0-A 全量 true 盲审和 T0-B 分层 false 盲审，再决定 tree 小批；
 3. 其余 P0：严格按第 3.1 节的原始匹配率顺序准备明细、定义和最小诊断实验；同类标签可共用实验骨架，但不得合并结论；
 4. 混合词性 M1：已具备盲审包，作为 P1 并行诊断，禁止全量；
 5. 介词辨析 P2 与音/形/义填空族 P1：在对应 P0 诊断不受阻时，再做 route / prompt 对照并逐标签验收。
