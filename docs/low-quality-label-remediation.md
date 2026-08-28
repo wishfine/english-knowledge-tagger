@@ -197,6 +197,8 @@ False 错判率
 /Users/wishfine/Desktop/xdf/ai题库/english-knowledge-tagger-runtime/知识点_词汇_构词法_转化法.jsonl
 ```
 
+若本机只同步了 mentor 的两份全量文件（`sampled_for_verification.jsonl` 含题面、`verification_results.jsonl` 含判别结论），必须先用 `scripts/materialize_mentor_direct_verdicts.py` 按 `verify_label + question_id` 严格合并；它会拒绝重复或缺失配对，不能按行号猜测关联。合并输出才可作为下面的 tree correction 输入。
+
 当前本地运行输出：
 
 ```text
