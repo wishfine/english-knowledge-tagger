@@ -38,6 +38,7 @@ class FinalLabelDiscriminatorRequest:
 class FinalLabelDiscriminatorResult:
     review_id: str
     model: str
+    endpoint: str
     prompt_version: str
     request_id: str | None
     raw_response: str
@@ -286,6 +287,7 @@ class FinalLabelDiscriminatorClient:
         return FinalLabelDiscriminatorResult(
             review_id=review_id,
             model=response.get("model") if isinstance(response.get("model"), str) else self._config.model,
+            endpoint=self._config.endpoint,
             prompt_version=FINAL_PROMPT_VERSION,
             request_id=response.get("id") if isinstance(response.get("id"), str) else None,
             raw_response=raw_response,
@@ -336,6 +338,7 @@ def final_result_to_evidence(
         "llm_match": result.llm_match,
         "status": "candidate",
         "model": result.model,
+        "endpoint": result.endpoint,
         "prompt_version": result.prompt_version,
         "request_id": result.request_id,
         "confidence": result.confidence,
@@ -359,6 +362,7 @@ def final_error_to_evidence(
     rulebook: KnowledgeRulebook,
     migration: KnowledgeTaxonomyMigration,
     model: str,
+    endpoint: str,
 ) -> dict[str, Any]:
     """Keep model/parse failures explicit and holdable without source mutation."""
     question_text = _text(packet_row.get("question_text"), field="packet question_text")
@@ -377,6 +381,7 @@ def final_error_to_evidence(
         "llm_match": None,
         "status": "error",
         "model": model,
+        "endpoint": endpoint,
         "prompt_version": FINAL_PROMPT_VERSION,
         "error": str(error),
         "source_packet_path": packet_row.get("source_packet_path"),

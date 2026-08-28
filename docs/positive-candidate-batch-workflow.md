@@ -188,6 +188,8 @@ cat "$RUN/build.report.json"
 
 输出目录中的 `batch.index.json` 是唯一运行索引，记录每个标签的 packet 路径、全量命中数、选中数、硬 route hold、题面不完整 hold 以及每个 route 的分布。DS 恢复后，仍按**一个标签一个标签**读取对应 packet，先完成该 label 的 final-v1 校准，再执行 smoke 与全量判别。
 
+若 DS 有多个 vLLM endpoint，runner 接受重复的 `--endpoint` 参数并按行 round-robin 分流；`--concurrency` 始终是所有 endpoint 合计上限。当前 `9102 + 9103` 部署白天使用总并发 30，夜间确认资源后最多 50。终判 smoke 命令见 [最终判别器待处理数据](final-discriminator-ready-data.md#双-vllm-端点运行)。
+
 ## 离线：批量构造 final-v1 校准包
 
 终判 packet 已物化后，仍不能直接调用 DS。需要先将已有人工复核身份样本放到 35 的统一位置：

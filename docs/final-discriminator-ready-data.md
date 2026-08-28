@@ -191,6 +191,34 @@ python3 scripts/validate_final_label_discriminator.py \
   --concurrency 16
 ```
 
+### 双 vLLM 端点运行
+
+当前 DS-V4-Flash 部署有两个独立 vLLM 进程：`9102` 与 `9103`。最终 runner 的 `--endpoint` 可以重复传入；它将题目按 round-robin 分给两个端点，但 `--concurrency` 是**两个端点合计**的上限，而不是每个端点各自的上限。
+
+白天使用总并发 `30`（约每端点 15 路）；夜间经资源确认后可使用总并发 `50`。每条 evidence 会记录其实际 `endpoint`，用于后续诊断端点异常或耗时差异。两个端点仍使用完全相同的 `final-label-discriminator-v1` prompt。
+
+先对单个 label 的 calibration packet 运行 smoke：
+
+```bash
+export DS_ENDPOINT_1=http://172.22.0.35:9102/v1/chat/completions
+export DS_ENDPOINT_2=http://172.22.0.35:9103/v1/chat/completions
+
+python3 scripts/validate_final_label_discriminator.py \
+  --input "$RUN/final.calibration.packet.jsonl" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$RUN/final.calibration.smoke.evidence.jsonl" \
+  --report "$RUN/final.calibration.smoke.report.json" \
+  --endpoint "$DS_ENDPOINT_1" \
+  --endpoint "$DS_ENDPOINT_2" \
+  --model DeepSeek-V4-Flash \
+  --limit 20 \
+  --concurrency 30
+```
+
+不要将 `--allow-full` 加到 calibration smoke；全量命令仍只在标签的 final-v1 人工校准 policy 冻结后执行。
+
 全量命令只有在 final-v1 的该标签 policy 已人工冻结后才能执行：
 
 ```bash

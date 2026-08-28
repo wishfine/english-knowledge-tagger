@@ -57,6 +57,45 @@ def packet_row() -> dict[str, object]:
     }
 
 
+def packet_row_with_id(question_id: str) -> dict[str, object]:
+    row = packet_row()
+    row["review_id"] = f"final-label-discriminator-v1:{question_id}:target"
+    row["source_line"] = int(question_id)
+    row["question_id"] = question_id
+    row["parent_id"] = question_id
+    return row
+
+
+def make_handler(requests: list[dict[str, object]], model: str):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802 - stdlib hook
+            content_length = int(self.headers["Content-Length"])
+            requests.append(json.loads(self.rfile.read(content_length)))
+            body = json.dumps(
+                {
+                    "id": f"chatcmpl-{model}",
+                    "model": model,
+                    "choices": [
+                        {
+                            "message": {
+                                "content": '{"match":true,"confidence":"high","reason":"标签适用。"}'
+                            }
+                        }
+                    ],
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args):
+            return
+
+    return Handler
+
+
 class ValidateFinalLabelDiscriminatorCliTests(unittest.TestCase):
     def test_cli_writes_gate_compatible_unanchored_evidence(self):
         _Handler.requests = []
@@ -147,6 +186,80 @@ class ValidateFinalLabelDiscriminatorCliTests(unittest.TestCase):
 
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("--allow-full", completed.stderr)
+
+    def test_cli_round_robins_repeatable_endpoints_under_one_global_concurrency_budget(self):
+        first_requests: list[dict[str, object]] = []
+        second_requests: list[dict[str, object]] = []
+        first = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(first_requests, "first"))
+        second = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(second_requests, "second"))
+        first_thread = threading.Thread(target=first.serve_forever, daemon=True)
+        second_thread = threading.Thread(target=second.serve_forever, daemon=True)
+        first_thread.start()
+        second_thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                packet.write_text(
+                    "\n".join(
+                        json.dumps(packet_row_with_id(question_id), ensure_ascii=False)
+                        for question_id in ("101", "102")
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                definitions = write_json(
+                    directory / "definitions.json", {LABEL: {"definition": "仅非复合单选中的名词辨析。"}}
+                )
+                output = directory / "evidence.jsonl"
+                report = directory / "report.json"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_final_label_discriminator.py"
+                endpoints = [
+                    f"http://127.0.0.1:{first.server_port}/v1/chat/completions",
+                    f"http://127.0.0.1:{second.server_port}/v1/chat/completions",
+                ]
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(script),
+                        "--input",
+                        str(packet),
+                        "--label-definitions",
+                        str(definitions),
+                        "--teacher-csv",
+                        str(write_rulebook(directory / "rulebook.csv")),
+                        "--taxonomy-migration",
+                        str(write_migration(directory / "migration.json")),
+                        "--output",
+                        str(output),
+                        "--report",
+                        str(report),
+                        "--endpoint",
+                        endpoints[0],
+                        "--endpoint",
+                        endpoints[1],
+                        "--concurrency",
+                        "2",
+                        "--limit",
+                        "2",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                evidence = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+                report_payload = json.loads(report.read_text(encoding="utf-8"))
+
+            self.assertEqual(len(first_requests), 1)
+            self.assertEqual(len(second_requests), 1)
+            self.assertEqual(set(report_payload["endpoints"]), set(endpoints))
+            self.assertEqual({row["endpoint"] for row in evidence}, set(endpoints))
+        finally:
+            first.shutdown()
+            first.server_close()
+            second.shutdown()
+            second.server_close()
 
 
 if __name__ == "__main__":

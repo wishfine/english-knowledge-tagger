@@ -59,6 +59,7 @@ def _verify_one(
     rulebook: Any,
     migration: Any,
     model: str,
+    endpoint: str,
 ) -> tuple[dict[str, Any], str]:
     try:
         result = client.verify(FinalLabelDiscriminatorRequest(packet_row=packet_row))
@@ -76,6 +77,7 @@ def _verify_one(
                 rulebook=rulebook,
                 migration=migration,
                 model=model,
+                endpoint=endpoint,
             ),
             "error",
         )
@@ -89,9 +91,7 @@ def main() -> None:
     parser.add_argument("--taxonomy-migration", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path)
-    parser.add_argument(
-        "--endpoint", default=os.getenv("ENGLISH_TAGGER_DS_V4_ENDPOINT", DEFAULT_ENDPOINT)
-    )
+    parser.add_argument("--endpoint", action="append")
     parser.add_argument("--model", default="ds-v4-flash")
     parser.add_argument("--concurrency", type=int, default=64)
     parser.add_argument("--limit", type=int)
@@ -110,15 +110,22 @@ def main() -> None:
     try:
         rulebook = load_knowledge_rulebook(args.teacher_csv)
         migration = load_knowledge_taxonomy_migration(args.taxonomy_migration)
-        client = FinalLabelDiscriminatorClient(
-            LabelingServiceConfig(
-                endpoint=args.endpoint,
-                model=args.model,
-                timeout_seconds=args.timeout_seconds,
-                api_key=os.getenv(args.api_key_env) or None,
-            ),
-            label_definitions=load_mentor_label_definitions(args.label_definitions),
-        )
+        endpoints = args.endpoint or [os.getenv("ENGLISH_TAGGER_DS_V4_ENDPOINT", DEFAULT_ENDPOINT)]
+        if not all(isinstance(endpoint, str) and endpoint.strip() for endpoint in endpoints):
+            parser.error("--endpoint values must be non-empty")
+        clients = [
+            FinalLabelDiscriminatorClient(
+                LabelingServiceConfig(
+                    endpoint=endpoint,
+                    model=args.model,
+                    timeout_seconds=args.timeout_seconds,
+                    api_key=os.getenv(args.api_key_env) or None,
+                ),
+                label_definitions=load_mentor_label_definitions(args.label_definitions),
+            )
+            for endpoint in endpoints
+        ]
+
         args.output.parent.mkdir(parents=True, exist_ok=True)
         processed = 0
         candidate = 0
@@ -129,26 +136,27 @@ def main() -> None:
         ) as pool:
             pending: deque[Future[tuple[dict[str, Any], str]]] = deque()
             for packet_row in _packet_rows(args.input, limit=args.limit):
+                endpoint_index = processed % len(clients)
                 pending.append(
                     pool.submit(
                         _verify_one,
                         packet_row,
-                        client=client,
+                        client=clients[endpoint_index],
                         rulebook=rulebook,
                         migration=migration,
                         model=args.model,
+                        endpoint=endpoints[endpoint_index],
                     )
                 )
+                processed += 1
                 if len(pending) >= max_pending:
                     output_row, status = pending.popleft().result()
                     output.write(json.dumps(output_row, ensure_ascii=False, sort_keys=True) + "\n")
-                    processed += 1
                     candidate += status == "candidate"
                     error_count += status == "error"
             while pending:
                 output_row, status = pending.popleft().result()
                 output.write(json.dumps(output_row, ensure_ascii=False, sort_keys=True) + "\n")
-                processed += 1
                 candidate += status == "candidate"
                 error_count += status == "error"
     except (OSError, ValueError) as failure:
@@ -158,6 +166,7 @@ def main() -> None:
         "input": str(args.input),
         "output": str(args.output),
         "model": args.model,
+        "endpoints": endpoints,
         "prompt_version": "final-label-discriminator-v1",
         "concurrency": args.concurrency,
         "processed": processed,
