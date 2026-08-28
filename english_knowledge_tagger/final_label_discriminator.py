@@ -18,6 +18,7 @@ from .mentor_direct_rollout import load_mentor_label_definitions
 
 FINAL_PROMPT_VERSION = "final-label-discriminator-v1"
 FINAL_PACKET_SCHEMA_VERSION = "final-label-discriminator-packet-v1"
+PROMPT_CLARIFICATIONS_SCHEMA_VERSION = "final-label-prompt-clarifications-v1"
 _REMOVED_INPUT_PREFIXES = (
     "题型结构为：",
     "题型名称为：",
@@ -32,6 +33,19 @@ _CONFIDENCE_VALUES = frozenset({"high", "medium", "low"})
 @dataclass(frozen=True)
 class FinalLabelDiscriminatorRequest:
     packet_row: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class FinalLabelPromptClarifications:
+    """Versioned calibration-only additions to teacher label definitions."""
+
+    path: Path
+    sha256: str
+    prompt_version: str
+    by_label: Mapping[str, str]
+
+    def for_label(self, legacy_label: str) -> str | None:
+        return self.by_label.get(legacy_label)
 
 
 @dataclass(frozen=True)
@@ -54,6 +68,45 @@ def _text(value: object, *, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must be a non-empty string")
     return value.strip()
+
+
+def load_final_label_prompt_clarifications(
+    path: Path, *, label_definitions: Mapping[str, Mapping[str, Any]]
+) -> FinalLabelPromptClarifications:
+    """Load an explicit v2+ boundary clarification without changing taxonomy."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"final prompt clarifications are not valid JSON: {path}") from error
+    if (
+        not isinstance(payload, Mapping)
+        or payload.get("schema_version") != PROMPT_CLARIFICATIONS_SCHEMA_VERSION
+    ):
+        raise ValueError("final prompt clarifications have unexpected schema_version")
+    prompt_version = _text(payload.get("prompt_version"), field="clarification prompt_version")
+    if prompt_version == FINAL_PROMPT_VERSION:
+        raise ValueError("final prompt clarifications must declare a new prompt version")
+    raw_labels = payload.get("labels")
+    if not isinstance(raw_labels, list) or not raw_labels:
+        raise ValueError("final prompt clarifications labels must be a non-empty list")
+    by_label: dict[str, str] = {}
+    for index, item in enumerate(raw_labels, 1):
+        if not isinstance(item, Mapping):
+            raise ValueError(f"final prompt clarifications labels[{index}] must be an object")
+        label = _text(item.get("legacy_label"), field=f"clarification label {index}")
+        if label not in label_definitions:
+            raise ValueError(f"final prompt clarifications contain unknown label: {label!r}")
+        if label in by_label:
+            raise ValueError(f"final prompt clarifications contain duplicate label: {label!r}")
+        by_label[label] = _text(
+            item.get("clarification"), field=f"clarification text for {label!r}"
+        )
+    return FinalLabelPromptClarifications(
+        path=path,
+        sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        prompt_version=prompt_version,
+        by_label=by_label,
+    )
 
 
 def clean_final_label_question(input_text: str) -> str:
@@ -158,7 +211,10 @@ def build_final_label_discriminator_packet(
 
 
 def build_final_label_discriminator_prompt(
-    packet_row: Mapping[str, Any], *, label_definitions: Mapping[str, Mapping[str, Any]]
+    packet_row: Mapping[str, Any],
+    *,
+    label_definitions: Mapping[str, Mapping[str, Any]],
+    clarification: str | None = None,
 ) -> str:
     """Render an unanchored direct-label decision prompt.
 
@@ -170,6 +226,9 @@ def build_final_label_discriminator_prompt(
     if definition is None:
         raise ValueError("packet verify_label must have an exact label definition")
     question_text = _text(packet_row.get("question_text"), field="packet question_text")
+    clarification_section = (
+        f"\n## 本轮边界澄清\n{clarification.strip()}\n" if clarification else ""
+    )
     return f"""你是一位资深的初中英语教研老师，需要核验一个候选知识点标签是否适用于给定题目。
 
 ## 待验证标签
@@ -180,6 +239,7 @@ def build_final_label_discriminator_prompt(
 
 ## 题目内容
 {question_text}
+{clarification_section}
 
 ## 判断要求
 仅依据题目内容和标签释义判断。题目必须直接考查该标签所述的知识点才可判定为 true；不要因为答案词性、题目背景或其他可能知识点而勉强判定。若题目信息不足，或无法确认是否直接考查该知识点，判定为 false 并说明信息缺失或边界原因。
@@ -232,6 +292,8 @@ class FinalLabelDiscriminatorClient:
         transport: Transport | None = None,
         max_retries: int = 3,
         retry_delay_seconds: float = 2.0,
+        prompt_version: str = FINAL_PROMPT_VERSION,
+        clarifications: FinalLabelPromptClarifications | None = None,
     ):
         if not config.endpoint:
             raise ValueError("final label discriminator endpoint must be non-empty")
@@ -239,16 +301,27 @@ class FinalLabelDiscriminatorClient:
             raise ValueError("max_retries must be positive")
         if retry_delay_seconds < 0:
             raise ValueError("retry_delay_seconds must be non-negative")
+        if not prompt_version:
+            raise ValueError("prompt_version must be non-empty")
+        if clarifications is not None and clarifications.prompt_version != prompt_version:
+            raise ValueError("clarification prompt_version must match client prompt_version")
         self._config = config
         self._label_definitions = label_definitions
         self._transport = transport or _http_transport
         self._max_retries = max_retries
         self._retry_delay_seconds = retry_delay_seconds
+        self._prompt_version = prompt_version
+        self._clarifications = clarifications
 
     def verify(self, request: FinalLabelDiscriminatorRequest) -> FinalLabelDiscriminatorResult:
         review_id = _text(request.packet_row.get("review_id"), field="packet review_id")
+        verify_label = _text(request.packet_row.get("verify_label"), field="packet verify_label")
         prompt = build_final_label_discriminator_prompt(
-            request.packet_row, label_definitions=self._label_definitions
+            request.packet_row,
+            label_definitions=self._label_definitions,
+            clarification=self._clarifications.for_label(verify_label)
+            if self._clarifications is not None
+            else None,
         )
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
@@ -288,7 +361,7 @@ class FinalLabelDiscriminatorClient:
             review_id=review_id,
             model=response.get("model") if isinstance(response.get("model"), str) else self._config.model,
             endpoint=self._config.endpoint,
-            prompt_version=FINAL_PROMPT_VERSION,
+            prompt_version=self._prompt_version,
             request_id=response.get("id") if isinstance(response.get("id"), str) else None,
             raw_response=raw_response,
             llm_match=llm_match,
@@ -363,6 +436,7 @@ def final_error_to_evidence(
     migration: KnowledgeTaxonomyMigration,
     model: str,
     endpoint: str,
+    prompt_version: str = FINAL_PROMPT_VERSION,
 ) -> dict[str, Any]:
     """Keep model/parse failures explicit and holdable without source mutation."""
     question_text = _text(packet_row.get("question_text"), field="packet question_text")
@@ -382,7 +456,7 @@ def final_error_to_evidence(
         "status": "error",
         "model": model,
         "endpoint": endpoint,
-        "prompt_version": FINAL_PROMPT_VERSION,
+        "prompt_version": prompt_version,
         "error": str(error),
         "source_packet_path": packet_row.get("source_packet_path"),
         "source_path": packet_row.get("source_path"),

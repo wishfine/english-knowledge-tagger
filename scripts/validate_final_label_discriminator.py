@@ -23,6 +23,7 @@ from english_knowledge_tagger.final_label_discriminator import (
     FinalLabelDiscriminatorRequest,
     final_error_to_evidence,
     final_result_to_evidence,
+    load_final_label_prompt_clarifications,
 )
 from english_knowledge_tagger.knowledge_rulebook import load_knowledge_rulebook
 from english_knowledge_tagger.knowledge_taxonomy_migration import load_knowledge_taxonomy_migration
@@ -60,27 +61,31 @@ def _verify_one(
     migration: Any,
     model: str,
     endpoint: str,
+    prompt_version: str,
+    prompt_clarifications_path: str | None,
+    prompt_clarifications_sha256: str | None,
 ) -> tuple[dict[str, Any], str]:
     try:
         result = client.verify(FinalLabelDiscriminatorRequest(packet_row=packet_row))
-        return (
-            final_result_to_evidence(
-                packet_row, result=result, rulebook=rulebook, migration=migration
-            ),
-            "candidate",
+        evidence = final_result_to_evidence(
+            packet_row, result=result, rulebook=rulebook, migration=migration
         )
+        evidence["prompt_clarifications_path"] = prompt_clarifications_path
+        evidence["prompt_clarifications_sha256"] = prompt_clarifications_sha256
+        return evidence, "candidate"
     except (LabelingServiceError, ValueError) as error:
-        return (
-            final_error_to_evidence(
-                packet_row,
-                error=error,
-                rulebook=rulebook,
-                migration=migration,
-                model=model,
-                endpoint=endpoint,
-            ),
-            "error",
+        evidence = final_error_to_evidence(
+            packet_row,
+            error=error,
+            rulebook=rulebook,
+            migration=migration,
+            model=model,
+            endpoint=endpoint,
+            prompt_version=prompt_version,
         )
+        evidence["prompt_clarifications_path"] = prompt_clarifications_path
+        evidence["prompt_clarifications_sha256"] = prompt_clarifications_sha256
+        return evidence, "error"
 
 
 def main() -> None:
@@ -92,6 +97,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path)
     parser.add_argument("--endpoint", action="append")
+    parser.add_argument("--prompt-clarifications", type=Path)
     parser.add_argument("--model", default="ds-v4-flash")
     parser.add_argument("--concurrency", type=int, default=64)
     parser.add_argument("--limit", type=int)
@@ -110,6 +116,15 @@ def main() -> None:
     try:
         rulebook = load_knowledge_rulebook(args.teacher_csv)
         migration = load_knowledge_taxonomy_migration(args.taxonomy_migration)
+        label_definitions = load_mentor_label_definitions(args.label_definitions)
+        clarifications = (
+            load_final_label_prompt_clarifications(
+                args.prompt_clarifications, label_definitions=label_definitions
+            )
+            if args.prompt_clarifications is not None
+            else None
+        )
+        prompt_version = clarifications.prompt_version if clarifications else "final-label-discriminator-v1"
         endpoints = args.endpoint or [os.getenv("ENGLISH_TAGGER_DS_V4_ENDPOINT", DEFAULT_ENDPOINT)]
         if not all(isinstance(endpoint, str) and endpoint.strip() for endpoint in endpoints):
             parser.error("--endpoint values must be non-empty")
@@ -121,7 +136,9 @@ def main() -> None:
                     timeout_seconds=args.timeout_seconds,
                     api_key=os.getenv(args.api_key_env) or None,
                 ),
-                label_definitions=load_mentor_label_definitions(args.label_definitions),
+                label_definitions=label_definitions,
+                prompt_version=prompt_version,
+                clarifications=clarifications,
             )
             for endpoint in endpoints
         ]
@@ -146,6 +163,11 @@ def main() -> None:
                         migration=migration,
                         model=args.model,
                         endpoint=endpoints[endpoint_index],
+                        prompt_version=prompt_version,
+                        prompt_clarifications_path=str(args.prompt_clarifications)
+                        if args.prompt_clarifications is not None
+                        else None,
+                        prompt_clarifications_sha256=clarifications.sha256 if clarifications else None,
                     )
                 )
                 processed += 1
@@ -167,7 +189,11 @@ def main() -> None:
         "output": str(args.output),
         "model": args.model,
         "endpoints": endpoints,
-        "prompt_version": "final-label-discriminator-v1",
+        "prompt_version": prompt_version,
+        "prompt_clarifications_path": str(args.prompt_clarifications)
+        if args.prompt_clarifications is not None
+        else None,
+        "prompt_clarifications_sha256": clarifications.sha256 if clarifications else None,
         "concurrency": args.concurrency,
         "processed": processed,
         "candidate": candidate,

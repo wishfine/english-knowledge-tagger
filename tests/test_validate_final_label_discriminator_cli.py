@@ -187,6 +187,60 @@ class ValidateFinalLabelDiscriminatorCliTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("--allow-full", completed.stderr)
 
+    def test_cli_stamps_explicit_clarification_prompt_version(self):
+        _Handler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                packet.write_text(json.dumps(packet_row(), ensure_ascii=False) + "\n", encoding="utf-8")
+                definitions = write_json(
+                    directory / "definitions.json", {LABEL: {"definition": "仅非复合单选中的名词辨析。"}}
+                )
+                clarifications = write_json(
+                    directory / "clarifications.json",
+                    {
+                        "schema_version": "final-label-prompt-clarifications-v1",
+                        "prompt_version": "final-label-discriminator-v2",
+                        "labels": [{"legacy_label": LABEL, "clarification": "不要将从句功能当作固定句型。"}],
+                    },
+                )
+                output = directory / "evidence.jsonl"
+                report = directory / "report.json"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_final_label_discriminator.py"
+                completed = subprocess.run(
+                    [
+                        sys.executable,
+                        str(script),
+                        "--input", str(packet),
+                        "--label-definitions", str(definitions),
+                        "--teacher-csv", str(write_rulebook(directory / "rulebook.csv")),
+                        "--taxonomy-migration", str(write_migration(directory / "migration.json")),
+                        "--output", str(output),
+                        "--report", str(report),
+                        "--prompt-clarifications", str(clarifications),
+                        "--endpoint", f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
+                        "--limit", "1",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                evidence = json.loads(output.read_text(encoding="utf-8"))
+                report_payload = json.loads(report.read_text(encoding="utf-8"))
+
+            self.assertEqual(evidence["prompt_version"], "final-label-discriminator-v2")
+            self.assertIsNotNone(evidence["prompt_clarifications_sha256"])
+            self.assertEqual(report_payload["prompt_version"], "final-label-discriminator-v2")
+            self.assertIn("不要将从句功能当作固定句型。", _Handler.requests[0]["messages"][0]["content"])
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_cli_round_robins_repeatable_endpoints_under_one_global_concurrency_budget(self):
         first_requests: list[dict[str, object]] = []
         second_requests: list[dict[str, object]] = []

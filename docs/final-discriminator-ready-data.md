@@ -219,6 +219,35 @@ python3 scripts/validate_final_label_discriminator.py \
 
 不要将 `--allow-full` 加到 calibration smoke；全量命令仍只在标签的 final-v1 人工校准 policy 冻结后执行。
 
+### v2 边界澄清：固定搭配/句型
+
+`固定搭配/句型` 的 24 条 final-v1 校准中，模型将 `whatever` 引导的让步状语从句误认为固定句型。完整人工复核已将该题判为删除：从句连接词/句法功能不等于固定搭配或固定句型。因此 v1 的该标签正例审核为 `16/17`，不满足正例零 remove 的发布条件，禁止跑全量。
+
+`configs/final_label_prompt_clarifications/final-label-discriminator-v2-fixed-phrase.json` 不修改老师定义或 source；它只向该标签的终判 prompt 增加上述边界说明，并声明独立的 `final-label-discriminator-v2`。必须用同 24 条重新运行、重新审核 v2 的 true，不能复用 v1 evidence 或 policy。
+
+```bash
+export PROMPT_CLARIFICATIONS=configs/final_label_prompt_clarifications/final-label-discriminator-v2-fixed-phrase.json
+export DS_HOST=172.22.0.35
+export DS_ENDPOINT_1="http://${DS_HOST}:9102/v1/chat/completions"
+export DS_ENDPOINT_2="http://${DS_HOST}:9103/v1/chat/completions"
+
+python3 scripts/validate_final_label_discriminator.py \
+  --input "$CALIBRATION_PACKET" \
+  --label-definitions "$MENTOR_LABEL_DEFINITIONS" \
+  --teacher-csv "$TEACHER_CSV" \
+  --taxonomy-migration "$KP_MIGRATION" \
+  --output "$SMOKE_RUN/v2.evidence.jsonl" \
+  --report "$SMOKE_RUN/v2.report.json" \
+  --prompt-clarifications "$PROMPT_CLARIFICATIONS" \
+  --endpoint "$DS_ENDPOINT_1" \
+  --endpoint "$DS_ENDPOINT_2" \
+  --model DeepSeek-V4-Flash \
+  --limit 24 \
+  --concurrency 30
+```
+
+预期只将连接词/从句功能误判为 true 的样本纠正为 false；若 v2 又错误删除固定词组、固定句型或同义替换题，停止该 v2，不执行全量。
+
 全量命令只有在 final-v1 的该标签 policy 已人工冻结后才能执行：
 
 ```bash

@@ -1,0 +1,11 @@
+{
+  "schema_version": "final-label-prompt-clarifications-v1",
+  "prompt_version": "final-label-discriminator-v2",
+  "purpose": "calibration-only boundary clarification derived from complete human review",
+  "labels": [
+    {
+      "legacy_label": "知识点@词汇@固定搭配/句型",
+      "clarification": "仅当题目直接考查固定词组、惯用搭配、固定句型的完整结构/含义，或真题要求固定搭配/句型的同义替换时才判 true。不要把一般从句的连接词或句法功能本身当作“固定句型”：例如 whatever、whenever、if、because 等引导的从句，若核心考查的是连接词选择、从句类型或语法功能而非固定搭配/固定句型，应判 false。题目信息不足时判 false 并说明缺失。"
+    }
+  ]
+}
