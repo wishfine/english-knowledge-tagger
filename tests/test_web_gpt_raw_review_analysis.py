@@ -104,6 +104,44 @@ class WebGptRawReviewAnalysisTests(unittest.TestCase):
                     verify_label=LABEL,
                 )
 
+    def test_accepts_one_final_web_gpt_conclusion_after_review_rows(self):
+        self.assertTrue(callable(analyze_web_gpt_raw_reviews))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source_path = directory / "source.jsonl"
+            source_path.write_text(
+                json.dumps(_source_row("q1", direct_match=True), ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            review_path = directory / "reviews.jsonl"
+            review_path.write_text(
+                "\n".join(
+                    json.dumps(row, ensure_ascii=False)
+                    for row in (
+                        _review("q1", "q1", "keep", "object_case"),
+                        {
+                            "record_type": "label_conclusion",
+                            "verify_label": LABEL,
+                            "recommended_disposition": "teacher_policy_required",
+                            "teacher_question_ids": ["q1"],
+                            "rationale": "当前标签存在待老师冻结的边界。",
+                        },
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report, normalized = analyze_web_gpt_raw_reviews(
+                source_path,
+                reviewer_results_path=review_path,
+                verify_label=LABEL,
+            )
+
+        self.assertEqual(len(normalized), 1)
+        self.assertEqual(report["web_gpt_conclusion"]["recommended_disposition"], "teacher_policy_required")
+        self.assertEqual(report["web_gpt_conclusion"]["teacher_question_ids"], ["q1"])
+
 
 if __name__ == "__main__":
     unittest.main()

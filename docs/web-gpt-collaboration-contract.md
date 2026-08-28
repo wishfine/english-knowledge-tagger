@@ -6,7 +6,7 @@
 
 | 工作 | 网页 GPT | Codex |
 |---|---|---|
-| 逐题判断标签是否适用 | 主责 | 仅处理少量争议题或复核网页 GPT 的异常结果 |
+| 逐题判断标签是否适用 | 主责 | 不重复逐题复审；仅做机械校验与规则/统计实现 |
 | 题面缺失、释义冲突、边界案例说明 | 主责 | 汇总为规则候选与待老师裁决清单 |
 | 批量 JSONL 输出 | 主责：严格按 `review_id` 回传 | 主责：生成盲审包、校验、回连 audit index |
 | DS / tree / 数据清洗脚本、数据血缘、统计 | 不做 | 主责 |
@@ -62,6 +62,19 @@
 
 允许的 `reason_code`：`transitivity_contrast`、`object_case`、`double_object`、`object_complement`、`passive_requirement`、`lexical_or_spelling_only`、`tense_or_aux_only`、`fixed_phrase_only`、`insufficient_context`、`definition_conflict`、`other`。网页 GPT 若没有合适 code，应使用 `other`，不可发明新 code。
 
+完成全部逐题行后，**最后额外追加且只追加一行**标签级结论（不是题目行）：
+
+```json
+{"record_type":"label_conclusion","verify_label":"当前标签原样复制","recommended_disposition":"p0_remediation|route_segment_candidate|teacher_policy_required|hold","teacher_question_ids":["至多 10 个输入 question_id"],"rationale":"不超过三句的标签级结论"}
+```
+
+- `p0_remediation`：错标/口径问题明显，交给后续 tree 或定向重标实验；
+- `route_segment_candidate`：问题集中在可明确识别的题型/父子题 route，可先切分再验证；
+- `teacher_policy_required`：存在业务边界，`teacher_question_ids` 只列需要老师冻结规则的少数题；
+- `hold`：题面或释义信息不足，暂不建议继续放大。
+
+这条结论是网页 GPT 的最终建议；它不会自动发布数据。`teacher_question_ids` 必须来自本次输入、不得重复，最多 10 个。
+
 ## 4. 复核原则
 
 1. 老师 CSV 的当前启用释义优先；题面解析可作为实例证据，但不能在没有记录的情况下扩张标签边界。
@@ -78,6 +91,7 @@
 JSONL 可解析
 → 盲审模式核对 review_id；原始直审模式核对 question_id + parent_id
 → decision 仅为 keep/remove/uncertain，reason 非空
+→ 可选的末行 label_conclusion 校验标签、处置枚举和老师问题 ID
 → 回连 audit index 或原始 JSONL，统计 true / false / route / 建议族
 → 检查与已有校准的冲突
 → 输出 hold / silver_candidate / tree-candidate 建议
@@ -89,7 +103,7 @@ JSONL 可解析
 
 - 网页 GPT 一次只处理一个标签：盲审时优先 20--60 条；原始直审时最多 500 条。
 - 不让网页 GPT 读代码、跑统计、设计 schema、写 shell 命令或解释整个 pipeline。
-- 不让 Codex 重复逐题审已交给网页 GPT 的完整批次；Codex 只抽争议簇、校验冲突和设计下一轮实验。
+- 不让 Codex 重复逐题审已交给网页 GPT 的完整批次；Codex 只做覆盖/ID/schema/计数校验，按网页 GPT 的标签级结论生成后续数据包。需要业务裁决的题直接交老师。
 - 输出理由限制为两句；不要求长链式推理。
 - 对同一标签的边界规则一旦经老师冻结，写入 policy；后续网页 GPT 只处理新增/冲突簇，不重审已验证样本。
 
@@ -120,9 +134,12 @@ JSONL 可解析
 4. 如果 CSV 通用释义与题目解析/业务分类明显冲突，写 uncertain，reason 用“CONFLICT:”开头；不要自行发明新规则。
 5. 不要推荐 replacement label；replacement 由后续流程处理。
 
-你必须只返回 JSONL：每个输入 `question_id + parent_id` 恰好一行、顺序不变、无 Markdown 代码块、无标题、无额外解释。
+你必须只返回 JSONL：每个输入 `question_id + parent_id` 恰好一行、顺序不变；在所有题目行之后，额外追加一行标签级结论。无 Markdown 代码块、无标题、无额外解释。
 每行严格为：
 {"question_id":"原样复制","parent_id":"原样复制","decision":"keep|remove|uncertain","reason_code":"transitivity_contrast|object_case|double_object|object_complement|passive_requirement|lexical_or_spelling_only|tense_or_aux_only|fixed_phrase_only|insufficient_context|definition_conflict|other","reason":"最多两句，引用实际题面结构或说明信息不足"}
+
+最后一行严格为：
+{"record_type":"label_conclusion","verify_label":"本次目标历史标签原样复制","recommended_disposition":"p0_remediation|route_segment_candidate|teacher_policy_required|hold","teacher_question_ids":["至多10个需要老师裁决的输入question_id"],"rationale":"不超过三句的最终处理建议"}
 
 现在等待我发送 packet。
 ```

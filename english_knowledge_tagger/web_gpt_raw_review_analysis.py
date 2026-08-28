@@ -11,6 +11,12 @@ from typing import Mapping
 
 SCHEMA_VERSION = "web-gpt-raw-review-evidence-v1"
 _DECISIONS = ("keep", "remove", "uncertain")
+_CONCLUSION_DISPOSITIONS = (
+    "p0_remediation",
+    "route_segment_candidate",
+    "teacher_policy_required",
+    "hold",
+)
 _REASON_CODES = {
     "transitivity_contrast",
     "object_case",
@@ -128,6 +134,42 @@ def _group_counts(rows: list[dict[str, object]], *, field: str) -> dict[str, dic
     }
 
 
+def _validate_conclusion(
+    conclusion: Mapping[str, object],
+    *,
+    verify_label: str,
+    source_question_ids: set[str],
+) -> dict[str, object]:
+    """Validate the one optional label-level conclusion from Web GPT.
+
+    This record communicates the reviewer's aggregate recommendation.  It is
+    deliberately kept separate from per-question decisions and never changes
+    the evidence-only release gate.
+    """
+    if _string(conclusion.get("verify_label"), field="verify_label", source="label_conclusion") != verify_label:
+        raise ValueError("label_conclusion: verify_label differs from requested label")
+    disposition = conclusion.get("recommended_disposition")
+    if disposition not in _CONCLUSION_DISPOSITIONS:
+        raise ValueError(
+            "label_conclusion: recommended_disposition must be one of "
+            + ", ".join(_CONCLUSION_DISPOSITIONS)
+        )
+    teacher_question_ids = conclusion.get("teacher_question_ids")
+    if not isinstance(teacher_question_ids, list) or len(teacher_question_ids) > 10:
+        raise ValueError("label_conclusion: teacher_question_ids must be a list with at most 10 IDs")
+    normalized_ids = [_string(item, field="teacher_question_ids item", source="label_conclusion") for item in teacher_question_ids]
+    if len(set(normalized_ids)) != len(normalized_ids):
+        raise ValueError("label_conclusion: teacher_question_ids contains duplicates")
+    unknown_ids = set(normalized_ids) - source_question_ids
+    if unknown_ids:
+        raise ValueError(f"label_conclusion: unknown teacher_question_id {sorted(unknown_ids)[0]!r}")
+    return {
+        "recommended_disposition": disposition,
+        "teacher_question_ids": normalized_ids,
+        "rationale": _string(conclusion.get("rationale"), field="rationale", source="label_conclusion"),
+    }
+
+
 def analyze_web_gpt_raw_reviews(
     source_path: Path,
     *,
@@ -142,7 +184,22 @@ def analyze_web_gpt_raw_reviews(
     target = _string(verify_label, field="verify_label", source="web GPT raw review request")
     source_rows = _read_source_jsonl(source_path, verify_label=target)
     source_by_question_id = {str(row["question_id"]): row for row in source_rows}
-    review_rows = _parse_object_stream(reviewer_results_path)
+    parsed_rows = _parse_object_stream(reviewer_results_path)
+    conclusion_rows = [row for row in parsed_rows if row.get("record_type") == "label_conclusion"]
+    if len(conclusion_rows) > 1:
+        raise ValueError("reviewer results: at most one label_conclusion record is allowed")
+    if conclusion_rows and parsed_rows[-1] is not conclusion_rows[0]:
+        raise ValueError("reviewer results: label_conclusion must be the final record")
+    review_rows = [row for row in parsed_rows if row.get("record_type") != "label_conclusion"]
+    conclusion = (
+        _validate_conclusion(
+            conclusion_rows[0],
+            verify_label=target,
+            source_question_ids=set(source_by_question_id),
+        )
+        if conclusion_rows
+        else None
+    )
     review_by_question_id: dict[str, dict[str, object]] = {}
     for position, review in enumerate(review_rows, 1):
         origin = f"reviewer results record {position}"
@@ -203,6 +260,7 @@ def analyze_web_gpt_raw_reviews(
         "reviewer_mode": "anchored_raw_source_review",
         "source_records": len(source_rows),
         "review_records": len(review_rows),
+        "web_gpt_conclusion": conclusion,
         "decisions": _counts(normalized),
         "by_route": _group_counts(normalized, field="route"),
         "by_reason_code": _group_counts(normalized, field="reason_code"),
