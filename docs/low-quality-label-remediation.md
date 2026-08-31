@@ -683,6 +683,8 @@ Theme-1 是本标签唯一下一实验；先离线构造任务包，等 DS 恢�
 - 10 条书面表达、完形、听力等非阅读 `remove`，检验 route 是否改变去向；
 - 10 条 `keep` 作为回归控制，确保 tree 不系统性离开互联通讯。
 
+离线建包使用 `scripts/build_theme_tree_packet.py`：输入必须是已 materialize 的 500 条完整 mentor verifier JSONL 与已校验的网页 GPT `evidence.jsonl`；DS-facing packet 不含网页 GPT decision，decision 仅存在 audit index。若某个固定 strata 不足，脚本拒绝运行而不静默改变配额。
+
 tree 根使用 active taxonomy 全树；每题只能得到一个 terminal leaf、`uncovered` 或 `budget_exhausted`。首轮固定 `max_steps=8`、`max_backtracks=2`、`concurrency=16`，并写 timing report。验收时网页 GPT/人工只审核三件事：
 
 1. `keep` 控制题是否仍回到互联通讯；
