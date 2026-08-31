@@ -32,7 +32,8 @@
 ```bash
 python3 scripts/build_conversion_relation_packet.py \
   --input /path/to/materialized-conversion-500.jsonl \
-  --output "$RUN/packet.jsonl"
+  --output "$RUN/packet.jsonl" \
+  --report "$RUN/packet.report.json"
 ```
 
 调用 DS（两个 endpoint 各承担一半请求时，总并发建议不超过 10）：
