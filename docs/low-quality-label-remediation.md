@@ -362,6 +362,25 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 **Conv-Policy-2 的唯一下一动作**：把“题目是否实际要求完成一个词形/词性转换”设为第一道门。仅仅展示同一个词既可作名词又可作动词、双词性释义、单词默写，不得判为 `conversion`，应判 `lexical_or_other`。同时新增 `mixed_or_multiple_relations`，专门隔离多空题内同时出现派生、屈折、搭配等多种关系的样本，而不是强行压入 `derivation` 或 `inflection`。v2 先在同一 78 条上重跑和复核；未通过前，历史转化法全量继续 `hold`。
 
+##### Conv-Policy-1 的 DS v1 具体失效点
+
+这不是历史标签误差的复述，而是对“DS 仅看题面后输出词形关系”的判别误差分析。78 条网页 GPT 复核显示有四类不同根因：
+
+1. **把词汇呈现误当作实际转换（最主要，24 条）**。`promise / block / brush / plan / cover / text` 等题只是分别默写或解释一个拼写相同单词的名词义、动词义；DS 看见“同形 + 双词性”便输出 `conversion`，忽略了学生并未把源词变为目标词。该错误占 v1 预测 `conversion` 的 `24/31`，所以 v1 的最大缺口在任务意图，而不是同形词判断。
+2. **一题多关系却被强行压成一个关系（至少 10 条）**。多空表格或综合题同时含派生、屈折、同形词性选择和固定搭配。例如 `kind→kindness` 与 `little→less`、`high→height / cross→cross / goal→goalkeeper`、`learn→learning` 与 `careful→carefully`。当前五分类没有“混合”出口，DS 只能任意选 `derivation`、`inflection` 或 `lexical_or_other`，结果不可作为某一关系的训练/清洗证据。
+3. **复合形态只盯最后一步**。`work→worker→workers` 被错归 `inflection`，因为最终看到复数 `-s`，但完整源词到目标词包含 `-er` 派生；相反 `run→running` 在句法位置要求动名词时应视为 `inflection`，却被错归 `derivation`。v2 必须先抽取完整的“源词→目标词”与题干要求，再按优先级判断，而不能按最后一个后缀做表面分类。
+4. **信息不足门禁触发太晚**。`lexical_or_other` 12 条中有 5 条实际上只有标题、词库或总题干，没有具体小题、答案和解析；这些应直接 `insufficient`。`insufficient` 自身 11/11 hold 是稳定的，说明不是类别定义错误，而是 v1 没有先检查最小可判定信息。
+
+因此 v2 不能仅在旧 prompt 里多加一两句负向约束，必须变为两阶段输出：
+
+```text
+阶段 A：has_specific_required_transformation / has_multiple_relations / has_minimum_evidence
+阶段 B：仅当“有具体单一转换且信息充分”时，判断 conversion / derivation / inflection；
+        否则输出 lexical_or_other / mixed_or_multiple_relations / insufficient。
+```
+
+这样 `conversion` 的必要条件变为：**题面要求某个具体源词以完全相同拼写承担另一词性功能**，而不是“题面中恰好提到一个双词性单词”。
+
 #### 实验 T2：候选叶子分簇验证
 
 按 T1 的 tree 候选叶子分组，例如“派生法”“词汇音形义”“主谓一致”“无覆盖”。每个达到可用数量的 `原转化法 × 候选叶子 × route` 簇独立抽 12 条人工复核：
