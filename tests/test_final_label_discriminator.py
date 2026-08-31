@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 try:
@@ -169,6 +171,77 @@ class FinalLabelDiscriminatorPacketTests(unittest.TestCase):
         self.assertNotIn("output_all", evidence)
         self.assertNotIn("instruction", evidence)
         self.assertNotIn("question_text", evidence)
+
+    def test_client_requests_streaming_completion(self):
+        payloads = []
+        packet_row = {
+            "schema_version": "final-label-discriminator-packet-v1",
+            "review_id": "final-label-discriminator-v1:8:label",
+            "source_line": 8,
+            "question_id": "question-8",
+            "parent_id": "parent-8",
+            "is_sub_question": False,
+            "route_key": {"scope": "parent", "declared_type_structure": "单选题", "declared_type_name": "选择题"},
+            "verify_label": LABEL,
+            "question_text": "题目题干：Choose the right noun.",
+        }
+        definitions = {LABEL: {"definition": "仅非复合单选中的名词辨析。"}}
+        client = FinalLabelDiscriminatorClient(
+            LabelingServiceConfig(endpoint="http://example.invalid", model="ds-v4-flash"),
+            label_definitions=definitions,
+            transport=lambda _endpoint, payload, _timeout, _headers: (
+                payloads.append(payload)
+                or {
+                    "id": "request-8",
+                    "model": "ds-v4-flash",
+                    "choices": [{"message": {"content": '{"match":true,"confidence":"high","reason":"适用。"}'}}],
+                }
+            ),
+        )
+
+        client.verify(FinalLabelDiscriminatorRequest(packet_row=packet_row))
+
+        self.assertTrue(payloads[0]["stream"])
+
+    def test_stream_transport_reassembles_sse_delta_content(self):
+        from english_knowledge_tagger.final_label_discriminator import _stream_http_transport
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802 - stdlib hook
+                body = (
+                    'data: {"id":"stream-8","model":"ds-v4-flash","choices":[{"delta":{"content":"{\\"match\\":true,"}}]}\n\n'
+                    'data: {"choices":[{"delta":{"content":"\\"confidence\\":\\"high\\",\\"reason\\":\\"适用。\\"}"}}]}\n\n'
+                    "data: [DONE]\n\n"
+                ).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            response = _stream_http_transport(
+                f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
+                {"stream": True},
+                5,
+                {"Content-Type": "application/json"},
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertEqual(response["id"], "stream-8")
+        self.assertEqual(response["model"], "ds-v4-flash")
+        self.assertEqual(
+            response["choices"][0]["message"]["content"],
+            '{"match":true,"confidence":"high","reason":"适用。"}',
+        )
 
 
 if __name__ == "__main__":

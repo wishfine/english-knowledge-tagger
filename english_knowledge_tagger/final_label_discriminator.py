@@ -9,8 +9,10 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, Mapping
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-from .candidate_labeling import LabelingServiceConfig, LabelingServiceError, Transport, _http_transport
+from .candidate_labeling import LabelingServiceConfig, LabelingServiceError, Transport
 from .knowledge_rulebook import KnowledgeRulebook
 from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
 from .mentor_direct_rollout import load_mentor_label_definitions
@@ -281,6 +283,99 @@ def _parse_final_label_response(text: str) -> tuple[bool, str, str]:
     return payload["match"], confidence, reason.strip()
 
 
+def _stream_http_transport(
+    endpoint: str,
+    payload: dict[str, Any],
+    timeout_seconds: float,
+    headers: Mapping[str, str],
+) -> Mapping[str, Any]:
+    """Read an OpenAI-compatible SSE completion and adapt it to the normal response shape."""
+    request = Request(
+        endpoint,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={**dict(headers), "Accept": "text/event-stream"},
+        method="POST",
+    )
+    request_id: str | None = None
+    response_model: str | None = None
+    fragments: list[str] = []
+    normal_response_lines: list[str] = []
+    done = False
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            for raw_line in response:
+                line = raw_line.decode("utf-8").strip()
+                if not line or line.startswith(":"):
+                    continue
+                if not line.startswith("data:"):
+                    if fragments or done:
+                        raise LabelingServiceError(
+                            "final label discriminator stream contained a non-SSE response line"
+                        )
+                    normal_response_lines.append(line)
+                    continue
+                data = line.removeprefix("data:").strip()
+                if data == "[DONE]":
+                    done = True
+                    break
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError as error:
+                    raise LabelingServiceError(
+                        "final label discriminator stream contained invalid JSON"
+                    ) from error
+                if not isinstance(chunk, Mapping):
+                    raise LabelingServiceError(
+                        "final label discriminator stream chunk must be a JSON object"
+                    )
+                if isinstance(chunk.get("id"), str):
+                    request_id = chunk["id"]
+                if isinstance(chunk.get("model"), str):
+                    response_model = chunk["model"]
+                choices = chunk.get("choices")
+                if not isinstance(choices, list) or not choices:
+                    continue
+                choice = choices[0]
+                if not isinstance(choice, Mapping):
+                    continue
+                delta = choice.get("delta")
+                if not isinstance(delta, Mapping):
+                    continue
+                content = delta.get("content")
+                if isinstance(content, str):
+                    fragments.append(content)
+    except HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise LabelingServiceError(
+            f"final label discriminator returned HTTP {error.code}: {detail}"
+        ) from error
+    except (URLError, TimeoutError, OSError) as error:
+        raise LabelingServiceError(
+            f"final label discriminator stream request failed: {error}"
+        ) from error
+    if not done and normal_response_lines:
+        try:
+            normal_response = json.loads("\n".join(normal_response_lines))
+        except json.JSONDecodeError as error:
+            raise LabelingServiceError(
+                "final label discriminator returned invalid JSON"
+            ) from error
+        if not isinstance(normal_response, Mapping):
+            raise LabelingServiceError(
+                "final label discriminator normal response must be a JSON object"
+            )
+        return normal_response
+    if not done:
+        raise LabelingServiceError(
+            "final label discriminator stream ended before data: [DONE]"
+        )
+    return {
+        "id": request_id,
+        "model": response_model,
+        "choices": [{"message": {"content": "".join(fragments)}}],
+    }
+
+
 class FinalLabelDiscriminatorClient:
     """Retrying OpenAI-compatible client for unanchored final label decisions."""
 
@@ -307,7 +402,7 @@ class FinalLabelDiscriminatorClient:
             raise ValueError("clarification prompt_version must match client prompt_version")
         self._config = config
         self._label_definitions = label_definitions
-        self._transport = transport or _http_transport
+        self._transport = transport or _stream_http_transport
         self._max_retries = max_retries
         self._retry_delay_seconds = retry_delay_seconds
         self._prompt_version = prompt_version
@@ -332,6 +427,7 @@ class FinalLabelDiscriminatorClient:
             "max_tokens": 512,
             "chat_template_kwargs": {"enable_thinking": False},
             "temperature": 0,
+            "stream": True,
         }
         last_error: LabelingServiceError | None = None
         call_started_ns = time.perf_counter_ns()
@@ -342,7 +438,7 @@ class FinalLabelDiscriminatorClient:
                     self._config.endpoint, payload, self._config.timeout_seconds, headers
                 )
                 break
-            except LabelingServiceError as error:
+            except (LabelingServiceError, OSError) as error:
                 last_error = error
                 if attempt + 1 < self._max_retries and self._retry_delay_seconds:
                     time.sleep(self._retry_delay_seconds)

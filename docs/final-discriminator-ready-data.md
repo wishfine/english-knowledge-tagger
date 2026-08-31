@@ -4,7 +4,7 @@
 
 ## 最终判别器的边界
 
-最终判别器版本为 `final-label-discriminator-v1`。它参考 mentor 判别器的定义加载、结构化 JSON 输出、禁用 thinking、可审计 evidence 与重试机制，但与 `mentor-direct-v1` 有关键区别：
+最终判别器版本为 `final-label-discriminator-v1`。它参考 mentor 判别器的定义加载、结构化 JSON 输出、禁用 thinking、SSE 流式读取、可审计 evidence 与重试机制，但与 `mentor-direct-v1` 有关键区别：
 
 | 字段 | mentor 初筛 / `mentor-direct-v1` | 最终判别 / `final-label-discriminator-v1` |
 |---|---|---|
@@ -194,6 +194,8 @@ python3 scripts/validate_final_label_discriminator.py \
 ### 双 vLLM 端点运行
 
 当前 DS-V4-Flash 部署有两个独立 vLLM 进程：`9102` 与 `9103`。最终 runner 的 `--endpoint` 可以重复传入；它将题目按 round-robin 分给两个端点，但 `--concurrency` 是**两个端点合计**的上限，而不是每个端点各自的上限。
+
+最终判别请求固定携带 `stream=true`，客户端按 SSE 的 `data:` 增量拼接 `choices[0].delta.content`，收到 `[DONE]` 后再解析结构化 JSON。若服务端临时返回普通 JSON，客户端保留兼容解析；网络 reset、超时和 HTTP 错误均进入单题重试，不能导致整批进程直接退出。
 
 白天使用总并发 `30`（约每端点 15 路）；夜间经资源确认后可使用总并发 `50`。每条 evidence 会记录其实际 `endpoint`，用于后续诊断端点异常或耗时差异。两个端点仍使用完全相同的 `final-label-discriminator-v1` prompt。
 
