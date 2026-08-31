@@ -15,16 +15,19 @@ def build_root_tree_tasks(packet_path: Path, evidence_path: Path, *, output_path
         for line_number, line in enumerate(source, 1):
             if not line.strip(): continue
             row = json.loads(line)
-            if not isinstance(row, Mapping) or not isinstance(row.get("task_id"), str): raise ValueError(f"packet line {line_number}: task_id required")
-            if row["task_id"] in packet: raise ValueError(f"packet line {line_number}: duplicate task_id")
-            packet[row["task_id"]] = row
+            if not isinstance(row, Mapping): raise ValueError(f"packet line {line_number}: row must be an object")
+            task_id = row.get("task_id") or row.get("review_id")
+            if not isinstance(task_id, str) or not task_id.strip(): raise ValueError(f"packet line {line_number}: task_id or review_id required")
+            if task_id in packet: raise ValueError(f"packet line {line_number}: duplicate task_id")
+            packet[task_id] = row
     tasks=[]; shapes={}
     with evidence_path.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, 1):
             if not line.strip(): continue
             evidence=json.loads(line)
-            if not isinstance(evidence, Mapping) or not isinstance(evidence.get("task_id"), str): raise ValueError(f"evidence line {line_number}: task_id required")
-            task_id=evidence["task_id"]
+            if not isinstance(evidence, Mapping): raise ValueError(f"evidence line {line_number}: row must be an object")
+            task_id=evidence.get("task_id") or evidence.get("review_id")
+            if not isinstance(task_id, str) or not task_id.strip(): raise ValueError(f"evidence line {line_number}: task_id or review_id required")
             if task_id not in packet: raise ValueError(f"evidence line {line_number}: task absent from packet")
             shape=evidence.get("task_shape")
             shapes[str(shape if shape is not None else evidence.get("status", "missing"))]=shapes.get(str(shape if shape is not None else evidence.get("status", "missing")),0)+1

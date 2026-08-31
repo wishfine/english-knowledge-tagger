@@ -27,11 +27,12 @@ def main() -> None:
     clients = [TaskShapeGateClient(LabelingServiceConfig(endpoint=endpoint, model=args.model, timeout_seconds=args.timeout_seconds)) for endpoint in endpoints]
     def one(index_row):
         index, row = index_row; endpoint = endpoints[index % len(endpoints)]
+        task_id = row.get("task_id") or row.get("review_id") or f"input-line:{index + 1}"
         try:
             result = clients[index % len(clients)].classify(row)
-            return {"schema_version":"task-shape-gate-evidence-v1", "task_id":row.get("task_id"), "question_id":row.get("question_id"), "parent_id":row.get("parent_id"), "endpoint":endpoint, "model":args.model, "prompt_version":PROMPT_VERSION, "task_shape":result.task_shape, "evidence":result.evidence, "elapsed_ms":result.elapsed_ms, "prompt_chars":result.prompt_chars}
+            return {"schema_version":"task-shape-gate-evidence-v1", "task_id":task_id, "question_id":row.get("question_id"), "parent_id":row.get("parent_id"), "endpoint":endpoint, "model":args.model, "prompt_version":PROMPT_VERSION, "task_shape":result.task_shape, "evidence":result.evidence, "elapsed_ms":result.elapsed_ms, "prompt_chars":result.prompt_chars}
         except (LabelingServiceError, ValueError) as error:
-            return {"schema_version":"task-shape-gate-evidence-v1", "task_id":row.get("task_id"), "question_id":row.get("question_id"), "parent_id":row.get("parent_id"), "endpoint":endpoint, "model":args.model, "prompt_version":PROMPT_VERSION, "status":"error", "error":str(error)}
+            return {"schema_version":"task-shape-gate-evidence-v1", "task_id":task_id, "question_id":row.get("question_id"), "parent_id":row.get("parent_id"), "endpoint":endpoint, "model":args.model, "prompt_version":PROMPT_VERSION, "status":"error", "error":str(error)}
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool: results = list(pool.map(one, enumerate(rows)))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as output:
