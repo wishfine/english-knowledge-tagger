@@ -144,7 +144,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 实验 / 可审计产物 | 输入与运行结果 | 验收结论 | 当前状态 | 唯一下一动作 |
 |---|---|---|---|---|---|
-| `转化法` | T1：`conversion-prep-20260828-172631/tree-run-20260828-172818`；T1.1：`t1.1-20260828-175721/constrained-20260828-175809`；T1.2：`conversion-relation-20260831-105933` | T1：60 条，`59 tree_candidate / 1 budget_exhausted / 0 error`；网页 GPT 候选复核：`51 correct / 8 incorrect / 1 hold`。T1.1：3 个派生误判仍返回转化法。T1.2 独立词形关系判别：`2 conversion / 9 derivation / 3 inflection / 7 lexical_or_other`，21 条无错误。 | tree 路线失败；但不带历史标签的窄关系判别通过固定边界集。 | `hold`；停止 whole-tree，允许进入关系字段的扩大验证。 | 对 500 条 mentor direct 样本运行关系判别；按四类关系分层抽取网页 GPT 复核，验证后才可能建立 patch 候选簇。 |
+| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”，不能作为清洗字段。 | `hold`；停止 whole-tree 与 v1 关系字段放大。 | Conv-Policy-2：增加 `mixed_or_multiple_relations`，并把“题目是否实际要求完成词性转换”置于词形同形之前；先在固定 78 条重跑并复核。 |
 | `互联通讯` | Theme-1：`theme-1-20260831-103348/tree-run-20260831-104147` | 已严格对齐 500 条原始网页 GPT evidence，抽取 60 条：30 主阅读 remove、10 其他阅读 remove、10 非阅读 remove、10 keep 控制；tree：`59 tree_candidate / 1 budget_exhausted / 0 error`。两端各并发 5，wall `87.7s / 77.9s`。网页 GPT 候选复核：`31 correct / 18 incorrect / 11 hold`。 | **失败：候选主题正确率不足。** 网络言论、网站信息传播、互联网利弊的题可稳定判断；YouTube/社交媒体分享类材料在“互联通讯”和日常生活/艺术等主题之间失稳。 | `hold`；停止 Theme-1 tree 放大。 | 老师裁决以下 10 条“线上分享是主线还是背景”边界题；冻结 Theme-Policy-0 后再做非 tree 主题分流对照。 |
 
 ### 3.4 非 P0，但仍在处理的高风险标签
@@ -348,7 +348,19 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 运行产物：`conversion-prep-20260828-172631/conversion-policy-1-20260831-111037`。500 条均处理成功，分布为：`31 conversion (6.2%)`、`126 derivation (25.2%)`、`63 inflection (12.6%)`、`269 lexical_or_other (53.8%)`、`11 insufficient (2.2%)`。这与 T1.2 的边界集方向一致：历史“转化法”并非一个可直接保留的同质簇，普通词汇/翻译与显性派生是主要污染来源。
 
-下一步使用 `scripts/build_conversion_relation_review_packet.py` 生成**最多 79 条**网页 GPT 复核包：31 条预测为 `conversion` 的记录全部复核；`derivation`、`inflection`、`lexical_or_other`、`insufficient` 各最多抽 12 条，且每类优先覆盖不同 `scope × 题型结构 × 题型名称`。本次 `insufficient` 只有 11 条，故实际生成 78 条。复核只判断“模型的词形关系是否正确”，不处理历史标签。通过后，才把“审核正确的 conversion 簇”列为保留候选、把其余关系簇列为重标/隔离候选；任何类别出现系统性错误则继续 `hold`。
+网页 GPT 已完成实际生成的 78 条复核，JSONL 完整：78 个唯一 `review_id` + 1 个实验级结论，结构无误。结果显示 v1 不能用于关系簇放大：
+
+| DS v1 预测关系 | 网页 GPT 结果 | 关键失败模式 |
+|---|---:|---|
+| `conversion` | `7 correct / 24 incorrect` | 模型把“列出同一拼写的名词义/动词义”当成题目实际要求的词性转换；这类默写/释义应为 `lexical_or_other`。 |
+| `derivation` | `7 correct / 5 incorrect` | 单一派生较稳定；多空题同时含派生、屈折和固定搭配时不能压成单一派生。 |
+| `inflection` | `9 correct / 3 incorrect` | 单一时态/复数/级别变化较稳定；派生后再屈折、或多空混合题会误分。 |
+| `lexical_or_other` | `6 correct / 1 incorrect / 5 hold` | 普通词义/搭配稳定；缺题干、答案或解析时应改为 `insufficient`。 |
+| `insufficient` | `11 hold` | 全部符合信息不足定义。 |
+
+网页 GPT 结论为 `revise_prompt`。因此 **Conv-Policy-1 失败**：31 条预测转化中只有 7 条真实转化，不能将任何 v1 `conversion` 结果直接保留或生成 patch。
+
+**Conv-Policy-2 的唯一下一动作**：把“题目是否实际要求完成一个词形/词性转换”设为第一道门。仅仅展示同一个词既可作名词又可作动词、双词性释义、单词默写，不得判为 `conversion`，应判 `lexical_or_other`。同时新增 `mixed_or_multiple_relations`，专门隔离多空题内同时出现派生、屈折、搭配等多种关系的样本，而不是强行压入 `derivation` 或 `inflection`。v2 先在同一 78 条上重跑和复核；未通过前，历史转化法全量继续 `hold`。
 
 #### 实验 T2：候选叶子分簇验证
 
