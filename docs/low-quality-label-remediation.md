@@ -145,7 +145,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 实验 / 可审计产物 | 输入与运行结果 | 验收结论 | 当前状态 | 唯一下一动作 |
 |---|---|---|---|---|---|
-| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037`；C：`c-root-tree-20260831-134515` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。C 门禁：`19 atomic / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；19 条 tree 全部完成，`71 calls / 19 tree_candidate / 0 error`，wall `79.4s`。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”。C 已验证“先做任务形态门禁、再进根树”的链路可运行，但候选正确性尚未人工验收。 | `hold`；不修改源标签，等待 C 的 19 条候选盲审。 | 对 C 的 19 条 `tree_candidate` 做网页 GPT 盲审；若原子门禁和候选都稳定，再修订 v2 关系字段，否则继续隔离。 |
+| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037`；C：`c-root-tree-20260831-134515` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。C 门禁：`19 atomic / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；19 条 tree 全部完成，`71 calls / 19 tree_candidate / 0 error`，wall `79.4s`。C 候选复核：`16 candidate_correct / 3 candidate_incorrect`（84.2%）。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”。C 已证明任务形态门禁大幅减少错误，但根树仍会把“转化+复数”等混合题压成单一候选，并在证据不足时过度细化。 | `hold`；不修改源标签，停止当前树放大。 | Conv-Policy-2：门禁增加混合题反问/主答案粒度，树增加“证据不足/不可细化”出口；先复用 19 条失败/控制边界重跑。 |
 | `互联通讯` | Theme-1：`theme-1-20260831-103348/tree-run-20260831-104147` | 已严格对齐 500 条原始网页 GPT evidence，抽取 60 条：30 主阅读 remove、10 其他阅读 remove、10 非阅读 remove、10 keep 控制；tree：`59 tree_candidate / 1 budget_exhausted / 0 error`。两端各并发 5，wall `87.7s / 77.9s`。网页 GPT 候选复核：`31 correct / 18 incorrect / 11 hold`。 | **失败：候选主题正确率不足。** 网络言论、网站信息传播、互联网利弊的题可稳定判断；YouTube/社交媒体分享类材料在“互联通讯”和日常生活/艺术等主题之间失稳。 | `hold`；停止 Theme-1 tree 放大。 | 老师裁决以下 10 条“线上分享是主线还是背景”边界题；冻结 Theme-Policy-0 后再做非 tree 主题分流对照。 |
 
 ### 3.4 非 P0，但仍在处理的高风险标签
@@ -383,7 +383,15 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 固定 78 条的门禁结果为 `19 atomic_knowledge / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；只有 19 条进入根节点树，另外 59 条被隔离。19 条树任务均返回 `tree_candidate`，共 71 次 DS 选择调用，根节点调用 19 次，无 `__NO_MATCH__`，wall time `79.4s`。这说明 C 的过滤与运行链路符合设计，但 `tree_candidate` 仅是候选，不代表末级标签正确。
 
-下一步只对这 19 条做网页 GPT 盲审，同时检查门禁是否把某些应为 `mixed_or_multiple_relations` 的题误放入 `atomic_knowledge`。在审核完成前不生成 replacement、不恢复历史“转化法”标签，也不跑全量。
+网页 GPT 已完成这 19 条的盲审：`16 candidate_correct / 3 candidate_incorrect`，候选正确率 `84.2%`，实验级结论为 `revise_tree`，因此没有通过放大门禁。
+
+三个失败样本揭示了两类问题：
+
+- `volunteer/volunteers`：树选了转化法，但题目同时需要名词词性和复数形式，属于混合关系；C 的门禁仍漏掉了这类“主关系 + 并行形态”的题。
+- `wood→wooden`：树过度细化到“形容词作定语”，题面只证明需要形容词，并没有具体定语位置证据。
+- `drop/drops`：树选了屈折标签，但题目同时比较动词三单与名词单数，单一屈折叶不能完整解释选项。
+
+其余 16 条中，明确的同形转化、派生、时态/非谓语/比较级题大体能落到合理末级；不过 `candidate_correct` 只表示候选能解释主要作答依赖，不表示题目全部并行知识点已被输出。下一步只对这 3 个失败边界及等量通过控制题做 Conv-Policy-2，不进入全量。
 
 ##### Conv-Policy-1 的 DS v1 具体失效点
 
