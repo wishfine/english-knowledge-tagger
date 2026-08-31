@@ -949,6 +949,36 @@ english-knowledge-tagger-runtime/web-gpt-reviews/time-order-20260828/
 
 验收：keep 控制题不应系统性离开“时间-顺序”；remove 的候选叶子必须真实解释题目，或合理返回 `uncovered`；缺上下文题不参与评判。候选按 `tree_candidate/uncovered × route × 音频文本状态` 分簇，每簇独立 12 条复核通过才形成 `patch_candidate`。
 
+### 10.4 Order-1 首轮复核结果：未通过放大门禁
+
+Order-1 已完成 72 条 tree 任务的网页 GPT 复核，JSONL 共 72 个唯一 `review_id`：
+
+```text
+candidate_correct:   33
+candidate_incorrect: 28
+hold:                 11
+```
+
+按建包分层统计：
+
+| 分层 | candidate_correct | candidate_incorrect | hold | 可判正确率 |
+|---|---:|---:|---:|---:|
+| `parent × 单选题 × 选择题 × remove` | 20 | 5 | 6 | 80.0% |
+| `parent × 单选题 × 听力单选 × remove` | 7 | 9 | 0 | 43.8% |
+| `child × 复合题 × 听力单选 × remove` | 1 | 4 | 3 | 20.0% |
+| `other_remove` | 2 | 3 | 0 | 40.0% |
+| `keep_control` | 3 | 7 | 2 | 30.0% |
+
+其中 7 条系统状态异常（6 条 `unparsed`、1 条 `budget_exhausted`），另有 4 条因听力原文或具体小题缺失而 hold。总体可判候选正确率为 `33/(33+28)=54.1%`，不能生成 `patch_candidate`。
+
+本轮说明：
+
+1. `parent × 单选题 × 选择题` 的 remove 簇相对可用，tree 能把不少“日期/时长/How soon/固定表达”题送到更合适的词汇、介词或句型候选；但这只是候选去向证据，不代表可以批量删除历史“时间-顺序”。
+2. 听力父题和复合题小题受上下文缺失、父子题信息不完整影响明显；这些记录必须继续 hold，不能用候选错误率外推到完整听力题。
+3. `keep_control` 仅 3/12 被判为候选合理。并且本轮 reviewer 主要判断“tree 候选是否能解释题目”，没有单独记录 keep 控制是否仍返回目标标签；后续必须追加目标标签保留率，不能只看 `candidate_correct`。
+
+**处置：** Order-1 停止全量放大，保留全部 tree/review evidence；只把 `parent × 单选题 × 选择题 × remove` 作为后续可能的局部候选簇，不直接生成 patch。下一步先回连 tree 结果与 audit index，核对 keep 控制的目标标签命中率，再决定是否为该 route 单独做二轮小批。
+
 ## 11. P0：社会交往-争辩
 
 ### 11.1 事实画像与可审计证据
