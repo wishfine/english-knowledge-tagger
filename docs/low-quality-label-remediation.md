@@ -348,7 +348,7 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 运行产物：`conversion-prep-20260828-172631/conversion-policy-1-20260831-111037`。500 条均处理成功，分布为：`31 conversion (6.2%)`、`126 derivation (25.2%)`、`63 inflection (12.6%)`、`269 lexical_or_other (53.8%)`、`11 insufficient (2.2%)`。这与 T1.2 的边界集方向一致：历史“转化法”并非一个可直接保留的同质簇，普通词汇/翻译与显性派生是主要污染来源。
 
-下一步使用 `scripts/build_conversion_relation_review_packet.py` 生成 **79 条**网页 GPT 复核包：31 条预测为 `conversion` 的记录全部复核；`derivation`、`inflection`、`lexical_or_other`、`insufficient` 各抽 12 条，且每类优先覆盖不同 `scope × 题型结构 × 题型名称`。复核只判断“模型的词形关系是否正确”，不处理历史标签。通过后，才把“审核正确的 conversion 簇”列为保留候选、把其余关系簇列为重标/隔离候选；任何类别出现系统性错误则继续 `hold`。
+下一步使用 `scripts/build_conversion_relation_review_packet.py` 生成**最多 79 条**网页 GPT 复核包：31 条预测为 `conversion` 的记录全部复核；`derivation`、`inflection`、`lexical_or_other`、`insufficient` 各最多抽 12 条，且每类优先覆盖不同 `scope × 题型结构 × 题型名称`。本次 `insufficient` 只有 11 条，故实际生成 78 条。复核只判断“模型的词形关系是否正确”，不处理历史标签。通过后，才把“审核正确的 conversion 簇”列为保留候选、把其余关系簇列为重标/隔离候选；任何类别出现系统性错误则继续 `hold`。
 
 #### 实验 T2：候选叶子分簇验证
 
