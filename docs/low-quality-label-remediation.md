@@ -142,7 +142,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 实验 / 可审计产物 | 输入与运行结果 | 验收结论 | 当前状态 | 唯一下一动作 |
 |---|---|---|---|---|---|
-| `转化法` | T1：`conversion-prep-20260828-172631/tree-run-20260828-172818`；T1.1：`t1.1-20260828-175721/constrained-20260828-175809` | T1：60 条，`59 tree_candidate / 1 budget_exhausted / 0 error`；网页 GPT 候选复核：`51 correct / 8 incorrect / 1 hold`。T1.1：`8 已知错误 + 1 hold + 12 控制`，3 个派生误判仍返回转化法，且 3 个控制题路径变化。 | whole-tree 可运行但不具备稳定纠错能力；末级负向 prompt 无效且会退化控制题。 | `hold`；停止该标签 whole-tree。 | 用 `conversion-vs-derivation-v1` 验证“词形是否不变”的非 tree 分流字段；`3348636953588649985` 单题保持独立裁决。 |
+| `转化法` | T1：`conversion-prep-20260828-172631/tree-run-20260828-172818`；T1.1：`t1.1-20260828-175721/constrained-20260828-175809`；T1.2：`conversion-relation-20260831-105933` | T1：60 条，`59 tree_candidate / 1 budget_exhausted / 0 error`；网页 GPT 候选复核：`51 correct / 8 incorrect / 1 hold`。T1.1：3 个派生误判仍返回转化法。T1.2 独立词形关系判别：`2 conversion / 9 derivation / 3 inflection / 7 lexical_or_other`，21 条无错误。 | tree 路线失败；但不带历史标签的窄关系判别通过固定边界集。 | `hold`；停止 whole-tree，允许进入关系字段的扩大验证。 | 对 500 条 mentor direct 样本运行关系判别；按四类关系分层抽取网页 GPT 复核，验证后才可能建立 patch 候选簇。 |
 | `互联通讯` | Theme-1：`theme-1-20260831-103348/tree-run-20260831-104147` | 已严格对齐 500 条原始网页 GPT evidence，抽取 60 条：30 主阅读 remove、10 其他阅读 remove、10 非阅读 remove、10 keep 控制；tree：`59 tree_candidate / 1 budget_exhausted / 0 error`。两端各并发 5，wall `87.7s / 77.9s`。网页 GPT 候选复核：`31 correct / 18 incorrect / 11 hold`。 | **失败：候选主题正确率不足。** 网络言论、网站信息传播、互联网利弊的题可稳定判断；YouTube/社交媒体分享类材料在“互联通讯”和日常生活/艺术等主题之间失稳。 | `hold`；停止 Theme-1 tree 放大。 | 老师裁决以下 10 条“线上分享是主线还是背景”边界题；冻结 Theme-Policy-0 后再做非 tree 主题分流对照。 |
 
 ### 3.4 非 P0，但仍在处理的高风险标签
@@ -333,6 +333,14 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 #### Conv-Policy-0：独立词形关系判别实验
 
 为避免 tree 的多层选择干扰，后续不再让 DS 输出知识点树路径，而是运行 `scripts/validate_conversion_relation.py`。它只输出五类关系：`conversion`、`derivation`、`inflection`、`lexical_or_other`、`insufficient`，且不向模型提供历史知识点标签。首轮固定使用 T1.1 的 21 条：8 个已知错误、1 个 hold、12 个正确控制；两个 endpoint 总并发仍为 10。通过门禁：已知 `direct→director`、`weigh→weight`、`warmth→warm` 等派生/词形变化例必须稳定为 `derivation`，同形转化控制题必须稳定为 `conversion`。该实验只验证分流字段，不生成 source patch。
+
+#### T1.2 关系判别结果：通过固定边界集，但尚未获得全量清洗资格
+
+运行产物：`t1.1-20260828-175721/conversion-relation-20260831-105933`。21 条均成功返回结构化结果、无请求错误，总并发为 10；分布为 `2 conversion / 9 derivation / 3 inflection / 7 lexical_or_other`，所有结果均为 `high` confidence。
+
+关键门禁全部通过：`direct→director`（`3348636953588649985`）、`weigh→weight`（`2825476033785401356`）、`warmth→warm`（`2992442148149280780`）以及 `build→building` 均不再落为 `conversion`，返回 `derivation`；词形不变的 `wonder v.→wonder n.`（`3479221260516872215`）和 `gold adj.→gold n.`（`3479221260516872195`）均返回 `conversion`。同时，三单/最高级等形态变化被分到 `inflection`，普通翻译、默写、固定搭配被分到 `lexical_or_other`，说明新 prompt 已把“词形关系”与“历史转化法标签”隔离开。
+
+这只证明该 **21 条固定边界集** 的方向正确，不证明 500 条、更不证明全量历史“转化法”数据已经可自动清洗。下一实验是 **Conv-Policy-1**：对该标签 500 条 mentor direct 完整样本运行同一关系判别器，按四个有效关系（`conversion/derivation/inflection/lexical_or_other`）和题型 route 做分层网页 GPT 复核；只有每个拟放大的关系簇达到预定人工门禁，才能作为独立 `patch_candidate`，仍不允许整体替换。
 
 #### 实验 T2：候选叶子分簇验证
 
