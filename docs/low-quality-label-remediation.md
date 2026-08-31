@@ -330,6 +330,10 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 **转化法后续处置改为 `hold`**：保留已审核的 51 条候选审核证据，但停止 whole-tree 在该标签上的批量 replacement。`configs/label_micro_policies/conversion-vs-derivation-v1.json` 已冻结“词形不变→转化、显性词缀/词形变化→派生”的通用规则；其中 `direct→director` 是派生法（`-or` 后缀）的明确示例。该示例未提供 question_id，不能替代 `3348636953588649985` 的单题裁决；只有在独立样本上证明该字段可靠，才另开非 tree 的定向重标实验。
 
+#### Conv-Policy-0：独立词形关系判别实验
+
+为避免 tree 的多层选择干扰，后续不再让 DS 输出知识点树路径，而是运行 `scripts/validate_conversion_relation.py`。它只输出五类关系：`conversion`、`derivation`、`inflection`、`lexical_or_other`、`insufficient`，且不向模型提供历史知识点标签。首轮固定使用 T1.1 的 21 条：8 个已知错误、1 个 hold、12 个正确控制；两个 endpoint 总并发仍为 10。通过门禁：已知 `direct→director`、`weigh→weight`、`warmth→warm` 等派生/词形变化例必须稳定为 `derivation`，同形转化控制题必须稳定为 `conversion`。该实验只验证分流字段，不生成 source patch。
+
 #### 实验 T2：候选叶子分簇验证
 
 按 T1 的 tree 候选叶子分组，例如“派生法”“词汇音形义”“主谓一致”“无覆盖”。每个达到可用数量的 `原转化法 × 候选叶子 × route` 簇独立抽 12 条人工复核：
