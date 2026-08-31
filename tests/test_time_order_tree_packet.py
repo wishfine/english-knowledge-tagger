@@ -127,6 +127,18 @@ class TimeOrderTreePacketTests(unittest.TestCase):
                     seed="test-time-order",
                 )
 
+    def test_rejects_directory_instead_of_input_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaisesRegex(ValueError, "source must be a readable file"):
+                build_time_order_tree_packet(
+                    root,
+                    evidence_path=root,
+                    output_path=root / "tasks.jsonl",
+                    audit_index_path=root / "audit.jsonl",
+                    seed="test-time-order",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

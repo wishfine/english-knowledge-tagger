@@ -113,6 +113,10 @@ def build_time_order_tree_packet(
 
     if output_path == audit_index_path or output_path.exists() or audit_index_path.exists():
         raise FileExistsError("time-order output paths must be distinct and absent")
+    if not source_path.is_file():
+        raise ValueError(f"time-order source must be a readable file: {source_path}")
+    if not evidence_path.is_file():
+        raise ValueError(f"time-order evidence must be a readable file: {evidence_path}")
 
     source_rows = _rows(source_path, source="time-order source")
     evidence_rows = _rows(evidence_path, source="time-order evidence")
