@@ -186,6 +186,27 @@ class WebGptRawReviewAnalysisTests(unittest.TestCase):
         self.assertEqual(report["mentor_direct_verdict_x_web_decision"]["unavailable"], {"keep": 1, "remove": 0, "uncertain": 0})
         self.assertEqual(normalized[1]["mentor_direct_verdict"], "unavailable")
 
+    def test_accepts_collective_noun_review_reason_codes(self):
+        self.assertTrue(callable(analyze_web_gpt_raw_reviews))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source_path = directory / "source.jsonl"
+            source_path.write_text(json.dumps(_source_row("q1", direct_match=True), ensure_ascii=False) + "\n", encoding="utf-8")
+            review_path = directory / "reviews.jsonl"
+            review_path.write_text(
+                json.dumps(_review("q1", "q1", "keep", "whole_member_agreement"), ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+
+            report, normalized = analyze_web_gpt_raw_reviews(
+                source_path,
+                reviewer_results_path=review_path,
+                verify_label=LABEL,
+            )
+
+        self.assertEqual(report["decisions"], {"keep": 1, "remove": 0, "uncertain": 0})
+        self.assertEqual(normalized[0]["reason_code"], "whole_member_agreement")
+
 
 if __name__ == "__main__":
     unittest.main()

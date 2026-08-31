@@ -28,6 +28,13 @@ _REASON_CODES = {
     "fixed_phrase_only",
     "insufficient_context",
     "definition_conflict",
+    # Label-specific codes emitted by the collective-noun review prompt.
+    "whole_member_agreement",
+    "collective_form_choice",
+    "ordinary_number_only",
+    "inherent_plural_agreement",
+    "possessive_or_determiner_only",
+    "uncountable_or_mass_only",
     "other",
 }
 _TYPE_METADATA = re.compile(r"(?m)^题型(结构|名称)为：([^\r\n]*)")

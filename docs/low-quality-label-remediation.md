@@ -113,7 +113,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 | 19 | `知识点@语法词法@动词时态@时态辨析@现在完成时与过去完成时的区别` | 36/134 | 已诊断-P0 remediation | 已证实：完成时辨析标签混入将来完成/完成进行、其他语法小题、写作及篇章背景；27 条删除候选、17 条材料或定义冲突不确定；1 条 mentor verdict 不可用 | **Tense-Perfect-Contrast-1**：老师裁决 3 条边界题 + 27 条 remove 分层与 12 条 keep 控制（第 27.3 节） | 边界冻结且独立盲审通过后，才可生成 patch candidate；不确定记录继续 hold |
 | 20 | `知识点@语用@情感@责备` | 70/257 | 已诊断-P0 remediation | 已证实：普通生气、建议、地点人物等听力细节、语法造句和剧本背景被混入；真正责备/批评/谴责及道歉改正回应可保留；51 条材料不足 | **Prag-Blame-1**：109 条 remove 按言语行为/route 分层抽取，97 条 keep 做控制（第 28.3 节） | 独立盲审与 DS 方向一致后，才可生成 patch candidate；51 条不确定继续 hold |
 | 21 | `知识点@语法词法@动词时态@一般过去时@一般过去时的肯否疑` | 137/500 | 已诊断-hold | 已证实：463 条直接考查过去时肯定、did/didn’t 否定疑问或 was/were；8 条混入情态/现在时/完成时或纯阅读；29 条材料、时间参照或来源冲突不确定 | **Tense-Past-1**：老师裁决 1 条边界题 + 8 条 remove 与 12 条 keep 小批复核（第 29.3 节） | 边界与来源规则冻结后，才可收集 full true 并独立抽 60 条；不确定记录继续 hold |
-| 22 | `知识点@语法词法@名词@集合名词` | 104/377 | 已完成小批校准-hold | 已证实：必须是集合名词作主语且整体/成员意义直接决定谓语单复数；普通复数、`sheep`、不可数 `hair/furniture`、`staff` 作宾语及姓氏复数被混入 | **Noun-Collective-1**：按合法题型与主谓一致触发分层复核（第 30.3 节） | 小批与全量方向一致、再独立抽 60 条后，才可生成 patch candidate |
+| 22 | `知识点@语法词法@名词@集合名词` | 104/377 | 已完成离线初诊-hold | 已证实：必须是集合名词作主语且整体/成员意义直接决定谓语单复数；普通复数、`sheep`、不可数 `hair/furniture`、`staff` 作宾语及姓氏复数被混入 | **Noun-Collective-1**：按合法题型与主谓一致触发分层复核（第 30.3 节） | 分层复核与全量方向一致、再独立抽 60 条后，才可生成 patch candidate |
 | 23 | `知识点@语法句法@并列句@含and并列复合句` | 142/500 | 待离线分诊 | 待验证：`and` 连接词出现与并列复合句结构考查混杂 | **Syntax-And-0**：真正两分句并列 vs 词组/谓语并列分层审核 | 共标 policy 或 hold |
 | 24 | `知识点@语法词法@动词@实义动词@不及物动词` | 144/500 | 阻塞：等 V1 | 与及物动词共享“词汇出现 vs 结构约束”的业务边界 | **Intransitive-0**：仅在及物动词 V1 裁决后，用同一边界做成对诊断 | 不可先独立清洗，避免两标签规则相反 |
 | 25 | `知识点@语法句法@简单句@主+谓+宾` | 148/500 | 待离线分诊 | 待验证：有宾语与考查 SVO 句式混杂 | **Syntax-SVO-0**：宾语填空/语序/句式判定分层审核 | 形成“结构直接决定答案” policy |
@@ -1568,18 +1568,25 @@ english-knowledge-tagger-runtime/web-gpt-reviews/past-tense-affirmative-negative
 
 ### 30.1 事实画像与可审计证据
 
-目标标签为 `知识点@语法词法@名词@集合名词`。当前源包共 377 条，mentor DS 初筛 `match=true` 为 104 条（27.6%）；另有 24 条完整题面校准样本已由人工逐条复核，不能把这 24 条当作全量金标：
+目标标签为 `知识点@语法词法@名词@集合名词`。当前源包共 377 条，mentor DS 初筛 `match=true` 为 104 条（27.6%）。本次网页 GPT 只复核了其中 128 条，不能把该子样本外推为 377 条全量结论；另有 24 条历史完整题面校准样本，也只作边界参考：
 
 ```text
 english-knowledge-tagger-runtime/知识点_语法词法_名词_集合名词.jsonl
-docs/knowledge-label-calibration-reviews-full-sample.md（24 条校准样本）
+english-knowledge-tagger-runtime/web-gpt-reviews/collective-noun-20260831/
+├─ source_subset.jsonl（从 377 条源包按本次复核 ID 派生）
+├─ evidence.jsonl
+└─ summary.json
+docs/knowledge-label-calibration-reviews-full-sample.md（仅作 24 条历史校准参考）
 ```
 
 | 证据切片 | keep | remove | uncertain | 解读 |
 |---|---:|---:|---:|---|
 | mentor 源包 377 条 | 104 match | 273 mismatch | — | 仅为 DS 初筛，不是真实标签准确率 |
-| 24 条校准中的 DS `match=true` | 9 | 3 | 0 | DS true 准确率 75.0%；`sheep`、`staff`、`hair` 等概念过宽 |
-| 24 条校准中的 DS `match=false` | 0 | 12 | 0 | 该小批 false 错判率 0/12，但不能外推到 273 条全量 mismatch |
+| 网页 GPT 子样本 128 条 | 41 | 83 | 4 | 外部证据，不是 377 条全量金标；本次没有标签级结论行 |
+| 子样本中 mentor direct `match` 39 条 | 36 | 3 | 0 | DS true 在该子样本中大多有效，但样本选择可能有偏 |
+| 子样本中 mentor direct `mismatch` 89 条 | 5 | 80 | 4 | DS false 以误标为主，但仍有 5 条有效，不能直接批量删除 |
+| 24 条历史校准中的 DS `match=true` | 9 | 3 | 0 | 仅作为边界参考；`sheep`、`staff`、`hair` 等概念过宽 |
+| 24 条历史校准中的 DS `match=false` | 0 | 12 | 0 | 仅作为边界参考，不能外推到 273 条全量 mismatch |
 | `parent × 单选题 × 选择题` | 49 match | 80 mismatch | — | 数量最大，混有普通名词数/词义题 |
 | `parent × 填空题 × 单词拼写` | 16 match | 87 mismatch | — | 只有集合主语一致真正命中；多数是普通拼写/复数 |
 | `parent × 填空题 × 翻译题` | 15 match | 8 mismatch | — | `staff/family/police` 主语一致可保留，需看答案与解析 |
@@ -1589,12 +1596,12 @@ docs/knowledge-label-calibration-reviews-full-sample.md（24 条校准样本）
 
 老师释义的必要条件是：集合名词作主语，并且题目必须根据“整体”还是“成员”选择谓语单复数；`family/class/team/group/government/crowd` 以及本身表复数的 `police/people/cattle` 是典型例子。`sheep` 单复同形、`furniture/hair` 不可数、`The Greens` 姓氏复数、普通复数和集合名词作宾语，不能仅因词汇相关而标注。
 
-当前处置为 `hold`。禁止：把 104 条 DS true 全部当作正例；把 273 条 DS false 全部删除；把出现 `family/staff/people` 或复数谓语作为自动触发；将复合题父题标签继承给没有具体集合主语一致考点的小题。
+本次 128 条子样本的主要误标原因已具体化为：普通数词/复数（30）、纯词形或拼写（27）、物主/限定词（8）、不可数/物质名词（5）、固定短语（5）以及其他背景（7）；有效样本主要是集合名词整体/成员意义或本身表复数时对谓语形式的直接约束。当前处置仍为 `hold`。禁止：把 104 条 DS true 全部当作正例；把 273 条 DS false 全部删除；把出现 `family/staff/people` 或复数谓语作为自动触发；将复合题父题标签继承给没有具体集合主语一致考点的小题。
 
 ### 30.3 Noun-Collective-1：集合名词主谓一致分层复核
 
 1. 先按 CSV 允许题型筛选 `parent × 单选题 × 选择题`、`parent × 填空题 × 单词拼写/语法填空`、`child × 复合题 × 语法选择` 等合法 route；翻译、完形及其他 route 只作边界样本，不自动排除。
-2. 按“整体/成员意义”“本身表复数”“普通复数/不可数/姓氏复数”“集合名词作宾语”“题面缺失”五类抽取小批，优先复核 DS true 中的 3 个概念过宽样本及 DS false 中疑似有效的混合规则题。
+2. 从本次 83 条 remove 候选中按“普通数词/复数、词形拼写、物主限定词、不可数/物质名词、固定短语、其他背景”分层抽取至多 60 条；从 41 条 keep 中按“整体/成员意义”“本身表复数”“集合形式选择”抽 12 条控制。
 3. DS 恢复后，对固定样本做原释义/压缩释义对照；判定必须同时满足“集合名词作主语”和“谓语单复数由其意义决定”，只考拼写、普通词义或一般复数不保留。
 4. 小批方向稳定后，对该标签全量候选再独立抽 60 条复核；在此之前不生成删除或替换 patch，也不把 24 条校准样本当成 released silver。
 
