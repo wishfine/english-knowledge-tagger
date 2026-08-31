@@ -96,7 +96,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 | 2 | `知识点@语法词法@动词时态@现在进行时@现在进行时的肯否疑` | 47/500 | 已诊断-hold | 已证实：DS false 与网页 GPT 直审显著冲突；少量过去进行时/`be going to`/一般现在时混入；2 条老师边界未裁决 | **NP1**：老师裁决 2 题 + 36 条三 route 盲审 + 原/压缩释义 DS 对照（第 7.3 节） | 仅在新判别器和盲审方向一致后，收集 full true 再抽 60 条 |
 | 3 | `知识点@语篇主题@人与社会@互联通讯` | 53/500 | 已诊断-hold | tree 在社交媒体/线上分享主题上候选不稳定：Theme-1 仅 `31 correct / 18 incorrect / 11 hold` | **Theme-Policy-0**：老师裁决 10 条“线上分享是主线还是背景”边界题 | micro-policy 冻结后再设计非 tree 主题分流对照；不得进 T2 |
 | 4 | `知识点@语法句法@句子成分@谓语` | 60/500 | 已诊断-hold | 已证实：DS false 与网页 GPT 直审显著冲突；少量固定搭配/词义/其他成分混入；1 条老师边界未裁决 | **Predicate-1**：老师裁决 1 题 + 36 条三 route 盲审 + 原/压缩释义 DS 对照（第 8.3 节） | 仅在新判别器和盲审方向一致后，收集 full true 再抽 60 条 |
-| 5 | `知识点@词汇@构词法@转化法` | 70/500 | 已诊断-hold | 已证实：派生、屈折、拼写和普通翻译被混入；T1 tree 末级负向约束无法修复派生误判且会改变控制题路径 | **Conv-Policy-0**：用 v1 micro-policy 验证“词形是否不变”人工/规则字段；`334...` 单题仍独立裁决 | 非 tree 分流字段在独立样本稳定后，才可另开定向重标实验 |
+| 5 | `知识点@词汇@构词法@转化法` | 70/500 | 已诊断-hold | 已证实：派生、屈折、拼写和普通翻译被混入；T1 tree 末级负向约束无法修复派生误判且会改变控制题路径 | **Conv-Gate-v1**：对 500 条做标签无关的 conversion/derivation/inflection/lexical-or-other/insufficient 分流；`334...` 单题仍独立裁决 | 先完成关系分流的分层复核；任何关系簇未通过前不生成 patch candidate |
 | 6 | `知识点@语法词法@动词时态@过去进行时@过去进行时的肯否疑` | 74/500 | 已诊断-hold | 已证实：DS false 与网页 GPT 直审显著冲突；唯一老师边界题未裁决 | **PP1**：老师裁决 1 题 + 36 条三 route 盲审 + 原/压缩释义 DS 对照（第 6.3 节） | 仅在新判别器和盲审方向一致后，收集 full true 再抽 60 条 |
 | 7 | `知识点@语用@时间@顺序` | 19/127 | 已诊断-hold | 已证实：时间点、时长、`How soon` 等被误标为顺序；步骤/先后/日期推算是真正保留簇；25 条缺上下文 | **Order-1**：60 条 remove 全量 tree + 12 条 keep 回归控制（第 10.3 节） | 候选叶子/`uncovered` 分簇复核后才可生成 patch candidate |
 | 8 | `知识点@语用@社会交往@争辩` | 57/365 | 已诊断-hold | 已证实：普通对话、偏好、请求建议、赞同或表面 No/but 被误标；真实反驳/投诉/否认辩解应保留；21 条缺上下文 | **Argument-1**：218 条 remove 按对话 route/言语行为分层 tree（第 11.3 节） | 候选叶子/`uncovered` 分簇复核后才可生成 patch candidate |
@@ -123,7 +123,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 这次检查确认了什么问题 | 当前处置 | 现在要做的唯一动作 | 在什么条件下才能往下走 |
 |---|---|---|---|---|
-| 转化法 | 历史标签混入派生、屈折、拼写、普通翻译；tree 对派生误判无方向性修复，且控制题发生退化 | `hold` | 用 conversion-vs-derivation-v1 验证“词形是否不变”字段；`334...` 继续独立裁决 | 该字段在独立样本稳定后，才可另开非 tree 的定向重标实验 |
+| 转化法 | 历史标签混入派生、屈折、拼写、普通翻译；tree 对派生误判无方向性修复，且控制题发生退化 | `hold` | 已生成 `Conv-Gate-v1` 的 500 条标签无关 packet；DS 恢复后先跑关系分流并按关系/route 分层复核；`334...` 继续独立裁决 | 分流在独立复核中稳定，且多关系/信息不足均能隔离后，才可另开定向重标实验 |
 | 及物动词 | 拼写/词形题的自然宾语造成过标；DS false 又漏掉双宾语、宾补、被动等真结构；存在 7 条老师口径边界 | `hold` | 先取得 7 条 V1 老师裁决 | 裁决写成 micro-policy 后，才可对对应结构簇做小批 tree/prompt |
 | 过去进行时的肯否疑 | DS 的 false 大量与网页 GPT 的保留判断相反，不能将 low match 解释为历史错标；有 1 条老师冲突题 | `hold` | 先裁决 1 题，再跑 PP1 36 条 route 分层盲审和原/压缩释义对照 | 三主 route 的新 DS 判断与盲审方向一致，才可全量收集 true 并抽 60 条 |
 | 现在进行时的肯否疑 | DS 的 false 大量与网页 GPT 的保留判断相反；少量相邻时态/用法标签混入；有 2 条老师冲突题 | `hold` | 先裁决 2 题，再跑 NP1 36 条 route 分层盲审和原/压缩释义对照 | 三主 route 的新 DS 判断与盲审方向一致，才可全量收集 true 并抽 60 条 |
@@ -497,6 +497,47 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 - 不把 mentor `llm_should_be` 当最终 replacement；
 - 不只限制在构词法子树；
 - 在 T1/T2 通过前不扫描或调用转化法的全量历史数据。
+
+### 4.5 Conv-Gate-v1：标签无关关系分流（已离线准备，等待 DS）
+
+whole-tree 路线在 T1.1 已出现方向性失败，因此本轮先不让模型从知识树挑替换标签。新 gate 只判断题目实际发生的词形关系，输出五类结果：
+
+```text
+conversion                 同形词因词性/句法功能改变而直接参与答案
+derivation                 添加/删除词缀或显性拼写变化
+inflection                 时态、复数、三单、比较级等屈折变化
+lexical_or_other           普通翻译、默写、固定搭配或无实际转换
+insufficient               缺少具体小题、答案、解析或源词/目标词信息
+```
+
+输入只保留题面、答案、解析和 route 身份，不包含历史 `output_all`、mentor `llm_match`、`llm_should_be` 或任何 replacement 建议。`conversion` 还必须同时满足“词形完全不变、词性/句法功能改变、答案依赖该关系”三个结构字段；无法确认时保守输出 `insufficient`。这一步是候选证据，不是 source patch，也不承担一次输出所有并行知识点。
+
+已生成离线 packet（500 条，label-blind，question_id 唯一）：
+
+```text
+../english-knowledge-tagger-runtime/conversion-gate/conversion-gate-v1-20260831-173512/packet.jsonl
+../english-knowledge-tagger-runtime/conversion-gate/conversion-gate-v1-20260831-173512/packet.report.json
+```
+
+离线验收：`tests.test_conversion_relation_packet`、`tests.test_conversion_gate`、`tests.test_low_quality_label_review_packets` 共 7 项通过；packet 仅含 `task_id/source_line/question_id/parent_id/route_key/question_context/schema_version`，未发现历史标签字段。当前 route 分布以复合题小题为主（翻译 297、选词填空 35、单词拼写 30），另含单选、填空等父题，不能把该 500 条当成单一题型金标。
+
+DS 服务恢复后运行：
+
+```bash
+export CONV_GATE_DIR="${RUNTIME:-../english-knowledge-tagger-runtime}/conversion-gate/conversion-gate-ds-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$CONV_GATE_DIR"
+python3 scripts/validate_conversion_gate.py \
+  --input ../english-knowledge-tagger-runtime/conversion-gate/conversion-gate-v1-20260831-173512/packet.jsonl \
+  --output "$CONV_GATE_DIR/gate-evidence.jsonl" \
+  --report "$CONV_GATE_DIR/gate-report.json" \
+  --endpoint http://172.22.0.35:9102/v1/chat/completions \
+  --endpoint http://172.22.0.35:9103/v1/chat/completions \
+  --model DeepSeek-V4-Flash \
+  --concurrency 10 \
+  --timeout-seconds 180
+```
+
+拿到结果后按四个有效关系和题型 route 分层抽网页 GPT/人工复核；多关系题、缺材料题单独统计。只有某一关系簇的候选方向通过独立复核，才允许生成 `relabel_candidate`；在关系分流稳定前，转化法整体继续 `hold`，不进入 `silver`。
 
 ## 5. P0：及物动词
 
