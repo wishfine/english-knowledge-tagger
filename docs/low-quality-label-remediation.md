@@ -145,7 +145,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 实验 / 可审计产物 | 输入与运行结果 | 验收结论 | 当前状态 | 唯一下一动作 |
 |---|---|---|---|---|---|
-| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”，不能作为清洗字段。 | `hold`；停止 whole-tree 与 v1 关系字段放大。 | Conv-Policy-2：增加 `mixed_or_multiple_relations`，并把“题目是否实际要求完成词性转换”置于词形同形之前；先在固定 78 条重跑并复核。 |
+| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037`；C：`c-root-tree-20260831-134515` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。C 门禁：`19 atomic / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；19 条 tree 全部完成，`71 calls / 19 tree_candidate / 0 error`，wall `79.4s`。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”。C 已验证“先做任务形态门禁、再进根树”的链路可运行，但候选正确性尚未人工验收。 | `hold`；不修改源标签，等待 C 的 19 条候选盲审。 | 对 C 的 19 条 `tree_candidate` 做网页 GPT 盲审；若原子门禁和候选都稳定，再修订 v2 关系字段，否则继续隔离。 |
 | `互联通讯` | Theme-1：`theme-1-20260831-103348/tree-run-20260831-104147` | 已严格对齐 500 条原始网页 GPT evidence，抽取 60 条：30 主阅读 remove、10 其他阅读 remove、10 非阅读 remove、10 keep 控制；tree：`59 tree_candidate / 1 budget_exhausted / 0 error`。两端各并发 5，wall `87.7s / 77.9s`。网页 GPT 候选复核：`31 correct / 18 incorrect / 11 hold`。 | **失败：候选主题正确率不足。** 网络言论、网站信息传播、互联网利弊的题可稳定判断；YouTube/社交媒体分享类材料在“互联通讯”和日常生活/艺术等主题之间失稳。 | `hold`；停止 Theme-1 tree 放大。 | 老师裁决以下 10 条“线上分享是主线还是背景”边界题；冻结 Theme-Policy-0 后再做非 tree 主题分流对照。 |
 
 ### 3.4 非 P0，但仍在处理的高风险标签
@@ -378,6 +378,12 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 ```
 
 根节点的一级候选为 `词汇、词法、句法、语用、语篇主题、语篇体裁、语音、其他`；其后仍沿用老师 CSV 中的 active 末级标签压缩释义。C 的验收不是 tree 是否能运行，而是：双词性默写必须在门禁阶段被隔离、混合题不得进 tree、进入 tree 的原子题候选须由独立网页 GPT 审核。首轮固定复用 Conv-Policy-1 的 78 条，便于与 v1 直接比较。
+
+#### C 首轮运行结果：门禁有效，候选仍待人工验收
+
+固定 78 条的门禁结果为 `19 atomic_knowledge / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；只有 19 条进入根节点树，另外 59 条被隔离。19 条树任务均返回 `tree_candidate`，共 71 次 DS 选择调用，根节点调用 19 次，无 `__NO_MATCH__`，wall time `79.4s`。这说明 C 的过滤与运行链路符合设计，但 `tree_candidate` 仅是候选，不代表末级标签正确。
+
+下一步只对这 19 条做网页 GPT 盲审，同时检查门禁是否把某些应为 `mixed_or_multiple_relations` 的题误放入 `atomic_knowledge`。在审核完成前不生成 replacement、不恢复历史“转化法”标签，也不跑全量。
 
 ##### Conv-Policy-1 的 DS v1 具体失效点
 
