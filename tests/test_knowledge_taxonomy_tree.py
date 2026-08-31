@@ -55,6 +55,7 @@ class KnowledgeTaxonomyTreeTests(unittest.TestCase):
             tree.definition("知识点->词法->冠词->a/an的区别"),
             "压缩释义：知识点->词法->冠词->a/an的区别",
         )
+        self.assertIn("语法词法", tree.definition("知识点->词法"))
 
     def test_tree_rejects_a_policy_prefix_that_is_not_a_taxonomy_node(self):
         self.assertTrue(callable(KnowledgeTaxonomyTree), "KnowledgeTaxonomyTree must be implemented")

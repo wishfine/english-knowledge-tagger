@@ -363,6 +363,22 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 **Conv-Policy-2 的唯一下一动作**：把“题目是否实际要求完成一个词形/词性转换”设为第一道门。仅仅展示同一个词既可作名词又可作动词、双词性释义、单词默写，不得判为 `conversion`，应判 `lexical_or_other`。同时新增 `mixed_or_multiple_relations`，专门隔离多空题内同时出现派生、屈折、搭配等多种关系的样本，而不是强行压入 `derivation` 或 `inflection`。v2 先在同一 78 条上重跑和复核；未通过前，历史转化法全量继续 `hold`。
 
+#### C：任务形态门禁 + 根节点知识树（替代“先验证旧标签”）
+
+本实验不把历史 `转化法`、mentor 的 match 结果或 replacement 建议送入 DS；它们只用于事后按 `question_id` 审计。输入仍为完整题目信息（题干、选项、答案、解析，且去除“题型结构/名称”元数据），不能缩减为只给题干：转化法的失败例正是需要答案和解析才能分辨“实际转换”与“双词性释义”。
+
+流程为：
+
+```text
+完整题目（无历史标签）
+  → 任务形态门禁：atomic_knowledge / lexical_or_other / mixed_or_multiple_relations / insufficient
+  → 仅 atomic_knowledge：从 知识点 根节点的 8 个一级类及其简短释义开始全树搜索
+  → tree_candidate / uncovered / budget_exhausted
+  → 网页 GPT 独立复核，不直接写回源标签
+```
+
+根节点的一级候选为 `词汇、词法、句法、语用、语篇主题、语篇体裁、语音、其他`；其后仍沿用老师 CSV 中的 active 末级标签压缩释义。C 的验收不是 tree 是否能运行，而是：双词性默写必须在门禁阶段被隔离、混合题不得进 tree、进入 tree 的原子题候选须由独立网页 GPT 审核。首轮固定复用 Conv-Policy-1 的 78 条，便于与 v1 直接比较。
+
 ##### Conv-Policy-1 的 DS v1 具体失效点
 
 这不是历史标签误差的复述，而是对“DS 仅看题面后输出词形关系”的判别误差分析。78 条网页 GPT 复核显示有四类不同根因：

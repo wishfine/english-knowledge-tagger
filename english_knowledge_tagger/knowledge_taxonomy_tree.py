@@ -11,6 +11,16 @@ from .knowledge_rulebook import KnowledgeRulebook, KnowledgeRulebookRecord
 
 NO_MATCH = "__NO_MATCH__"
 ROOT_PATH = "知识点"
+_ROOT_CATEGORY_DEFINITIONS = {
+    "知识点->词汇": "词义、词汇辨析、固定搭配/句型、构词法等词汇层面的核心考查。",
+    "知识点->词法": "词类及其形态、时态语态、非谓语、冠词、代词、介词等语法词法考查。",
+    "知识点->句法": "句子成分、句型、从句、主谓一致、特殊句式等句法结构考查。",
+    "知识点->语用": "交际目的、言语功能、情境表达与得体性考查。",
+    "知识点->语篇主题": "文章或材料主要谈论的人、事、社会/自然主题。",
+    "知识点->语篇体裁": "文章的文体、篇章组织和表达形式。",
+    "知识点->语音": "字母、音标、发音、重音和语调等语音考查。",
+    "知识点->其他": "不适合归入上述主类的有效知识点；仅在其它根类均不匹配时选择。",
+}
 
 
 @dataclass(frozen=True)
@@ -68,6 +78,8 @@ class KnowledgeTaxonomyTree:
         return path in self.terminal_records
 
     def definition(self, path: str) -> str | None:
-        """Return a compact terminal definition for a leaf-choice prompt."""
+        """Return compact teacher leaf text or a stable first-level category guide."""
         record = self.terminal_records.get(path)
-        return record.alternative_definition if record is not None else None
+        if record is not None:
+            return record.alternative_definition
+        return _ROOT_CATEGORY_DEFINITIONS.get(path)
