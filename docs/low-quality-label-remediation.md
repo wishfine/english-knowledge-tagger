@@ -145,7 +145,7 @@ P0 准入 = 知识点末级标签 ∧ 初筛总数 >= 100 ∧ 原始 DS 匹配�
 
 | 标签 | 实验 / 可审计产物 | 输入与运行结果 | 验收结论 | 当前状态 | 唯一下一动作 |
 |---|---|---|---|---|---|
-| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037`；C：`c-root-tree-20260831-134515` | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6 correct / 5 hold / 1 incorrect`、信息不足 `11 hold`。C 门禁：`19 atomic / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；19 条 tree 全部完成，`71 calls / 19 tree_candidate / 0 error`，wall `79.4s`。C 候选复核：`16 candidate_correct / 3 candidate_incorrect`（84.2%）。 | tree 路线失败；关系判别 v1 的固定边界集通过，但扩大后无法识别“双词性释义/默写 ≠ 实际转化”。C 已证明任务形态门禁大幅减少错误，但根树仍会把“转化+复数”等混合题压成单一候选，并在证据不足时过度细化。 | `hold`；不修改源标签，停止当前树放大。 | Conv-Policy-2：门禁增加混合题反问/主答案粒度，树增加“证据不足/不可细化”出口；先复用 19 条失败/控制边界重跑。 |
+| `转化法` | T1/T1.1 tree；T1.2 固定 21 条关系判别；Conv-Policy-1：`conversion-policy-1-20260831-111037`；C：`c-root-tree-20260831-134515`；500 条网页 GPT 复核 | Conv-Policy-1：500 条关系普查后对 78 条网页 GPT 复核。`conversion` 仅 `7 correct / 24 incorrect`；其余：派生 `7/12 correct`、屈折 `9/12 correct`、词汇/其他 `6/12 correct`（另 `5 hold/1 incorrect`）、信息不足 `11/11 hold`。C 门禁：`19 atomic / 35 lexical_or_other / 8 mixed_or_multiple_relations / 16 insufficient`；19 条 tree 全部完成，`71 calls / 19 tree_candidate / 0 error`，wall `79.4s`。C 候选复核：`16 candidate_correct / 3 candidate_incorrect`（84.2%）。500 条网页 GPT 复核：`20 keep / 445 remove / 35 uncertain`。 | **历史标签正例污染严重。** 500 条复核显示 DS 原 `match=true` 的 70 条中仅 `13 keep`、`57 remove`；DS 原 `match=false` 的 430 条中仍有 `7 keep`、`388 remove`、`35 uncertain`。旧判别器正例精度仅 `13/70=18.6%`，C 只证明门禁能运行，未解决多 label 和过度细化。 | `hold`；不修改源标签，停止 tree 与旧 direct true 放大。 | 用 500 条复核集校准新的 target-specific 判别器（不发 `output_all`，只判断转化法是否成立）；先完成 500 条混淆矩阵，再决定全量与独立 60。 |
 | `互联通讯` | Theme-1：`theme-1-20260831-103348/tree-run-20260831-104147` | 已严格对齐 500 条原始网页 GPT evidence，抽取 60 条：30 主阅读 remove、10 其他阅读 remove、10 非阅读 remove、10 keep 控制；tree：`59 tree_candidate / 1 budget_exhausted / 0 error`。两端各并发 5，wall `87.7s / 77.9s`。网页 GPT 候选复核：`31 correct / 18 incorrect / 11 hold`。 | **失败：候选主题正确率不足。** 网络言论、网站信息传播、互联网利弊的题可稳定判断；YouTube/社交媒体分享类材料在“互联通讯”和日常生活/艺术等主题之间失稳。 | `hold`；停止 Theme-1 tree 放大。 | 老师裁决以下 10 条“线上分享是主线还是背景”边界题；冻结 Theme-Policy-0 后再做非 tree 主题分流对照。 |
 
 ### 3.4 非 P0，但仍在处理的高风险标签
@@ -392,6 +392,14 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 - `drop/drops`：树选了屈折标签，但题目同时比较动词三单与名词单数，单一屈折叶不能完整解释选项。
 
 其余 16 条中，明确的同形转化、派生、时态/非谓语/比较级题大体能落到合理末级；不过 `candidate_correct` 只表示候选能解释主要作答依赖，不表示题目全部并行知识点已被输出。下一步只对这 3 个失败边界及等量通过控制题做 Conv-Policy-2，不进入全量。
+
+#### 500 条网页 GPT 复核：确认可作为校准集，不等于已完成清洗
+
+新收到的 500 条逐题复核 JSONL 通过基础校验：500 条 review、500 个唯一 `question_id`、无解析错误；另有 1 条标签结论。逐题结果为 `20 keep / 445 remove / 35 uncertain`，其中 `keep` 包含 7 条纯转化和 13 条“转化法与其他形态并存但转化独立参与答案”的多标签题。
+
+与 mentor 原始 DS 结果按 `question_id` 对齐后：原 DS `match=true` 的 70 条只有 `13 keep / 57 remove`，正例精度为 `18.6%`；原 DS `match=false` 的 430 条中有 `7 keep / 388 remove / 35 uncertain`。这证明旧 DS 的 `match=true` 不能直接作为 silver，且 false 侧仍漏掉少量真实转化。500 条复核适合作为新的 target-specific prompt 校准集，但不能直接生成 source patch。
+
+该复核的标签结论列出了 35 个 `teacher_question_ids`，超出当前 JSONL 契约规定的最多 10 个；这不影响 500 条逐题结果的统计，但导入现有 `analyze_web_gpt_raw_reviews.py` 前需将结论中的老师待裁决列表修正为不超过 10 个或置空。逐题 `decision/reason_code` 仍需保留原样，不得因修正结论元数据而改动。
 
 ##### Conv-Policy-1 的 DS v1 具体失效点
 
