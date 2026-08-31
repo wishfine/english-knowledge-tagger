@@ -28,6 +28,13 @@ def _source_row(question_id: str, *, direct_match: bool, parent_id: str | None =
     }
 
 
+def _source_row_without_direct_verdict(question_id: str) -> dict[str, object]:
+    row = _source_row(question_id, direct_match=False)
+    row["llm_match"] = None
+    row["llm_should_be"] = ""
+    return row
+
+
 def _review(question_id: str, parent_id: str, decision: str, reason_code: str) -> dict[str, object]:
     return {
         "question_id": question_id,
@@ -141,6 +148,43 @@ class WebGptRawReviewAnalysisTests(unittest.TestCase):
         self.assertEqual(len(normalized), 1)
         self.assertEqual(report["web_gpt_conclusion"]["recommended_disposition"], "teacher_policy_required")
         self.assertEqual(report["web_gpt_conclusion"]["teacher_question_ids"], ["q1"])
+
+    def test_preserves_unavailable_mentor_verdict_without_counting_it_as_mismatch(self):
+        self.assertTrue(callable(analyze_web_gpt_raw_reviews))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source_path = directory / "source.jsonl"
+            source_path.write_text(
+                "\n".join(
+                    json.dumps(row, ensure_ascii=False)
+                    for row in (
+                        _source_row("q1", direct_match=True),
+                        _source_row_without_direct_verdict("q2"),
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            review_path = directory / "reviews.jsonl"
+            review_path.write_text(
+                "\n".join(
+                    json.dumps(_review(qid, qid, "keep", "other"), ensure_ascii=False)
+                    for qid in ("q1", "q2")
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            report, normalized = analyze_web_gpt_raw_reviews(
+                source_path,
+                reviewer_results_path=review_path,
+                verify_label=LABEL,
+            )
+
+        self.assertEqual(report["mentor_direct_verdict_x_web_decision"]["match"], {"keep": 1, "remove": 0, "uncertain": 0})
+        self.assertEqual(report["mentor_direct_verdict_x_web_decision"]["mismatch"], {"keep": 0, "remove": 0, "uncertain": 0})
+        self.assertEqual(report["mentor_direct_verdict_x_web_decision"]["unavailable"], {"keep": 1, "remove": 0, "uncertain": 0})
+        self.assertEqual(normalized[1]["mentor_direct_verdict"], "unavailable")
 
 
 if __name__ == "__main__":

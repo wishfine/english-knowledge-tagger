@@ -65,8 +65,11 @@ def _read_source_jsonl(path: Path, *, verify_label: str) -> list[dict[str, objec
             seen_question_ids.add(question_id)
             parent_id = _string(raw.get("parent_id"), field="parent_id", source=source)
             direct_match = raw.get("llm_match")
-            if not isinstance(direct_match, bool):
-                raise ValueError(f"{source}: llm_match must be boolean")
+            # Mentor verifier rows may contain null when its own response
+            # could not be parsed. Preserve that state instead of silently
+            # treating it as a negative match.
+            if direct_match is not None and not isinstance(direct_match, bool):
+                raise ValueError(f"{source}: llm_match must be boolean or null")
             input_text = _string(raw.get("input"), field="input", source=source)
             metadata = {match.group(1): match.group(2).strip() for match in _TYPE_METADATA.finditer(input_text)}
             route = {
@@ -238,7 +241,13 @@ def analyze_web_gpt_raw_reviews(
                 "question_id": question_id,
                 "parent_id": source_row["parent_id"],
                 "route_key": source_row["route_key"],
-                "mentor_direct_verdict": "match" if source_row["direct_match"] else "mismatch",
+                "mentor_direct_verdict": (
+                    "match"
+                    if source_row["direct_match"] is True
+                    else "mismatch"
+                    if source_row["direct_match"] is False
+                    else "unavailable"
+                ),
                 "mentor_should_be": source_row["direct_should_be"],
                 "decision": review["decision"],
                 "reason_code": review["reason_code"],
@@ -246,7 +255,7 @@ def analyze_web_gpt_raw_reviews(
             }
         )
 
-    by_mentor: dict[str, Counter[str]] = {"match": Counter(), "mismatch": Counter()}
+    by_mentor: dict[str, Counter[str]] = {"match": Counter(), "mismatch": Counter(), "unavailable": Counter()}
     conflict_decisions: Counter[str] = Counter()
     for row in normalized:
         by_mentor[str(row["mentor_direct_verdict"])][str(row["decision"])] += 1
@@ -266,7 +275,7 @@ def analyze_web_gpt_raw_reviews(
         "by_reason_code": _group_counts(normalized, field="reason_code"),
         "mentor_direct_verdict_x_web_decision": {
             verdict: {decision: by_mentor[verdict][decision] for decision in _DECISIONS}
-            for verdict in ("match", "mismatch")
+            for verdict in ("match", "mismatch", "unavailable")
         },
         "mentor_contract_conflict_web_decisions": {
             decision: conflict_decisions[decision] for decision in _DECISIONS
