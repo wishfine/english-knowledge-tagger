@@ -92,6 +92,7 @@ def build_tree_choice_prompt(
     *,
     terminal_definition_mode: str = "compressed",
     conversion_negative_constraint: bool = False,
+    conversion_structured_guard: bool = False,
 ) -> str:
     """Render only the current siblings and a separate no-match control option."""
     if terminal_definition_mode not in TERMINAL_DEFINITION_MODES:
@@ -109,6 +110,18 @@ def build_tree_choice_prompt(
         if conversion_negative_constraint and CONVERSION_PATH in request.candidate_paths
         else ""
     )
+    structured_guard = (
+        "在选择前先在内部完成三个检查（不要把检查过程输出）："
+        "(1)题目是否实际要求完成一个具体转换；"
+        "(2)源词和目标词的词形是否完全不变；"
+        "(3)题目是否同时包含多个独立关系或信息不足。"
+        "只有‘实际要求完成 + 词形完全不变’时才能选择转化法；"
+        "加前后缀、字母增删、时态、复数、三单、比较级、动名词不是转化法。"
+        "仅列出同一单词的名词义/动词义也不是转化法。"
+        "若关系混合或证据不足，优先选择 __NO_MATCH__，不要为了得到末级标签而猜测。\n"
+        if conversion_structured_guard
+        else ""
+    )
     return (
         "你正在为一道英语小题定位一个知识点候选的下一层 taxonomy 节点。"
         "只能依据题干、选项、答案和解析判断，不得臆造未给出的节点。\n"
@@ -122,6 +135,7 @@ def build_tree_choice_prompt(
         '"evidence":"题干、答案或解析中的短证据"}\n\n'
         f"当前节点：{request.parent_path}\n"
         f"{constraint}"
+        f"{structured_guard}"
         "当前层候选：\n"
         f"{'\n'.join(candidates)}\n\n"
         "题目信息：\n"
@@ -139,6 +153,7 @@ class KnowledgeTreeChoiceClient:
         *,
         terminal_definition_mode: str = "compressed",
         conversion_negative_constraint: bool = False,
+        conversion_structured_guard: bool = False,
         transport: Transport | None = None,
     ):
         if not config.endpoint:
@@ -149,6 +164,7 @@ class KnowledgeTreeChoiceClient:
         self._tree = tree
         self._terminal_definition_mode = terminal_definition_mode
         self._conversion_negative_constraint = conversion_negative_constraint
+        self._conversion_structured_guard = conversion_structured_guard
         self._transport = transport or _http_transport
 
     def choose(self, request: TreeChoiceRequest) -> TreeChoice:
@@ -166,6 +182,7 @@ class KnowledgeTreeChoiceClient:
             self._tree,
             terminal_definition_mode=self._terminal_definition_mode,
             conversion_negative_constraint=self._conversion_negative_constraint,
+            conversion_structured_guard=self._conversion_structured_guard,
         )
         payload = {
             "model": self._config.model,

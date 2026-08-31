@@ -42,6 +42,7 @@ def _error_output(
     max_steps: int,
     max_backtracks: int,
     terminal_definition_mode: str,
+    conversion_structured_guard: bool,
     queue_elapsed_ms: float | None = None,
     task_elapsed_ms: float | None = None,
 ) -> dict[str, Any]:
@@ -63,6 +64,7 @@ def _error_output(
         "max_steps": max_steps,
         "max_backtracks": max_backtracks,
         "terminal_definition_mode": terminal_definition_mode,
+        "conversion_structured_guard": conversion_structured_guard,
         "queue_elapsed_ms": queue_elapsed_ms,
         "task_elapsed_ms": task_elapsed_ms,
         "error": str(error),
@@ -78,6 +80,7 @@ def _route_one(
     max_steps: int,
     max_backtracks: int,
     terminal_definition_mode: str,
+    conversion_structured_guard: bool,
     submitted_ns: int,
 ) -> dict[str, Any]:
     worker_started_ns = time.perf_counter_ns()
@@ -93,8 +96,9 @@ def _route_one(
         return {
             **result,
             "model": model,
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": PROMPT_VERSION + ("-structured-guard" if conversion_structured_guard else ""),
             "terminal_definition_mode": terminal_definition_mode,
+            "conversion_structured_guard": conversion_structured_guard,
             "queue_elapsed_ms": queue_elapsed_ms,
         }
     except (ValueError, LabelingServiceError) as error:
@@ -106,11 +110,12 @@ def _route_one(
                 max_steps=max_steps,
                 max_backtracks=max_backtracks,
                 terminal_definition_mode=terminal_definition_mode,
+                conversion_structured_guard=conversion_structured_guard,
                 queue_elapsed_ms=queue_elapsed_ms,
                 task_elapsed_ms=task_elapsed_ms,
             ),
             "model": model,
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": PROMPT_VERSION + ("-structured-guard" if conversion_structured_guard else ""),
         }
 
 
@@ -139,6 +144,11 @@ def main() -> None:
         "--conversion-negative-constraint",
         action="store_true",
         help="Apply the versioned no-derived-form rule only when conversion is a terminal choice.",
+    )
+    parser.add_argument(
+        "--conversion-structured-guard",
+        action="store_true",
+        help="Require an internal task/form/mixed-evidence check before choosing conversion.",
     )
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     parser.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
@@ -175,6 +185,7 @@ def main() -> None:
         tree,
         terminal_definition_mode=args.terminal_definition_mode,
         conversion_negative_constraint=args.conversion_negative_constraint,
+        conversion_structured_guard=args.conversion_structured_guard,
     )
 
     queued_rows: list[tuple[int, dict[str, Any], Exception | None]] = []
@@ -204,6 +215,7 @@ def main() -> None:
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
                     terminal_definition_mode=args.terminal_definition_mode,
+                    conversion_structured_guard=args.conversion_structured_guard,
                     task_elapsed_ms=0.0,
                 )
                 continue
@@ -218,6 +230,7 @@ def main() -> None:
                     max_steps=args.max_steps,
                     max_backtracks=args.max_backtracks,
                     terminal_definition_mode=args.terminal_definition_mode,
+                    conversion_structured_guard=args.conversion_structured_guard,
                     submitted_ns=submitted_ns,
                 )
             ] = index
@@ -247,6 +260,7 @@ def main() -> None:
             "max_steps": args.max_steps,
             "max_backtracks": args.max_backtracks,
             "terminal_definition_mode": args.terminal_definition_mode,
+            "conversion_structured_guard": args.conversion_structured_guard,
         }
         args.report.parent.mkdir(parents=True, exist_ok=True)
         with args.report.open("x", encoding="utf-8") as handle:

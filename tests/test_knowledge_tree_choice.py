@@ -142,6 +142,26 @@ class KnowledgeTreeChoiceTests(unittest.TestCase):
         self.assertIn("词缀、拼写增删", constrained)
         self.assertNotIn("词缀、拼写增删", unconstrained)
 
+    def test_structured_conversion_guard_requires_task_and_form_checks(self):
+        conversion = "知识点->词汇->构词法->转化法"
+        tree = KnowledgeTaxonomyTree.from_rulebook(
+            KnowledgeRulebook(records={conversion: KnowledgeRulebookRecord(
+                path=conversion,
+                status="active",
+                marking_interpretation="同形词性转换。",
+                compressed_definition="同形词性转换。",
+            )})
+        )
+        request = TreeChoiceRequest(
+            question_context="题干：direct 变为 director。",
+            parent_path="知识点->词汇->构词法",
+            candidate_paths=(conversion,),
+            excluded_paths=(),
+        )
+        prompt = build_tree_choice_prompt(request, tree, conversion_structured_guard=True)
+        self.assertIn("实际要求完成", prompt)
+        self.assertIn("词形是否完全不变", prompt)
+
     def test_parser_rejects_a_child_not_offered_by_the_current_step(self):
         self.assertTrue(callable(parse_tree_choice_response), "parse_tree_choice_response must be implemented")
 
