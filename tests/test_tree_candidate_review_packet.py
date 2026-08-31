@@ -60,6 +60,42 @@ class TreeCandidateReviewPacketTests(unittest.TestCase):
         self.assertNotIn("trace", rows[0])
         self.assertNotIn("raw_response", json.dumps(rows[0], ensure_ascii=False))
 
+    def test_keeps_unparsed_result_as_a_reviewable_hold_record(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            tasks = directory / "tasks.jsonl"
+            audit = directory / "audit.jsonl"
+            results = directory / "results.jsonl"
+            teacher = directory / "teacher.csv"
+            output = directory / "review.jsonl"
+            tasks.write_text(json.dumps(_task("unparsed"), ensure_ascii=False) + "\n", encoding="utf-8")
+            audit.write_text(json.dumps({"task_id": "unparsed", "selection_stratum": "control"}) + "\n", encoding="utf-8")
+            results.write_text(
+                json.dumps(
+                    {
+                        "task_id": "unparsed",
+                        "status": "unparsed",
+                        "candidate_label": None,
+                        "error": "choice is outside the supplied current tree step",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with teacher.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=("末级知识点", "打标解读（标绿的标签，新题不再打）", "大模型压缩+人工微调的释义"))
+                writer.writeheader()
+                writer.writerow({"末级知识点": LABEL, "打标解读（标绿的标签，新题不再打）": "同形转词性。", "大模型压缩+人工微调的释义": "同形转词性。"})
+
+            report = build_tree_candidate_review_packet(tasks, audit_index_path=audit, results_path=results, teacher_csv_path=teacher, output_path=output)
+            row = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(report["review_records"], 1)
+        self.assertEqual(row["tree_status"], "unparsed")
+        self.assertIsNone(row["tree_candidate_label"])
+        self.assertNotIn("error", row)
+
 
 if __name__ == "__main__":
     unittest.main()

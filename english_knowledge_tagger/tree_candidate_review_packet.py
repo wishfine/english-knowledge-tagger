@@ -9,7 +9,7 @@ from typing import Mapping
 from .knowledge_rulebook import load_knowledge_rulebook
 
 
-_STATUSES = frozenset({"tree_candidate", "uncovered", "budget_exhausted"})
+_STATUSES = frozenset({"tree_candidate", "uncovered", "budget_exhausted", "unparsed"})
 
 
 def _rows(path: Path, *, source: str) -> list[dict[str, object]]:
