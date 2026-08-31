@@ -403,11 +403,13 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 本轮不再先跑 target-specific 二分类器：用户明确要求直接验证“500 条无历史标签输入 → 根节点 tree”的整体效果。为避免 tree 重新改动已判定的 keep/remove，结果只做候选质量与覆盖率实验，不能直接生成 patch。
 
-#### C-500：500 条无历史标签根树实验（待运行）
+#### C-500：500 条无历史标签根树实验（已完成，待金标对照）
 
 `scripts/build_conversion_relation_packet.py` 先从 mentor 的 500 条完整记录生成脱敏题面；`scripts/build_unanchored_root_tree_packet.py` 再把每条题面送入 `知识点` 根节点，完全不携带 `output_all`、`llm_match`、`llm_should_be` 或历史转化法标签。树输出的单个 `tree_candidate`、`uncovered` 或 `budget_exhausted` 只用于实验。
 
-跑完后按 `question_id` 与 500 条网页 GPT 复核对照：对网页 GPT `keep`，检查 tree 是否返回转化法或至少覆盖主要考点；对 `remove`，检查 tree 是否给出派生/屈折/词汇替代或 `uncovered`；对 `uncertain`，单独统计其是否被 tree 强行细化。由于当前 tree 每题只输出一个候选，包含多个并行知识点的题只能评估“主要候选”，不能据此声称完整多标签重标完成。
+本轮已在两个 DS endpoint 各并发 5 完成 500 条：`478 tree_candidate (95.6%) / 9 budget_exhausted (1.8%) / 4 uncovered (0.8%) / 9 unparsed (1.8%)`，无 HTTP error；两端 wall time 分别为 `852.3s` 与 `835.6s`。`unparsed` 是协议解析失败，必须保持隔离，不能按 `uncovered` 或错误标签处理。
+
+下一步按 `question_id` 与 500 条网页 GPT 复核对照：对网页 GPT `keep`，检查 tree 是否返回转化法或至少覆盖主要考点；对 `remove`，检查 tree 是否给出派生/屈折/词汇替代或 `uncovered`；对 `uncertain`，单独统计其是否被 tree 强行细化。由于当前 tree 每题只输出一个候选，包含多个并行知识点的题只能评估“主要候选”，不能据此声称完整多标签重标完成。
 
 ##### Conv-Policy-1 的 DS v1 具体失效点
 
