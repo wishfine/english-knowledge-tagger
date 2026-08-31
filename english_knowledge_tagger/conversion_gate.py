@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 import time
 from typing import Any, Mapping
 
@@ -93,6 +94,12 @@ def _optional_bool(value: object, *, field: str) -> bool | None:
     return value
 
 
+def _form_key(value: str) -> str:
+    """Compare lexical forms while ignoring POS annotations and punctuation."""
+    without_pos = re.sub(r"\([^)]*\)", "", value)
+    return re.sub(r"[^a-z0-9]+", "", without_pos.lower())
+
+
 def _parse_response(raw: str) -> dict[str, Any]:
     try:
         payload = json.loads(_strip_fence(raw))
@@ -118,10 +125,18 @@ def _parse_response(raw: str) -> dict[str, Any]:
     depends = _optional_bool(
         payload.get("answer_depends_on_relation"), field="answer_depends_on_relation"
     )
-    if decision == "target_conversion" and not (form_unchanged and pos_changed and depends):
-        raise LabelingServiceError("target_conversion requires all three structural evidence fields to be true")
     if decision == "insufficient" and not any(value is None for value in (form_unchanged, pos_changed, depends)):
         raise LabelingServiceError("insufficient requires at least one unknown structural evidence field")
+    if decision == "target_conversion" and not (form_unchanged and pos_changed and depends):
+        raise LabelingServiceError("target_conversion requires all three structural evidence fields to be true")
+    if decision == "target_conversion":
+        source_keys = sorted(key for key in (_form_key(item) for item in source_forms) if key)
+        target_keys = sorted(key for key in (_form_key(item) for item in target_forms) if key)
+        if not source_keys or source_keys != target_keys:
+            decision = "insufficient"
+            confidence = "low"
+            form_unchanged = False
+            evidence = "结构字段不一致，无法确认源词和目标词词形完全相同。"
     return {
         "decision": str(decision),
         "confidence": str(confidence),

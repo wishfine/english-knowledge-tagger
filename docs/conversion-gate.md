@@ -25,6 +25,8 @@
 
 `target_conversion` 只有在后三个结构字段均为 `true` 时才接受；`insufficient` 至少有一个结构字段为 `null`。不符合契约的响应记录为 `error`，不会自动降级为其它标签。
 
+代码还会对 `source_forms` 和 `target_forms` 做确定性校验：去除词性括注和标点后，两组词形必须完全相同；若模型声称是转化法但两组词形不同，结果会被安全降为低置信度 `insufficient`，而不是相信模型的文字解释。
+
 ## 运行
 
 先用已有的 label-blind packet：

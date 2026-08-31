@@ -91,6 +91,39 @@ class ConversionGateTests(unittest.TestCase):
         with self.assertRaises(Exception):
             client.classify({"question_context": "direct → director"})
 
+    def test_client_downgrades_target_when_forms_are_not_identical(self):
+        def transport(endpoint, payload, timeout, headers):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "target_conversion",
+                                    "confidence": "high",
+                                    "source_forms": ["direct (adj.)"],
+                                    "target_forms": ["director (n.)"],
+                                    "form_unchanged": True,
+                                    "pos_or_function_changed": True,
+                                    "answer_depends_on_relation": True,
+                                    "evidence": "模型声称词形不变，但源词和目标词不同。",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = ConversionGateClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            transport=transport,
+        )
+        result = client.classify({"question_context": "direct → director"})
+        self.assertEqual(result.decision, "insufficient")
+        self.assertEqual(result.confidence, "low")
+        self.assertIn("结构字段不一致", result.evidence)
+
 
 if __name__ == "__main__":
     unittest.main()
