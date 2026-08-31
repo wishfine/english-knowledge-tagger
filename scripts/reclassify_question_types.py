@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sample legacy type categories and classify them with streamed DS responses."""
+"""Sample legacy type categories and discover candidate types with streamed DS responses."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ DEFAULT_ENDPOINTS = (
     "http://172.22.0.35:9102/v1/chat/completions",
     "http://172.22.0.35:9103/v1/chat/completions",
 )
-DEFAULT_PROMPT = PROJECT_ROOT / "configs" / "prompts" / "question-type-classifier-v1.txt"
+DEFAULT_PROMPT = PROJECT_ROOT / "configs" / "prompts" / "question-type-discovery-v1.txt"
 
 
 def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
@@ -98,7 +98,7 @@ def _classify_one(
             {
                 **base,
                 "status": "candidate",
-                "predicted_type_label": result.predicted_type_label,
+                **result.discovery,
                 "raw_response": result.raw_response,
                 "request_id": result.request_id,
                 "model": result.model,
@@ -110,7 +110,7 @@ def _classify_one(
             {
                 **base,
                 "status": "error",
-                "predicted_type_label": None,
+                "candidate_type_label": None,
                 "error": str(error),
             },
             "error",
@@ -152,6 +152,8 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error("--per-endpoint-concurrency must be between 1 and 64")
     if args.max_retries <= 0:
         parser.error("--max-retries must be positive")
+    if args.max_tokens <= 0:
+        parser.error("--max-tokens must be positive")
     if args.output.exists() and not args.resume:
         parser.error("result output already exists; use --resume to continue it")
     if args.report is not None and args.report.exists() and not args.resume:
@@ -184,7 +186,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
         counters: Counter[str] = Counter()
-        predicted_counts: Counter[str] = Counter()
+        candidate_type_counts: Counter[str] = Counter()
         total_workers = len(endpoints) * args.per_endpoint_concurrency
         max_pending = total_workers * 4
         mode = "a" if args.resume else "x"
@@ -210,7 +212,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                     output.flush()
                     counters[status] += 1
                     if status == "candidate":
-                        predicted_counts[output_row["predicted_type_label"]] += 1
+                        candidate_type_counts[output_row["candidate_type_label"]] += 1
 
             submitted = 0
             for packet_row in _packet_rows(args.input, limit=args.limit):
@@ -236,7 +238,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error(str(error))
 
     report = {
-        "schema_version": "question-type-reclassification-run-report-v1",
+        "schema_version": "question-type-discovery-run-report-v1",
         "input_path": str(args.input),
         "output_path": str(args.output),
         "prompt_path": str(args.prompt),
@@ -251,7 +253,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         "candidate": counters["candidate"],
         "error": counters["error"],
         "skipped_completed": counters["skipped_completed"],
-        "predicted_type_counts": dict(sorted(predicted_counts.items())),
+        "candidate_type_counts": dict(sorted(candidate_type_counts.items())),
     }
     _write_report(args.report, report)
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
@@ -269,7 +271,7 @@ def main() -> None:
     sample.add_argument("--seed", type=int, default=20260828)
     sample.set_defaults(func=sample_command)
 
-    run = subparsers.add_parser("run", help="classify one sampled packet with streamed SSE")
+    run = subparsers.add_parser("run", help="discover types for sampled packets with streamed SSE")
     run.add_argument("--input", type=Path, required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--report", type=Path)
@@ -278,7 +280,7 @@ def main() -> None:
     run.add_argument("--model", default="DeepSeek-V4-Flash")
     run.add_argument("--per-endpoint-concurrency", type=int, default=15)
     run.add_argument("--timeout-seconds", type=float, default=60.0)
-    run.add_argument("--max-tokens", type=int, default=128)
+    run.add_argument("--max-tokens", type=int, default=1024)
     run.add_argument("--max-retries", type=int, default=3)
     run.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
     run.add_argument("--limit", type=int)

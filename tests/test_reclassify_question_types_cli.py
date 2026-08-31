@@ -7,7 +7,34 @@ import tempfile
 import threading
 import unittest
 
-from english_knowledge_tagger.type_reclassification import SAMPLE_SCHEMA_VERSION
+from english_knowledge_tagger.type_reclassification import (
+    PROMPT_VERSION,
+    SAMPLE_SCHEMA_VERSION,
+)
+
+
+def discovery_payload():
+    return {
+        "candidate_type_label": "双提示单词拼写",
+        "label_target": "完整大题",
+        "input_modality": "文字",
+        "material_structure": "单句单空",
+        "prompt_support": "首字母和中文提示",
+        "core_operation": "根据双重提示拼写完整单词",
+        "response_form": "完整单词，受限生成",
+        "assessment_focus": "词汇拼写",
+        "solution_basis": "首字母、中文提示和句意",
+        "target_language_form": "单词",
+        "genre_or_product": "不适用",
+        "communicative_purpose": "不适用",
+        "content_focus": "不适用",
+        "task_constraints": ["填写一个完整单词"],
+        "additional_distinctions": [],
+        "naming_basis": "任务机制命名",
+        "information_sufficiency": "sufficient",
+        "confidence": 0.98,
+        "decision_evidence": ["空格同时提供首字母和中文提示"],
+    }
 
 
 def make_stream_handler(requests):
@@ -15,10 +42,12 @@ def make_stream_handler(requests):
         def do_POST(self):  # noqa: N802 - stdlib hook
             length = int(self.headers["Content-Length"])
             requests.append(json.loads(self.rfile.read(length)))
+            content = json.dumps(discovery_payload(), ensure_ascii=False)
+            split_at = len(content) // 2
             chunks = (
                 {"id": "chatcmpl-stream", "model": "DeepSeek-V4-Flash", "choices": [{"delta": {"role": "assistant"}}]},
-                {"id": "chatcmpl-stream", "model": "DeepSeek-V4-Flash", "choices": [{"delta": {"content": "题型@词句运用@"}}]},
-                {"id": "chatcmpl-stream", "model": "DeepSeek-V4-Flash", "choices": [{"delta": {"content": "单词拼写"}}]},
+                {"id": "chatcmpl-stream", "model": "DeepSeek-V4-Flash", "choices": [{"delta": {"content": content[:split_at]}}]},
+                {"id": "chatcmpl-stream", "model": "DeepSeek-V4-Flash", "choices": [{"delta": {"content": content[split_at:]}}]},
             )
             body = "".join(
                 f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n" for chunk in chunks
@@ -39,7 +68,7 @@ def make_stream_handler(requests):
 def sample_row(question_id):
     return {
         "schema_version": SAMPLE_SCHEMA_VERSION,
-        "review_id": f"question-type-classifier-v1:{question_id}:{question_id}",
+        "review_id": f"{PROMPT_VERSION}:{question_id}:{question_id}",
         "source_path": "source.jsonl",
         "source_line": question_id,
         "question_id": str(question_id),
@@ -113,12 +142,16 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 self.assertNotIn("题型名称为", content)
                 self.assertNotIn("旧 instruction", content)
             self.assertEqual(
-                {row["predicted_type_label"] for row in results},
-                {"题型@词句运用@单词拼写"},
+                {row["candidate_type_label"] for row in results},
+                {"双提示单词拼写"},
             )
+            self.assertTrue(all(row["label_target"] == "完整大题" for row in results))
+            self.assertTrue(all(len(row["decision_evidence"]) == 1 for row in results))
             self.assertEqual(report_payload["candidate"], 2)
+            self.assertEqual(report_payload["candidate_type_counts"], {"双提示单词拼写": 2})
             self.assertTrue(report_payload["stream"])
             self.assertEqual(report_payload["total_concurrency"], 2)
+            self.assertTrue(all(request["max_tokens"] == 1024 for request in first_requests + second_requests))
         finally:
             first.shutdown()
             first.server_close()

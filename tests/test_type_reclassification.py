@@ -7,12 +7,39 @@ from english_knowledge_tagger.type_reclassification import (
     SAMPLE_SCHEMA_VERSION,
     QuestionTypeClient,
     QuestionTypeServiceConfig,
+    QuestionTypeServiceError,
     StreamCompletion,
     build_question_type_prompt,
     build_type_reclassification_sample,
     clean_question_input,
     parse_question_type_response,
 )
+
+
+def discovery_payload(**overrides):
+    payload = {
+        "candidate_type_label": "阅读主旨选择题",
+        "label_target": "独立小题",
+        "input_modality": "文字",
+        "material_structure": "连续语篇后接一个选择小题",
+        "prompt_support": "四个选项",
+        "core_operation": "概括语篇主旨并选择答案",
+        "response_form": "选项编号，封闭选择",
+        "assessment_focus": "主旨概括",
+        "solution_basis": "整篇语篇的中心内容",
+        "target_language_form": "不适用",
+        "genre_or_product": "不适用",
+        "communicative_purpose": "不适用",
+        "content_focus": "不适用",
+        "task_constraints": [],
+        "additional_distinctions": [],
+        "naming_basis": "任务机制命名",
+        "information_sufficiency": "sufficient",
+        "confidence": 0.93,
+        "decision_evidence": ["根据语篇选择主旨"],
+    }
+    payload.update(overrides)
+    return payload
 
 
 class TypeReclassificationTests(unittest.TestCase):
@@ -79,7 +106,7 @@ class TypeReclassificationTests(unittest.TestCase):
             return StreamCompletion(
                 request_id="chatcmpl-1",
                 model="served-model",
-                content="题型@阅读理解@阅读选择",
+                content=json.dumps(discovery_payload(), ensure_ascii=False),
             )
 
         client = QuestionTypeClient(
@@ -96,14 +123,27 @@ class TypeReclassificationTests(unittest.TestCase):
         self.assertEqual(captured["payload"]["temperature"], 0)
         self.assertNotIn("题型结构为", captured["payload"]["messages"][0]["content"])
         self.assertNotIn("题型名称为", captured["payload"]["messages"][0]["content"])
-        self.assertEqual(result.predicted_type_label, "题型@阅读理解@阅读选择")
+        self.assertEqual(result.discovery["candidate_type_label"], "阅读主旨选择题")
         self.assertEqual(result.model, "served-model")
 
-    def test_parser_accepts_one_fenced_label(self):
-        self.assertEqual(
-            parse_question_type_response("```text\n题型@词句运用@单词拼写\n```"),
-            "题型@词句运用@单词拼写",
+    def test_parser_accepts_one_fenced_discovery_object(self):
+        payload = discovery_payload(candidate_type_label="双提示单词拼写")
+        parsed = parse_question_type_response(
+            "```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
         )
+
+        self.assertEqual(parsed["candidate_type_label"], "双提示单词拼写")
+        self.assertEqual(parsed["confidence"], 0.93)
+
+    def test_parser_rejects_incomplete_discovery_object(self):
+        with self.assertRaisesRegex(QuestionTypeServiceError, "fields mismatch"):
+            parse_question_type_response('{"candidate_type_label":"单词拼写"}')
+
+    def test_parser_rejects_invalid_enum(self):
+        payload = discovery_payload(label_target="一道题")
+
+        with self.assertRaisesRegex(QuestionTypeServiceError, "label_target"):
+            parse_question_type_response(json.dumps(payload, ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -15,10 +15,58 @@ from urllib.request import Request, urlopen
 from .sft_labels import parse_sft_output_labels
 
 
-PROMPT_VERSION = "question-type-classifier-v1"
+PROMPT_VERSION = "question-type-discovery-v1"
 SAMPLE_SCHEMA_VERSION = "question-type-reclassification-sample-v1"
-RESULT_SCHEMA_VERSION = "question-type-reclassification-result-v1"
+RESULT_SCHEMA_VERSION = "question-type-discovery-result-v1"
 _REMOVED_INPUT_PREFIXES = ("题型结构为：", "题型名称为：")
+
+DISCOVERY_FIELDS = (
+    "candidate_type_label",
+    "label_target",
+    "input_modality",
+    "material_structure",
+    "prompt_support",
+    "core_operation",
+    "response_form",
+    "assessment_focus",
+    "solution_basis",
+    "target_language_form",
+    "genre_or_product",
+    "communicative_purpose",
+    "content_focus",
+    "task_constraints",
+    "additional_distinctions",
+    "naming_basis",
+    "information_sufficiency",
+    "confidence",
+    "decision_evidence",
+)
+_STRING_FIELDS = (
+    "candidate_type_label",
+    "input_modality",
+    "material_structure",
+    "prompt_support",
+    "core_operation",
+    "response_form",
+    "assessment_focus",
+    "solution_basis",
+    "target_language_form",
+    "genre_or_product",
+    "communicative_purpose",
+    "content_focus",
+)
+_LIST_FIELDS = ("task_constraints", "additional_distinctions", "decision_evidence")
+_ALLOWED_ENUMS = {
+    "label_target": {
+        "完整大题",
+        "同机制题组",
+        "独立小题",
+        "多任务复合题",
+        "无法判断",
+    },
+    "naming_basis": {"通行题型名", "任务机制命名", "信息不足"},
+    "information_sufficiency": {"sufficient", "partial", "insufficient"},
+}
 
 
 class QuestionTypeServiceError(RuntimeError):
@@ -29,7 +77,7 @@ class QuestionTypeServiceError(RuntimeError):
 class QuestionTypeServiceConfig:
     endpoint: str
     model: str = "DeepSeek-V4-Flash"
-    max_tokens: int = 128
+    max_tokens: int = 1024
     temperature: float = 0.0
     timeout_seconds: float = 60.0
     api_key: str | None = None
@@ -44,7 +92,7 @@ class StreamCompletion:
 
 @dataclass(frozen=True)
 class QuestionTypeResult:
-    predicted_type_label: str
+    discovery: dict[str, Any]
     raw_response: str
     request_id: str | None
     model: str
@@ -75,23 +123,66 @@ def build_question_type_prompt(base_prompt: str, input_text: str) -> str:
     return f"{prompt}\n\n--------------------------------\n待判定题目信息\n--------------------------------\n\n{cleaned}"
 
 
-def parse_question_type_response(text: str) -> str:
-    """Parse the classifier's required single ``题型@...`` response."""
+def parse_question_type_response(text: str) -> dict[str, Any]:
+    """Parse and validate one open-ended question-type discovery object."""
     normalized = text.strip()
     if normalized.startswith("```") and normalized.endswith("```"):
         lines = normalized.splitlines()
         if len(lines) >= 3:
             normalized = "\n".join(lines[1:-1]).strip()
-    if (
-        not normalized.startswith("题型@")
-        or "\n" in normalized
-        or ";" in normalized
-        or "；" in normalized
-    ):
+    try:
+        payload = json.loads(normalized)
+    except json.JSONDecodeError as error:
         raise QuestionTypeServiceError(
-            "classifier response must contain exactly one hierarchical 题型@ label"
+            "discovery response must be one complete JSON object"
+        ) from error
+    if not isinstance(payload, dict):
+        raise QuestionTypeServiceError("discovery response must be a JSON object")
+    actual_fields = set(payload)
+    expected_fields = set(DISCOVERY_FIELDS)
+    if actual_fields != expected_fields:
+        missing = sorted(expected_fields - actual_fields)
+        extra = sorted(actual_fields - expected_fields)
+        raise QuestionTypeServiceError(
+            f"discovery response fields mismatch: missing={missing}, extra={extra}"
         )
-    return normalized
+    for field in _STRING_FIELDS:
+        value = payload[field]
+        if not isinstance(value, str) or not value.strip():
+            raise QuestionTypeServiceError(
+                f"discovery response field {field} must be a non-empty string"
+            )
+        payload[field] = value.strip()
+    candidate = payload["candidate_type_label"]
+    if "题型@" in candidate or "\n" in candidate:
+        raise QuestionTypeServiceError(
+            "candidate_type_label must be one flat label without 题型@ or newlines"
+        )
+    for field, allowed in _ALLOWED_ENUMS.items():
+        if payload[field] not in allowed:
+            raise QuestionTypeServiceError(
+                f"discovery response field {field} has an unsupported value"
+            )
+    for field in _LIST_FIELDS:
+        value = payload[field]
+        if not isinstance(value, list) or any(
+            not isinstance(item, str) or not item.strip() for item in value
+        ):
+            raise QuestionTypeServiceError(
+                f"discovery response field {field} must be a string array"
+            )
+        payload[field] = [item.strip() for item in value]
+    if not 1 <= len(payload["decision_evidence"]) <= 3:
+        raise QuestionTypeServiceError(
+            "decision_evidence must contain between 1 and 3 items"
+        )
+    confidence = payload["confidence"]
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        raise QuestionTypeServiceError("confidence must be a number")
+    if not 0 <= confidence <= 1:
+        raise QuestionTypeServiceError("confidence must be between 0 and 1")
+    payload["confidence"] = float(confidence)
+    return payload
 
 
 def _stream_http_transport(
@@ -207,9 +298,9 @@ class QuestionTypeClient:
                     self._config.timeout_seconds,
                     headers,
                 )
-                predicted = parse_question_type_response(completion.content)
+                discovery = parse_question_type_response(completion.content)
                 return QuestionTypeResult(
-                    predicted_type_label=predicted,
+                    discovery=discovery,
                     raw_response=completion.content,
                     request_id=completion.request_id,
                     model=completion.model or self._config.model,
