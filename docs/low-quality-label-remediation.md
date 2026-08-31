@@ -409,6 +409,10 @@ T1.1 复用 T1 基线，从 60 条中固定筛取 `8 candidate_incorrect + 1 hol
 
 本轮已在两个 DS endpoint 各并发 5 完成 500 条：`478 tree_candidate (95.6%) / 9 budget_exhausted (1.8%) / 4 uncovered (0.8%) / 9 unparsed (1.8%)`，无 HTTP error；两端 wall time 分别为 `852.3s` 与 `835.6s`。`unparsed` 是协议解析失败，必须保持隔离，不能按 `uncovered` 或错误标签处理。
 
+候选叶子分布显示：`词汇（音/形/义）`四个子类合计 214 条（名词 126、动词 50、形容词 28、副词 10），`固定搭配/句型` 56 条，`派生法` 54 条，`转化法` 36 条；其余候选均为长尾叶子。与网页 GPT 500 条复核的 20 条 keep（其中纯 conversion 7 条、mixed 13 条）相比，tree 的 `转化法` 候选存在过预测风险，必须按 `question_id` 做金标对照，不能仅按候选名称计数放行。
+
+9 条 `unparsed` 的具体原因包括：候选覆盖不足时仍返回具体路径、重复 JSON key 导致 `Extra data`、以及模型返回当前层之外的深层路径。它们均保持 hold；这批结果不应通过放宽解析器“修成”候选，因为那会掩盖 tree 候选池/提示词的真实缺口。
+
 下一步按 `question_id` 与 500 条网页 GPT 复核对照：对网页 GPT `keep`，检查 tree 是否返回转化法或至少覆盖主要考点；对 `remove`，检查 tree 是否给出派生/屈折/词汇替代或 `uncovered`；对 `uncertain`，单独统计其是否被 tree 强行细化。由于当前 tree 每题只输出一个候选，包含多个并行知识点的题只能评估“主要候选”，不能据此声称完整多标签重标完成。
 
 ##### Conv-Policy-1 的 DS v1 具体失效点
