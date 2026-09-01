@@ -55,6 +55,7 @@ def _evidence_row(
     model: str,
     prompt_version: str,
     definition_overrides: str | None,
+    enable_thinking: bool | None,
     result: Any | None = None,
     error: Exception | None = None,
 ) -> dict[str, Any]:
@@ -69,6 +70,7 @@ def _evidence_row(
         "model": model,
         "prompt_version": prompt_version,
         "definition_overrides": definition_overrides,
+        "enable_thinking": enable_thinking,
     }
     if error is not None:
         row.update({"status": "error", "error": str(error)})
@@ -112,6 +114,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--concurrency", type=int, default=10)
     parser.add_argument("--timeout-seconds", type=float, default=180.0)
+    parser.add_argument(
+        "--enable-thinking",
+        choices=("true", "false"),
+        default=None,
+        help="Explicitly set the model chat-template thinking mode; omit to use the server default.",
+    )
     parser.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
     args = parser.parse_args()
 
@@ -138,6 +146,9 @@ def main() -> None:
     target_definition: str | None = None
     prompt_version = PROMPT_VERSION
     definition_overrides: str | None = None
+    enable_thinking = (
+        None if args.enable_thinking is None else args.enable_thinking == "true"
+    )
     if args.definition_overrides is not None:
         try:
             rulebook = load_knowledge_rulebook(
@@ -164,6 +175,7 @@ def main() -> None:
             ),
             target_definition=target_definition,
             prompt_version=prompt_version,
+            enable_thinking=enable_thinking,
         )
         for endpoint in endpoints
     ]
@@ -180,6 +192,7 @@ def main() -> None:
                 model=args.model,
                 prompt_version=prompt_version,
                 definition_overrides=definition_overrides,
+                enable_thinking=enable_thinking,
                 result=result,
             )
         except (LabelingServiceError, ValueError) as error:
@@ -189,6 +202,7 @@ def main() -> None:
                 model=args.model,
                 prompt_version=prompt_version,
                 definition_overrides=definition_overrides,
+                enable_thinking=enable_thinking,
                 error=error,
             )
 
@@ -215,6 +229,7 @@ def main() -> None:
         "endpoints": endpoints,
         "prompt_version": prompt_version,
         "definition_overrides": definition_overrides,
+        "enable_thinking": enable_thinking,
         "teacher_csv": str(args.teacher_csv) if args.definition_overrides is not None else None,
         "concurrency": args.concurrency,
         "processed": len(results),

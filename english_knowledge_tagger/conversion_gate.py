@@ -166,6 +166,7 @@ class ConversionGateClient:
         *,
         target_definition: str | None = None,
         prompt_version: str = PROMPT_VERSION,
+        enable_thinking: bool | None = None,
         transport: Transport | None = None,
     ):
         if not config.endpoint:
@@ -177,6 +178,7 @@ class ConversionGateClient:
         self._config = config
         self._target_definition = target_definition.strip() if target_definition is not None else None
         self._prompt_version = prompt_version.strip()
+        self._enable_thinking = enable_thinking
         self._transport = transport or _http_transport
 
     @property
@@ -196,6 +198,11 @@ class ConversionGateClient:
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": self._config.max_tokens,
                 "temperature": 0.0,
+                **(
+                    {"chat_template_kwargs": {"enable_thinking": self._enable_thinking}}
+                    if self._enable_thinking is not None
+                    else {}
+                ),
             },
             self._config.timeout_seconds,
             headers,

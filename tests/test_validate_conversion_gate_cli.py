@@ -135,6 +135,8 @@ class ValidateConversionGateCliTests(unittest.TestCase):
                         "1",
                         "--concurrency",
                         "1",
+                        "--enable-thinking",
+                        "true",
                     ],
                     check=False,
                     capture_output=True,
@@ -147,7 +149,12 @@ class ValidateConversionGateCliTests(unittest.TestCase):
                 self.assertIn("覆盖层定义。", _Handler.requests[0]["messages"][0]["content"])
                 self.assertEqual(evidence["prompt_version"], "conversion-gate-v1-overrides")
                 self.assertEqual(evidence["definition_overrides"], str(overrides))
+                self.assertEqual(evidence["enable_thinking"], True)
                 self.assertEqual(report_payload["definition_overrides"], str(overrides))
+                self.assertEqual(report_payload["enable_thinking"], True)
+                self.assertEqual(
+                    _Handler.requests[0]["chat_template_kwargs"], {"enable_thinking": True}
+                )
         finally:
             server.shutdown()
             server.server_close()

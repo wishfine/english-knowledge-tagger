@@ -73,6 +73,79 @@ class ConversionGateTests(unittest.TestCase):
         self.assertEqual(result.target_forms, ("plant",))
         self.assertEqual(captured["payload"]["temperature"], 0.0)
 
+    def test_client_can_explicitly_enable_thinking(self):
+        captured = {}
+
+        def transport(endpoint, payload, timeout, headers):
+            captured["payload"] = payload
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "non_target",
+                                    "confidence": "high",
+                                    "source_forms": ["direct"],
+                                    "target_forms": ["director"],
+                                    "form_unchanged": False,
+                                    "pos_or_function_changed": True,
+                                    "answer_depends_on_relation": True,
+                                    "evidence": "词形发生变化。",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = ConversionGateClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            enable_thinking=True,
+            transport=transport,
+        )
+        client.classify({"question_context": "direct → director"})
+
+        self.assertEqual(
+            captured["payload"]["chat_template_kwargs"], {"enable_thinking": True}
+        )
+
+    def test_client_omits_thinking_override_when_unspecified(self):
+        captured = {}
+
+        def transport(endpoint, payload, timeout, headers):
+            captured["payload"] = payload
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "non_target",
+                                    "confidence": "high",
+                                    "source_forms": ["direct"],
+                                    "target_forms": ["director"],
+                                    "form_unchanged": False,
+                                    "pos_or_function_changed": True,
+                                    "answer_depends_on_relation": True,
+                                    "evidence": "词形发生变化。",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = ConversionGateClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            transport=transport,
+        )
+        client.classify({"question_context": "direct → director"})
+
+        self.assertNotIn("chat_template_kwargs", captured["payload"])
+
     def test_client_exposes_override_prompt_version(self):
         def transport(endpoint, payload, timeout, headers):
             return {
