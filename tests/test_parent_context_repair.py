@@ -237,6 +237,75 @@ class ParentContextRepairTests(unittest.TestCase):
             self.assertIn("已有父题上下文", rows[1]["input"])
             self.assertEqual(rows[2]["input"], "缺失父题")
 
+    def test_existing_v2_parent_material_is_not_appended_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = root / "raw.jsonl"
+            enhanced = root / "enhanced.jsonl"
+            index = root / "index.sqlite3"
+            output = root / "repaired.jsonl"
+            audit = root / "audit.jsonl"
+            report = root / "report.json"
+            manifest = root / "manifest.json"
+
+            parent_stem = "This is a sufficiently distinctive parent passage for deduplication."
+            raw.write_text(
+                json.dumps(
+                    {
+                        "question_id": "p1",
+                        "parent_id": "p1",
+                        "stem": parent_stem,
+                        "sub_questions": [
+                            {
+                                "question_id": "c1",
+                                "parent_id": "p1",
+                                "stem": "Child",
+                                "options": "",
+                                "analysis": "",
+                                "answer": "A",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            enhanced.write_text(
+                json.dumps(
+                    {
+                        "input": (
+                            "题型结构为：复合题\n题型名称为：语法填空\n"
+                            f"题目大题题干：{parent_stem}\n"
+                            "当前小题解析：选择。"
+                        ),
+                        "output": "知识点@child",
+                        "question_id": "c1",
+                        "parent_id": "p1",
+                        "is_sub_question": True,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            build_raw_index(raw, index)
+            result = enrich_enhanced_source(
+                enhanced,
+                index,
+                output,
+                audit,
+                report,
+                manifest,
+                source_sha256="enhanced-sha",
+                raw_sha256="raw-sha",
+            )
+
+            self.assertEqual(result["status_counts"], {"already_present": 1})
+            repaired = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(repaired["input"].count(parent_stem), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

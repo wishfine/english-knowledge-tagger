@@ -6,12 +6,13 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 from typing import Any, Iterable, Mapping
 
 
 INDEX_SCHEMA_VERSION = "parent-context-index-v1"
-REPAIR_SCHEMA_VERSION = "parent-context-repair-v1"
+REPAIR_SCHEMA_VERSION = "parent-context-repair-v2"
 _HEADER_PREFIXES = (
     "题型结构为：",
     "题型名称为：",
@@ -73,6 +74,36 @@ def insert_parent_context(input_text: str, parent_context: str) -> str:
     if suffix:
         rendered.extend(("", *suffix))
     return "\n".join(rendered)
+
+
+def _normalise_for_containment(value: str) -> str:
+    return re.sub(r"\s+", "", value)
+
+
+def _parent_text_fragments(parent_context: str) -> tuple[str, ...]:
+    body = parent_context.removeprefix("父题上下文：\n")
+    fragments: list[str] = []
+    for marker in ("大题材料：\n", "大题补充信息：\n"):
+        if marker in body:
+            value = body.split(marker, 1)[1]
+            for other in ("\n\n大题材料：\n", "\n\n大题补充信息：\n"):
+                value = value.split(other, 1)[0]
+            if value.strip():
+                fragments.append(value.strip())
+    if body.strip() and not fragments:
+        fragments.append(body.strip())
+    return tuple(fragments)
+
+
+def _context_present(input_text: str, parent_context: str) -> bool:
+    if parent_context in input_text:
+        return True
+    normalised_input = _normalise_for_containment(input_text)
+    for fragment in _parent_text_fragments(parent_context):
+        normalised_fragment = _normalise_for_containment(fragment)
+        if normalised_fragment and normalised_fragment in normalised_input:
+            return True
+    return False
 
 
 def _create_index(connection: sqlite3.Connection) -> None:
@@ -293,8 +324,7 @@ def enrich_enhanced_source(
                         else:
                             raw_child_source_line = child_matches[0][0]
                             parent_source_line, parent_context, parent_context_hash = contexts[0]
-                            body = parent_context.removeprefix("父题上下文：\n")
-                            if parent_context in input_value or body in input_value:
+                            if _context_present(input_value, parent_context):
                                 status = "already_present"
                             else:
                                 new_input = insert_parent_context(input_value, parent_context)
