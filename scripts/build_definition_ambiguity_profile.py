@@ -112,8 +112,12 @@ def main() -> None:
             args.teacher_csv, overrides_path=args.definition_overrides
         )
         migration = load_knowledge_taxonomy_migration(args.taxonomy_migration)
+        mentor_diagnostics: dict[str, object] = {}
         yields = summarize_mentor_results(
-            args.mentor_results, migration=migration, rulebook=rulebook
+            args.mentor_results,
+            migration=migration,
+            rulebook=rulebook,
+            diagnostics=mentor_diagnostics,
         )
         manifest = build_definition_ambiguity_manifest(
             rulebook,
@@ -124,6 +128,7 @@ def main() -> None:
                 migration=migration,
                 rulebook=rulebook,
             ),
+            mentor_result_diagnostics=mentor_diagnostics,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -18,6 +18,67 @@ from english_knowledge_tagger.knowledge_taxonomy_migration import (
 
 
 class DefinitionAmbiguityProfileTests(unittest.TestCase):
+    def test_mentor_summary_quarantines_out_of_scope_and_unknown_labels(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            teacher = root / "teacher.csv"
+            with teacher.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=(
+                        "末级知识点",
+                        "打标解读（标绿的标签，新题不再打）",
+                        "大模型压缩+人工微调的释义",
+                    ),
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "末级知识点": "知识点->词汇->构词法->转化法",
+                        "打标解读（标绿的标签，新题不再打）": "同形词性变化。",
+                        "大模型压缩+人工微调的释义": "词形不变且词性变化。",
+                    }
+                )
+            results = root / "results.jsonl"
+            rows = [
+                {
+                    "verify_label": "知识点@词汇@构词法@转化法",
+                    "question_id": "q1",
+                    "llm_match": True,
+                    "llm_should_be": "正确",
+                },
+                {
+                    "verify_label": "知识点@语法词法@动词@情态动词@(don't/doesn't/didn't) have to",
+                    "question_id": "q2",
+                    "llm_match": False,
+                    "llm_should_be": "正确",
+                },
+                {
+                    "verify_label": "题型@听力理解@听力判断@听句子或对话判断",
+                    "question_id": "q3",
+                    "llm_match": True,
+                    "llm_should_be": "正确",
+                },
+            ]
+            results.write_text(
+                "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+                encoding="utf-8",
+            )
+            rulebook = load_knowledge_rulebook(teacher)
+            diagnostics = {}
+            yields = summarize_mentor_results(
+                results,
+                migration=KnowledgeTaxonomyMigration(aliases=()),
+                rulebook=rulebook,
+                diagnostics=diagnostics,
+            )
+            self.assertEqual(yields["知识点->词汇->构词法->转化法"]["sample_size"], 1)
+            self.assertEqual(diagnostics["records_seen"], 3)
+            self.assertEqual(diagnostics["knowledge_records"], 2)
+            self.assertEqual(diagnostics["out_of_scope_records"], 1)
+            self.assertEqual(diagnostics["unknown_knowledge_records"], 1)
+            self.assertEqual(len(diagnostics["unknown_knowledge_labels"]), 1)
+
     def test_builds_label_flags_yields_siblings_and_confusion_neighbors(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

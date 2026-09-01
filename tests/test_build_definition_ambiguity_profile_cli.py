@@ -118,6 +118,10 @@ class BuildDefinitionAmbiguityProfileCliTests(unittest.TestCase):
             payload = json.loads(output_json.read_text(encoding="utf-8"))
             report_payload = json.loads(report.read_text(encoding="utf-8"))
             self.assertEqual(payload["summary"]["knowledge_labels"], 1)
+            self.assertEqual(
+                payload["summary"]["mentor_result_diagnostics"]["knowledge_records"],
+                1,
+            )
             self.assertEqual(report_payload, payload["summary"])
             with output_csv.open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))

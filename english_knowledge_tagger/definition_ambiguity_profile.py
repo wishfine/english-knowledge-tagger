@@ -97,28 +97,46 @@ def summarize_mentor_results(
     *,
     migration: KnowledgeTaxonomyMigration,
     rulebook: KnowledgeRulebook,
+    diagnostics: dict[str, object] | None = None,
 ) -> Mapping[str, Mapping[str, object]]:
-    """Aggregate mentor match yield and explicit replacement suggestions by label."""
+    """Aggregate knowledge-label mentor yield and quarantine other scopes."""
     counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
     confusions: defaultdict[str, Counter[str]] = defaultdict(Counter)
     seen: set[tuple[str, str]] = set()
+    unknown_labels: Counter[tuple[str, str]] = Counter()
+    unknown_first_lines: dict[tuple[str, str], int] = {}
+    records_seen = 0
+    knowledge_records = 0
+    out_of_scope_records = 0
     with path.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, 1):
             if not line.strip():
                 continue
+            records_seen += 1
             try:
                 row = json.loads(line)
             except json.JSONDecodeError as error:
                 raise ValueError(f"mentor results line {line_number}: invalid JSON") from error
             if not isinstance(row, Mapping):
                 raise ValueError(f"mentor results line {line_number}: row must be an object")
+            raw_verify_label = row.get("verify_label")
+            if not isinstance(raw_verify_label, str) or not raw_verify_label.strip():
+                raise ValueError(
+                    f"mentor results line {line_number}: verify_label must be non-empty"
+                )
+            raw_verify_label = raw_verify_label.strip()
+            if not raw_verify_label.startswith("知识点@"):
+                out_of_scope_records += 1
+                continue
+            knowledge_records += 1
             canonical = _canonicalize_rendered_label(
-                row.get("verify_label"), migration=migration
+                raw_verify_label, migration=migration
             )
             if canonical not in rulebook.records:
-                raise ValueError(
-                    f"mentor results line {line_number}: label absent from teacher rulebook"
-                )
+                key = (raw_verify_label, canonical)
+                unknown_labels[key] += 1
+                unknown_first_lines.setdefault(key, line_number)
+                continue
             question_id = row.get("question_id")
             if not isinstance(question_id, str) or not question_id.strip():
                 raise ValueError(
@@ -142,6 +160,25 @@ def summarize_mentor_results(
                 record = rulebook.records.get(candidate)
                 if candidate != canonical and record is not None and record.status == "active":
                     confusions[canonical][candidate] += 1
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update(
+            {
+                "records_seen": records_seen,
+                "knowledge_records": knowledge_records,
+                "out_of_scope_records": out_of_scope_records,
+                "unknown_knowledge_records": sum(unknown_labels.values()),
+                "unknown_knowledge_labels": [
+                    {
+                        "verify_label": raw,
+                        "canonical_after_migration": canonical,
+                        "count": count,
+                        "first_line": unknown_first_lines[(raw, canonical)],
+                    }
+                    for (raw, canonical), count in unknown_labels.most_common()
+                ],
+            }
+        )
     result: dict[str, Mapping[str, object]] = {}
     for canonical, counter in counts.items():
         sample_size = counter["sample_size"]
@@ -405,6 +442,7 @@ def build_definition_ambiguity_manifest(
     yields: Mapping[str, Mapping[str, object]],
     p0_labels: frozenset[str],
     additional_confusions: Mapping[str, Mapping[str, int]] | None = None,
+    mentor_result_diagnostics: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Build the complete non-releasing ambiguity profile."""
     missing_p0 = sorted(p0_labels - set(rulebook.records))
@@ -490,6 +528,8 @@ def build_definition_ambiguity_manifest(
         "ambiguity_concentration_definition": "audit_family_or_explicit_high_risk_flag",
         **stats,
     }
+    if mentor_result_diagnostics is not None:
+        summary["mentor_result_diagnostics"] = dict(mentor_result_diagnostics)
     return {
         "schema_version": SCHEMA_VERSION,
         "purpose": "non_releasing_definition_ambiguity_experiment",

@@ -53,6 +53,8 @@ python3 scripts/build_definition_ambiguity_profile.py \
 
 输出包括 mentor yield、P0、override、文本风险、审计歧义家族、直接兄弟数、定义长度和混淆邻居。`summary.json` 给出 Fisher exact、odds ratio 和 Spearman 相关；只用于排优先级。
 
+mentor 的全量 `verification_results.jsonl` 可能同时包含 `知识点@...` 和 `题型@...` 结果。E0 只把 `知识点@...` 纳入 386 个知识点统计；题型等其他 scope 会记录在 `summary.mentor_result_diagnostics.out_of_scope_records`。经过 migration 仍不在老师 CSV 中的历史知识点会进入 `unknown_knowledge_labels` 隔离清单，不参与当前标签的分母，也不会让整轮画像失败。
+
 ## 3. 离线准备 21 个标签
 
 ```bash
