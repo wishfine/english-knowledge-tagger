@@ -340,8 +340,9 @@ def build_type_reclassification_sample(
     per_type: int = 1000,
     seed: int = 20260828,
 ) -> dict[str, Any]:
-    """Select up to ``per_type`` rows for every exact rendered type label.
+    """Select major questions for every exact rendered type label.
 
+    Only records whose ``is_sub_question`` value is exactly ``False`` are eligible.
     Sampling is stable and bounded in memory. Records selected by more than one
     label are materialized once and retain all sampled strata in the packet.
     """
@@ -357,6 +358,7 @@ def build_type_reclassification_sample(
         for source_line, line in enumerate(source, 1):
             if not line.strip():
                 continue
+            processed["source_records"] += 1
             try:
                 record = json.loads(line)
             except json.JSONDecodeError:
@@ -366,10 +368,19 @@ def build_type_reclassification_sample(
                 processed["non_object_records"] += 1
                 continue
             processed["valid_records"] += 1
+            is_sub_question = record.get("is_sub_question")
+            if is_sub_question is True:
+                processed["skipped_sub_question_records"] += 1
+                continue
+            if is_sub_question is not False:
+                processed["invalid_is_sub_question_records"] += 1
+                continue
+            processed["major_question_records"] += 1
             labels = _type_labels(record)
             if not labels:
                 processed["records_without_type_labels"] += 1
                 continue
+            processed["records_with_type_labels"] += 1
             question_id = _identifier(record.get("question_id"))
             stable_identifier = question_id or f"source-line:{source_line}"
             for label in labels:
@@ -403,6 +414,10 @@ def build_type_reclassification_sample(
                 raise ValueError(
                     f"source line {source_line} changed between sample passes"
                 )
+            if record.get("is_sub_question") is not False:
+                raise ValueError(
+                    f"source line {source_line} is no longer a major question"
+                )
             question_id = _identifier(record.get("question_id"))
             packet_row = {
                 "schema_version": SAMPLE_SCHEMA_VERSION,
@@ -429,7 +444,20 @@ def build_type_reclassification_sample(
         "output_path": str(output_path),
         "per_type": per_type,
         "seed": seed,
-        "processed_records": dict(processed),
+        "processed_records": {
+            key: processed[key]
+            for key in (
+                "source_records",
+                "invalid_json_lines",
+                "non_object_records",
+                "valid_records",
+                "major_question_records",
+                "skipped_sub_question_records",
+                "invalid_is_sub_question_records",
+                "records_with_type_labels",
+                "records_without_type_labels",
+            )
+        },
         "type_category_count": len(label_counts),
         "type_category_source_counts": dict(sorted(label_counts.items())),
         "type_category_sample_counts": {

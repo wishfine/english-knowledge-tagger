@@ -74,7 +74,7 @@ class TypeReclassificationTests(unittest.TestCase):
                     "is_sub_question": False,
                     "instruction": "旧 instruction",
                     "input": f"题目题干：question {index}",
-                    "output": f"{label_a};{label_b}",
+                    "output": f"知识点@词汇@固定搭配;{label_a};{label_b}",
                 }
                 for index in range(4)
             ]
@@ -95,6 +95,71 @@ class TypeReclassificationTests(unittest.TestCase):
         self.assertLess(report["unique_sample_records"], 6)
         self.assertEqual(len({row["source_line"] for row in sampled}), len(sampled))
         self.assertTrue(all(row["schema_version"] == SAMPLE_SCHEMA_VERSION for row in sampled))
+        self.assertTrue(
+            all(row["current_type_labels"] == [label_a, label_b] for row in sampled)
+        )
+
+    def test_sample_only_includes_major_questions_with_type_labels(self):
+        type_label = "题型@阅读理解@阅读选择"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            source = directory / "source.jsonl"
+            rows = [
+                {
+                    "question_id": "major-with-type",
+                    "is_sub_question": False,
+                    "input": "题目题干：major question",
+                    "output": f"知识点@语篇主题@人与社会;{type_label}",
+                },
+                {
+                    "question_id": "major-knowledge-only",
+                    "is_sub_question": False,
+                    "input": "题目题干：knowledge only",
+                    "output": "知识点@词汇@固定搭配",
+                },
+                {
+                    "question_id": "sub-question",
+                    "is_sub_question": True,
+                    "input": "当前小题题干：sub question",
+                    "output": type_label,
+                },
+                {
+                    "question_id": "missing-flag",
+                    "input": "题目题干：missing flag",
+                    "output": type_label,
+                },
+            ]
+            source.write_text(
+                "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+                encoding="utf-8",
+            )
+            output = directory / "sample.jsonl"
+
+            report = build_type_reclassification_sample(
+                source, output_path=output, per_type=1000, seed=7
+            )
+            sampled = [
+                json.loads(line)
+                for line in output.read_text(encoding="utf-8").splitlines()
+            ]
+
+        self.assertEqual([row["question_id"] for row in sampled], ["major-with-type"])
+        self.assertEqual(report["type_category_source_counts"], {type_label: 1})
+        self.assertEqual(report["type_category_sample_counts"], {type_label: 1})
+        self.assertEqual(
+            report["processed_records"],
+            {
+                "source_records": 4,
+                "invalid_json_lines": 0,
+                "non_object_records": 0,
+                "valid_records": 4,
+                "major_question_records": 2,
+                "skipped_sub_question_records": 1,
+                "invalid_is_sub_question_records": 1,
+                "records_with_type_labels": 1,
+                "records_without_type_labels": 1,
+            },
+        )
 
     def test_client_requests_streaming_and_parses_delta_content(self):
         captured = {}

@@ -263,7 +263,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    sample = subparsers.add_parser("sample", help="sample up to N rows per current type label")
+    sample = subparsers.add_parser(
+        "sample", help="sample up to N major questions per current type label"
+    )
     sample.add_argument("--input", type=Path, required=True)
     sample.add_argument("--output", type=Path, required=True)
     sample.add_argument("--report", type=Path, required=True)
