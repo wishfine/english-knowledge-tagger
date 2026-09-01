@@ -9,6 +9,14 @@ from english_knowledge_tagger.conversion_gate import (
 
 
 class ConversionGateTests(unittest.TestCase):
+    def test_prompt_can_use_a_versioned_target_definition_override(self):
+        prompt = build_conversion_gate_prompt(
+            {"question_context": "题干：plant(v.) → plant(n.)。"},
+            target_definition="覆盖层转化法：词形完全不变且答案依赖词性转换。",
+        )
+        self.assertIn("覆盖层转化法", prompt)
+        self.assertNotIn("例如：plant(v.) → plant(n.)", prompt)
+
     def test_prompt_requires_target_non_target_or_insufficient(self):
         prompt = build_conversion_gate_prompt(
             {"question_context": "题干：plant(v.) → plant(n.)，词形不变。"}
@@ -64,6 +72,41 @@ class ConversionGateTests(unittest.TestCase):
         self.assertEqual(result.source_forms, ("plant",))
         self.assertEqual(result.target_forms, ("plant",))
         self.assertEqual(captured["payload"]["temperature"], 0.0)
+
+    def test_client_exposes_override_prompt_version(self):
+        def transport(endpoint, payload, timeout, headers):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "non_target",
+                                    "confidence": "high",
+                                    "source_forms": ["direct"],
+                                    "target_forms": ["director"],
+                                    "form_unchanged": False,
+                                    "pos_or_function_changed": True,
+                                    "answer_depends_on_relation": True,
+                                    "evidence": "词形发生变化。",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = ConversionGateClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            target_definition="覆盖层定义。",
+            prompt_version="conversion-gate-v1-definition-override-v01",
+            transport=transport,
+        )
+        result = client.classify({"question_context": "direct → director"})
+
+        self.assertEqual(result.decision, "non_target")
+        self.assertEqual(client.prompt_version, "conversion-gate-v1-definition-override-v01")
 
     def test_client_rejects_missing_structural_fields(self):
         def transport(endpoint, payload, timeout, headers):

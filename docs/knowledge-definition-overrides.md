@@ -85,6 +85,45 @@ python3 scripts/analyze_knowledge_definition_ablation.py \
 
 `summary.json` 只回答“覆盖释义是否改变 DS 的路径/耗时”，不回答哪一个结果是真值。候选发生变化的题目还要交给网页 GPT 或人工复核；出现 `unparsed`、`budget_exhausted`、`uncovered` 的题目统一保留为 hold，不自动替换标签。
 
+## 转化法标签判别器实验
+
+如果实验目标是只判断“当前题目是否属于转化法”，应使用标签无关的 conversion gate，而不是 root tree。gate 不接收历史标签，只接收题干、答案和解析；通过 `--definition-overrides` 时，仅把覆盖层中的转化法释义替换进 prompt，其它九个覆盖不会进入该判别器。
+
+```bash
+export GATE_PACKET="/path/to/conversion-packet-500.jsonl"
+export GATE_RUN="/path/to/runtime/conversion-gate-definition-ablation-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$GATE_RUN"
+
+# A：原始转化法释义
+python3 scripts/validate_conversion_gate.py \
+  --input "$GATE_PACKET" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --output "$GATE_RUN/baseline.jsonl" \
+  --report "$GATE_RUN/baseline.report.json" \
+  --endpoint http://172.22.0.35:9102/v1/chat/completions \
+  --endpoint http://172.22.0.35:9103/v1/chat/completions \
+  --model DeepSeek-V4-Flash \
+  --limit 500 \
+  --concurrency 10 \
+  --timeout-seconds 180
+
+# B：只替换转化法定义
+python3 scripts/validate_conversion_gate.py \
+  --input "$GATE_PACKET" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --definition-overrides configs/knowledge_definition_overrides/knowledge-definition-overrides-v0.1.json \
+  --output "$GATE_RUN/override.jsonl" \
+  --report "$GATE_RUN/override.report.json" \
+  --endpoint http://172.22.0.35:9102/v1/chat/completions \
+  --endpoint http://172.22.0.35:9103/v1/chat/completions \
+  --model DeepSeek-V4-Flash \
+  --limit 500 \
+  --concurrency 10 \
+  --timeout-seconds 180
+```
+
+判别器实验至少重复 3 次 baseline 和 3 次 override 后再谈“稳定”。一次 A/B 只用于发现变化；`decision` 改变的题目要按 `conversion / derivation / inflection / lexical_or_other / insufficient` 分层复核。
+
 ## 覆盖层格式
 
 每条覆盖至少包含：

@@ -18,10 +18,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from english_knowledge_tagger.candidate_labeling import LabelingServiceConfig, LabelingServiceError
 from english_knowledge_tagger.conversion_gate import ConversionGateClient, PROMPT_VERSION
+from english_knowledge_tagger.knowledge_rulebook import load_knowledge_rulebook
 
 
 DEFAULT_ENDPOINT = "http://172.22.0.35:9102/v1/chat/completions"
 PACKET_SCHEMA_VERSION = "conversion-relation-packet-v1"
+CONVERSION_LABEL = "知识点->词汇->构词法->转化法"
 
 
 def _load_rows(path: Path, *, limit: int | None) -> list[dict[str, Any]]:
@@ -51,6 +53,8 @@ def _evidence_row(
     *,
     endpoint: str,
     model: str,
+    prompt_version: str,
+    definition_overrides: str | None,
     result: Any | None = None,
     error: Exception | None = None,
 ) -> dict[str, Any]:
@@ -63,7 +67,8 @@ def _evidence_row(
         "route_key": task.get("route_key"),
         "endpoint": endpoint,
         "model": model,
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": prompt_version,
+        "definition_overrides": definition_overrides,
     }
     if error is not None:
         row.update({"status": "error", "error": str(error)})
@@ -90,6 +95,16 @@ def _evidence_row(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument(
+        "--teacher-csv",
+        type=Path,
+        default=Path("data/rulebooks/初中英语知识点题型方法释义.csv"),
+    )
+    parser.add_argument(
+        "--definition-overrides",
+        type=Path,
+        help="Optional versioned definition overlay; only the conversion definition is used.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--endpoint", action="append")
@@ -120,6 +135,25 @@ def main() -> None:
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
+    target_definition: str | None = None
+    prompt_version = PROMPT_VERSION
+    definition_overrides: str | None = None
+    if args.definition_overrides is not None:
+        try:
+            rulebook = load_knowledge_rulebook(
+                args.teacher_csv, overrides_path=args.definition_overrides
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        conversion_record = rulebook.records.get(CONVERSION_LABEL)
+        if conversion_record is None or conversion_record.definition_override is None:
+            parser.error(
+                f"definition overrides must include an active override for {CONVERSION_LABEL}"
+            )
+        target_definition = conversion_record.alternative_definition
+        prompt_version = f"{PROMPT_VERSION}-{args.definition_overrides.stem}"
+        definition_overrides = str(args.definition_overrides)
+
     clients = [
         ConversionGateClient(
             LabelingServiceConfig(
@@ -127,7 +161,9 @@ def main() -> None:
                 model=args.model,
                 timeout_seconds=args.timeout_seconds,
                 api_key=os.getenv(args.api_key_env) or None,
-            )
+            ),
+            target_definition=target_definition,
+            prompt_version=prompt_version,
         )
         for endpoint in endpoints
     ]
@@ -138,9 +174,23 @@ def main() -> None:
         client = clients[index % len(clients)]
         try:
             result = client.classify(task)
-            return _evidence_row(task, endpoint=endpoint, model=args.model, result=result)
+            return _evidence_row(
+                task,
+                endpoint=endpoint,
+                model=args.model,
+                prompt_version=prompt_version,
+                definition_overrides=definition_overrides,
+                result=result,
+            )
         except (LabelingServiceError, ValueError) as error:
-            return _evidence_row(task, endpoint=endpoint, model=args.model, error=error)
+            return _evidence_row(
+                task,
+                endpoint=endpoint,
+                model=args.model,
+                prompt_version=prompt_version,
+                definition_overrides=definition_overrides,
+                error=error,
+            )
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         results = list(pool.map(one, enumerate(tasks)))
@@ -163,7 +213,9 @@ def main() -> None:
         "output": str(args.output),
         "model": args.model,
         "endpoints": endpoints,
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": prompt_version,
+        "definition_overrides": definition_overrides,
+        "teacher_csv": str(args.teacher_csv) if args.definition_overrides is not None else None,
         "concurrency": args.concurrency,
         "processed": len(results),
         "status_counts": dict(sorted(status_counts.items())),

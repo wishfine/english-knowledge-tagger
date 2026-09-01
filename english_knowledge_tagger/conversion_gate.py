@@ -12,6 +12,10 @@ from .candidate_labeling import LabelingServiceConfig, LabelingServiceError, Tra
 
 
 PROMPT_VERSION = "conversion-gate-v1"
+DEFAULT_TARGET_DEFINITION = (
+    "- 转化法：同一个英文词的拼写完全不变，只因为词性或句法功能改变而使用，并且这种关系是本题得到答案所必需的。\n"
+    "- 例如：plant(v.) → plant(n.)、water(n.) → water(v.)、book(n.) → book(v.)。"
+)
 _DECISIONS = frozenset({"target_conversion", "non_target", "insufficient"})
 _CONFIDENCES = frozenset({"high", "medium", "low"})
 
@@ -40,7 +44,9 @@ def _context(task: Mapping[str, Any]) -> str:
     return value.strip()
 
 
-def build_conversion_gate_prompt(task: Mapping[str, Any]) -> str:
+def build_conversion_gate_prompt(
+    task: Mapping[str, Any], *, target_definition: str | None = None
+) -> str:
     """Render a label-blind, three-way gate prompt.
 
     The model decides only whether the *target* conversion label applies.  It
@@ -48,11 +54,13 @@ def build_conversion_gate_prompt(task: Mapping[str, Any]) -> str:
     turned into an arbitrary tree candidate by a required-label policy.
     """
 
+    definition = (target_definition or DEFAULT_TARGET_DEFINITION).strip()
+    if not definition:
+        raise ValueError("conversion gate target_definition must be non-empty")
     return f'''你是初中英语构词法审核员。现在只判断“转化法”这个目标知识点是否适用于题目，不要给出任何替换标签。
 
 目标知识点的严格定义：
-- 转化法：同一个英文词的拼写完全不变，只因为词性或句法功能改变而使用，并且这种关系是本题得到答案所必需的。
-- 例如：plant(v.) → plant(n.)、water(n.) → water(v.)、book(n.) → book(v.)。
+{definition}
 
 明确排除：
 - 添加或删除前缀、后缀、字母，或其它拼写变化：属于派生法，不是转化法。
@@ -152,14 +160,31 @@ def _parse_response(raw: str) -> dict[str, Any]:
 class ConversionGateClient:
     """Dependency-free OpenAI-compatible client for the conversion target gate."""
 
-    def __init__(self, config: LabelingServiceConfig, *, transport: Transport | None = None):
+    def __init__(
+        self,
+        config: LabelingServiceConfig,
+        *,
+        target_definition: str | None = None,
+        prompt_version: str = PROMPT_VERSION,
+        transport: Transport | None = None,
+    ):
         if not config.endpoint:
             raise ValueError("conversion gate endpoint must be non-empty")
+        if target_definition is not None and not target_definition.strip():
+            raise ValueError("conversion gate target_definition must be non-empty")
+        if not prompt_version.strip():
+            raise ValueError("conversion gate prompt_version must be non-empty")
         self._config = config
+        self._target_definition = target_definition.strip() if target_definition is not None else None
+        self._prompt_version = prompt_version.strip()
         self._transport = transport or _http_transport
 
+    @property
+    def prompt_version(self) -> str:
+        return self._prompt_version
+
     def classify(self, task: Mapping[str, Any]) -> ConversionGateResult:
-        prompt = build_conversion_gate_prompt(task)
+        prompt = build_conversion_gate_prompt(task, target_definition=self._target_definition)
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
             headers["Authorization"] = f"Bearer {self._config.api_key}"
