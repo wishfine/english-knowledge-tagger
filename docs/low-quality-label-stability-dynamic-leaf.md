@@ -55,6 +55,8 @@ python3 scripts/build_definition_ambiguity_profile.py \
 
 mentor 的全量 `verification_results.jsonl` 可能同时包含 `知识点@...` 和 `题型@...` 结果。E0 只把 `知识点@...` 纳入 386 个知识点统计；题型等其他 scope 会记录在 `summary.mentor_result_diagnostics.out_of_scope_records`。经过 migration 仍不在老师 CSV 中的历史知识点会进入 `unknown_knowledge_labels` 隔离清单，不参与当前标签的分母，也不会让整轮画像失败。
 
+已识别知识点但缺少有效 `question_id`、`llm_match` 不是 JSON 布尔值或出现重复 `label/question_id` 的记录，会进入 `quarantine_by_reason` 和最多 20 条 `quarantine_samples`，同样不进入任何标签分母；JSON 损坏、记录不是对象或缺少 `verify_label` 仍会直接报错，以免掩盖文件损坏。
+
 ## 3. 离线准备 21 个标签
 
 ```bash

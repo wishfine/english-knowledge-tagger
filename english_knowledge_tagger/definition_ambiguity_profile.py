@@ -105,9 +105,32 @@ def summarize_mentor_results(
     seen: set[tuple[str, str]] = set()
     unknown_labels: Counter[tuple[str, str]] = Counter()
     unknown_first_lines: dict[tuple[str, str], int] = {}
+    quarantine_reasons: Counter[str] = Counter()
+    quarantine_samples: list[dict[str, object]] = []
     records_seen = 0
     knowledge_records = 0
+    recognized_knowledge_records = 0
     out_of_scope_records = 0
+
+    def quarantine(
+        reason: str,
+        *,
+        line_number: int,
+        canonical: str,
+        row: Mapping[str, object],
+    ) -> None:
+        quarantine_reasons[reason] += 1
+        if len(quarantine_samples) < 20:
+            quarantine_samples.append(
+                {
+                    "line": line_number,
+                    "canonical_label": canonical,
+                    "question_id": row.get("question_id"),
+                    "llm_match": row.get("llm_match"),
+                    "reason": reason,
+                }
+            )
+
     with path.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, 1):
             if not line.strip():
@@ -137,22 +160,35 @@ def summarize_mentor_results(
                 unknown_labels[key] += 1
                 unknown_first_lines.setdefault(key, line_number)
                 continue
+            recognized_knowledge_records += 1
             question_id = row.get("question_id")
             if not isinstance(question_id, str) or not question_id.strip():
-                raise ValueError(
-                    f"mentor results line {line_number}: question_id must be non-empty"
+                quarantine(
+                    "question_id_not_string",
+                    line_number=line_number,
+                    canonical=canonical,
+                    row=row,
                 )
+                continue
             identity = (canonical, question_id.strip())
             if identity in seen:
-                raise ValueError(
-                    f"mentor results line {line_number}: duplicate label/question_id pair"
+                quarantine(
+                    "duplicate_label_question_id",
+                    line_number=line_number,
+                    canonical=canonical,
+                    row=row,
                 )
+                continue
             seen.add(identity)
             match = row.get("llm_match")
             if not isinstance(match, bool):
-                raise ValueError(
-                    f"mentor results line {line_number}: llm_match must be boolean"
+                quarantine(
+                    "llm_match_not_boolean",
+                    line_number=line_number,
+                    canonical=canonical,
+                    row=row,
                 )
+                continue
             counts[canonical]["sample_size"] += 1
             counts[canonical]["matches" if match else "mismatches"] += 1
             for rendered in _rendered_candidates(row.get("llm_should_be")):
@@ -166,6 +202,7 @@ def summarize_mentor_results(
             {
                 "records_seen": records_seen,
                 "knowledge_records": knowledge_records,
+                "recognized_knowledge_records": recognized_knowledge_records,
                 "out_of_scope_records": out_of_scope_records,
                 "unknown_knowledge_records": sum(unknown_labels.values()),
                 "unknown_knowledge_labels": [
@@ -177,6 +214,9 @@ def summarize_mentor_results(
                     }
                     for (raw, canonical), count in unknown_labels.most_common()
                 ],
+                "quarantined_knowledge_records": sum(quarantine_reasons.values()),
+                "quarantine_by_reason": dict(quarantine_reasons),
+                "quarantine_samples": quarantine_samples,
             }
         )
     result: dict[str, Mapping[str, object]] = {}

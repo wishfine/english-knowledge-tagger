@@ -59,6 +59,12 @@ class DefinitionAmbiguityProfileTests(unittest.TestCase):
                     "llm_match": True,
                     "llm_should_be": "正确",
                 },
+                {
+                    "verify_label": "知识点@词汇@构词法@转化法",
+                    "question_id": "q4",
+                    "llm_match": "true",
+                    "llm_should_be": "正确",
+                },
             ]
             results.write_text(
                 "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
@@ -73,10 +79,15 @@ class DefinitionAmbiguityProfileTests(unittest.TestCase):
                 diagnostics=diagnostics,
             )
             self.assertEqual(yields["知识点->词汇->构词法->转化法"]["sample_size"], 1)
-            self.assertEqual(diagnostics["records_seen"], 3)
-            self.assertEqual(diagnostics["knowledge_records"], 2)
+            self.assertEqual(diagnostics["records_seen"], 4)
+            self.assertEqual(diagnostics["knowledge_records"], 3)
             self.assertEqual(diagnostics["out_of_scope_records"], 1)
             self.assertEqual(diagnostics["unknown_knowledge_records"], 1)
+            self.assertEqual(diagnostics["quarantined_knowledge_records"], 1)
+            self.assertEqual(
+                diagnostics["quarantine_by_reason"],
+                {"llm_match_not_boolean": 1},
+            )
             self.assertEqual(len(diagnostics["unknown_knowledge_labels"]), 1)
 
     def test_builds_label_flags_yields_siblings_and_confusion_neighbors(self):
