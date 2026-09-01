@@ -84,6 +84,11 @@ def _completed_review_ids(path: Path) -> set[str]:
     return completed
 
 
+def _result_review_id(packet_row: Mapping[str, Any]) -> str:
+    question_id = packet_row.get("question_id") or "unknown"
+    return f"{PROMPT_VERSION}:{packet_row.get('source_line')}:{question_id}"
+
+
 def _classify_one(
     packet_row: Mapping[str, Any],
     *,
@@ -94,6 +99,7 @@ def _classify_one(
     base = {
         **packet_row,
         "schema_version": RESULT_SCHEMA_VERSION,
+        "review_id": _result_review_id(packet_row),
         "endpoint": endpoint,
         "prompt_version": PROMPT_VERSION,
         "prompt_sha256": prompt_sha256,
@@ -222,7 +228,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
 
             submitted = 0
             for packet_row in _packet_rows(args.input, limit=args.limit):
-                if packet_row["review_id"] in completed:
+                if _result_review_id(packet_row) in completed:
                     counters["skipped_completed"] += 1
                     continue
                 endpoint_index = submitted % len(endpoints)

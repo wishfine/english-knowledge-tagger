@@ -54,7 +54,7 @@ def make_stream_handler(requests):
 def sample_row(question_id):
     return {
         "schema_version": SAMPLE_SCHEMA_VERSION,
-        "review_id": f"{PROMPT_VERSION}:{question_id}:{question_id}",
+        "review_id": f"question-type-discovery-v1:{question_id}:{question_id}",
         "source_path": "source.jsonl",
         "source_line": question_id,
         "question_id": str(question_id),
@@ -172,6 +172,9 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
             self.assertEqual(
                 {row["candidate_type_label"] for row in results},
                 {"单词拼写"},
+            )
+            self.assertTrue(
+                all(row["review_id"].startswith(f"{PROMPT_VERSION}:") for row in results)
             )
             self.assertTrue(all(len(row["key_evidence"]) == 1 for row in results))
             self.assertEqual(report_payload["candidate"], 2)
