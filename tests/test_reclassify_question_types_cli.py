@@ -51,7 +51,9 @@ def make_stream_handler(requests):
     return Handler
 
 
-def sample_row(question_id, type_label="题型@旧分类"):
+def sample_row(
+    question_id, type_label="题型@旧分类", instruction="旧 instruction 不应发送"
+):
     return {
         "schema_version": SAMPLE_SCHEMA_VERSION,
         "review_id": f"question-type-discovery-v1:{question_id}:{question_id}",
@@ -62,7 +64,7 @@ def sample_row(question_id, type_label="题型@旧分类"):
         "is_sub_question": False,
         "sampled_type_labels": [type_label],
         "current_type_labels": [type_label],
-        "instruction": "旧 instruction 不应发送",
+        "instruction": instruction,
         "input": (
             "题型结构为：填空题\n"
             "题型名称为：单词拼写\n"
@@ -133,7 +135,7 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                         for row in (
                             sample_row(0, "题型@其他分类"),
                             sample_row(1),
-                            sample_row(2),
+                            sample_row(2, instruction="另一 instruction 也不应发送"),
                         )
                     ),
                     encoding="utf-8",
@@ -183,6 +185,7 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 self.assertNotIn("题型名称为", content)
                 self.assertNotIn("根据以上信息", content)
                 self.assertNotIn("旧 instruction", content)
+                self.assertNotIn("另一 instruction", content)
             self.assertEqual(
                 {row["candidate_type_label"] for row in results},
                 {"单词拼写"},
@@ -209,7 +212,13 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
             self.assertTrue(all("题型名称为" not in row["input"] for row in results))
             self.assertTrue(all("根据以上信息" not in row["input"] for row in results))
             self.assertEqual(report_payload["source_path"], "source.jsonl")
-            self.assertEqual(report_payload["source_instruction"], "旧 instruction 不应发送")
+            self.assertEqual(
+                report_payload["source_instructions"],
+                [
+                    {"instruction": "另一 instruction 也不应发送", "record_count": 1},
+                    {"instruction": "旧 instruction 不应发送", "record_count": 1},
+                ],
+            )
             self.assertEqual(report_payload["current_type_label"], "题型@旧分类")
             self.assertEqual(report_payload["sample_path"], str(packet))
             self.assertEqual(report_payload["result_path"], str(output))

@@ -231,7 +231,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
         source_paths: set[str] = set()
-        source_instructions: set[str] = set()
+        source_instruction_counts: Counter[str] = Counter()
         total_workers = len(endpoints) * args.per_endpoint_concurrency
         max_pending = total_workers * 4
         mode = "a" if args.resume else "x"
@@ -267,7 +267,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                     source_paths.add(source_path)
                 source_instruction = packet_row.get("instruction")
                 if isinstance(source_instruction, str) and source_instruction:
-                    source_instructions.add(source_instruction)
+                    source_instruction_counts[source_instruction] += 1
                 if _record_key(packet_row) in completed:
                     continue
                 endpoint_index = submitted % len(endpoints)
@@ -285,8 +285,6 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 drain()
         if len(source_paths) > 1:
             raise ValueError("sample contains more than one source_path")
-        if len(source_instructions) > 1:
-            raise ValueError("sample contains more than one source instruction")
         if sample_count == 0:
             raise ValueError(f"sample contains no records for type label: {args.type_label}")
         result_summary = _summarize_results(args.output)
@@ -297,7 +295,10 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         "schema_version": "question-major-type-discovery-run-report-v2",
         "current_type_label": args.type_label,
         "source_path": next(iter(source_paths), None),
-        "source_instruction": next(iter(source_instructions), None),
+        "source_instructions": [
+            {"instruction": instruction, "record_count": count}
+            for instruction, count in sorted(source_instruction_counts.items())
+        ],
         "sample_path": str(args.input),
         "result_path": str(args.output),
         "classifier_prompt_path": str(args.prompt),
