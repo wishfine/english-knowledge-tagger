@@ -20,6 +20,14 @@ cleaned_final_enhanced_v2.jsonl
 3. DS-V4、Doubao、Gemini 的结果都是候选证据，不会直接改标签或进入 HQ。
 4. 未确认的题型路由或知识点规则必须隔离，不能因为“无标签”就默认打空。
 
+当前复合题输入另有一个独立的数据完整性修复层。原始全量文件
+`初中英语_labeled.jsonl` 是“外层父题 + `sub_questions` 嵌套子题”，而
+`cleaned_final_enhanced_v2.jsonl` 已将其展平；部分 child 行没有带上父题材料。
+使用 `scripts/repair_parent_context.py` 生成 `v3_parent_context` 派生源时，只能从
+raw 唯一匹配的父题 `stem/options` 补文本上下文，不能复制父题的
+`knowledge_points` 或 `question_types`，也不能覆盖 v2 的音频/图片增强。修复输出、
+审计 JSONL、SQLite 索引和源 SHA 必须独立保存；v2 上生成的 DS packet 不能套用到 v3。
+
 从 2026-08-26 起，**历史末级知识点的直接判别**是小题知识点高质量提取的主入口：
 `题目 × 现有末级标签 → 该标签是否合理`。题型 route 仍是父/子范围、抽检和错误分析的重要维度，但不再作为“这个标签能否被直接判别”的硬候选前缀。flat shortlist 与知识点树只处理直接判别的 false、错误、未校准或缺标难例。
 

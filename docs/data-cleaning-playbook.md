@@ -156,6 +156,24 @@ canonical 格式：知识点->词法->冠词->a/an的区别
 
 父题与小题分别决定题型和知识点，不能把任何一方的全部标签复制给另一方。
 
+### 3.1.1 复合题父题上下文修复
+
+当前增强源是展平后的 SFT JSONL；原始 `all-labels/初中英语_labeled.jsonl` 则采用外层父题
+加 `sub_questions` 嵌套子题的结构。若展平后的 child 缺少文章、听力原文或大题说明，使用
+`scripts/repair_parent_context.py` 生成新的上下文派生源：
+
+```text
+raw 外层父题 + raw.sub_questions 身份索引
+    → 以 (question_id, parent_id) 匹配 enhanced child
+    → 仅补唯一父题的文本 stem/options
+    → 保留 child 的题干、选项、答案、解析、历史 output 和多模态增强
+```
+
+`knowledge_points`、`question_types`、父题答案和父题解析不得复制到 child。找不到唯一
+父题、发现重复冲突或 raw 子题身份不一致时进入 `hold`，不能猜测补全。该脚本只写新的
+`v3_parent_context` JSONL、审计 JSONL、SQLite 索引和 manifest；原始 raw 与
+`cleaned_final_enhanced_v2.jsonl` 永远只读。
+
 典型规则：
 
 | 题目类型 | 父题常见知识点 | 小题常见知识点 |
