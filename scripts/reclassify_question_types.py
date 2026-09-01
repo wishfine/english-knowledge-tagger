@@ -25,6 +25,7 @@ from english_knowledge_tagger.type_reclassification import (
     QuestionTypeServiceConfig,
     QuestionTypeServiceError,
     build_type_reclassification_sample,
+    clean_question_input,
 )
 
 
@@ -37,7 +38,9 @@ DEFAULT_PROMPT = (
 )
 
 
-def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
+def _packet_rows(
+    path: Path, *, limit: int | None, type_label: str
+) -> Iterator[dict[str, Any]]:
     emitted = 0
     with path.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, 1):
@@ -61,6 +64,15 @@ def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
                 raise ValueError(
                     f"sample line {line_number}: only is_sub_question=false is eligible"
                 )
+            sampled_labels = row.get("sampled_type_labels")
+            if not isinstance(sampled_labels, list) or any(
+                not isinstance(label, str) or not label for label in sampled_labels
+            ):
+                raise ValueError(
+                    f"sample line {line_number}: sampled_type_labels must be a string array"
+                )
+            if type_label not in sampled_labels:
+                continue
             emitted += 1
             yield row
 
@@ -95,7 +107,7 @@ def _classify_one(
     base = {
         "question_id": packet_row.get("question_id"),
         "source_line": packet_row.get("source_line"),
-        "current_type_labels": packet_row.get("current_type_labels", []),
+        "input": clean_question_input(packet_row["input"]),
     }
     try:
         result = client.classify(packet_row["input"])
@@ -124,7 +136,6 @@ def _write_report(path: Path | None, report: Mapping[str, Any]) -> None:
 
 def _summarize_results(path: Path) -> dict[str, Any]:
     status_counts: Counter[str] = Counter()
-    current_type_counts: Counter[str] = Counter()
     candidate_type_counts: Counter[str] = Counter()
     sufficiency_counts: Counter[str] = Counter()
     total_processed = 0
@@ -143,14 +154,6 @@ def _summarize_results(path: Path) -> dict[str, Any]:
             if status not in {"candidate", "error"}:
                 raise ValueError(f"result line {line_number}: invalid status")
             status_counts[status] += 1
-            labels = row.get("current_type_labels")
-            if not isinstance(labels, list):
-                raise ValueError(
-                    f"result line {line_number}: current_type_labels must be an array"
-                )
-            current_type_counts.update(
-                label for label in labels if isinstance(label, str) and label
-            )
             if status == "candidate":
                 candidate_type = row.get("candidate_type_label")
                 sufficiency = row.get("information_sufficiency")
@@ -162,7 +165,6 @@ def _summarize_results(path: Path) -> dict[str, Any]:
         "total_processed": total_processed,
         "candidate": status_counts["candidate"],
         "error": status_counts["error"],
-        "current_type_counts": dict(sorted(current_type_counts.items())),
         "candidate_type_counts": dict(sorted(candidate_type_counts.items())),
         "information_sufficiency_counts": dict(sorted(sufficiency_counts.items())),
     }
@@ -195,6 +197,8 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error("--max-retries must be positive")
     if args.max_tokens <= 0:
         parser.error("--max-tokens must be positive")
+    if not args.type_label.strip():
+        parser.error("--type-label must be non-empty")
     if args.output.exists() and not args.resume:
         parser.error("result output already exists; use --resume to continue it")
     if args.report is not None and args.report.exists() and not args.resume:
@@ -227,6 +231,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
         source_paths: set[str] = set()
+        source_instructions: set[str] = set()
         total_workers = len(endpoints) * args.per_endpoint_concurrency
         max_pending = total_workers * 4
         mode = "a" if args.resume else "x"
@@ -252,10 +257,17 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                     output.flush()
 
             submitted = 0
-            for packet_row in _packet_rows(args.input, limit=args.limit):
+            sample_count = 0
+            for packet_row in _packet_rows(
+                args.input, limit=args.limit, type_label=args.type_label
+            ):
+                sample_count += 1
                 source_path = packet_row.get("source_path")
                 if isinstance(source_path, str) and source_path:
                     source_paths.add(source_path)
+                source_instruction = packet_row.get("instruction")
+                if isinstance(source_instruction, str) and source_instruction:
+                    source_instructions.add(source_instruction)
                 if _record_key(packet_row) in completed:
                     continue
                 endpoint_index = submitted % len(endpoints)
@@ -273,21 +285,29 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 drain()
         if len(source_paths) > 1:
             raise ValueError("sample contains more than one source_path")
+        if len(source_instructions) > 1:
+            raise ValueError("sample contains more than one source instruction")
+        if sample_count == 0:
+            raise ValueError(f"sample contains no records for type label: {args.type_label}")
         result_summary = _summarize_results(args.output)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
     report = {
         "schema_version": "question-major-type-discovery-run-report-v2",
+        "current_type_label": args.type_label,
         "source_path": next(iter(source_paths), None),
+        "source_instruction": next(iter(source_instructions), None),
         "sample_path": str(args.input),
         "result_path": str(args.output),
+        "classifier_prompt_path": str(args.prompt),
         "model": args.model,
         "endpoints": endpoints,
         "prompt_version": PROMPT_VERSION,
         "prompt_sha256": prompt_sha256,
         "stream": True,
         "max_tokens": args.max_tokens,
+        "sample_count": sample_count,
         **result_summary,
     }
     _write_report(args.report, report)
@@ -310,6 +330,7 @@ def main() -> None:
 
     run = subparsers.add_parser("run", help="discover types for sampled packets with streamed SSE")
     run.add_argument("--input", type=Path, required=True)
+    run.add_argument("--type-label", required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--report", type=Path)
     run.add_argument("--prompt", type=Path, default=DEFAULT_PROMPT)

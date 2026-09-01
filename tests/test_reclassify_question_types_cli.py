@@ -51,7 +51,7 @@ def make_stream_handler(requests):
     return Handler
 
 
-def sample_row(question_id):
+def sample_row(question_id, type_label="题型@旧分类"):
     return {
         "schema_version": SAMPLE_SCHEMA_VERSION,
         "review_id": f"question-type-discovery-v1:{question_id}:{question_id}",
@@ -60,8 +60,8 @@ def sample_row(question_id):
         "question_id": str(question_id),
         "parent_id": str(question_id),
         "is_sub_question": False,
-        "sampled_type_labels": ["题型@旧分类"],
-        "current_type_labels": ["题型@旧分类"],
+        "sampled_type_labels": [type_label],
+        "current_type_labels": [type_label],
         "instruction": "旧 instruction 不应发送",
         "input": (
             "题型结构为：填空题\n"
@@ -95,6 +95,8 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                     "run",
                     "--input",
                     str(packet),
+                    "--type-label",
+                    "题型@旧分类",
                     "--output",
                     str(directory / "results.jsonl"),
                     "--endpoint",
@@ -127,8 +129,12 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 packet = directory / "sample.jsonl"
                 packet.write_text(
                     "".join(
-                        json.dumps(sample_row(question_id), ensure_ascii=False) + "\n"
-                        for question_id in (1, 2)
+                        json.dumps(row, ensure_ascii=False) + "\n"
+                        for row in (
+                            sample_row(0, "题型@其他分类"),
+                            sample_row(1),
+                            sample_row(2),
+                        )
                     ),
                     encoding="utf-8",
                 )
@@ -143,6 +149,7 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                         str(script),
                         "run",
                         "--input", str(packet),
+                        "--type-label", "题型@旧分类",
                         "--output", str(output),
                         "--report", str(report),
                         "--prompt", str(prompt),
@@ -186,7 +193,7 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                     == {
                         "question_id",
                         "source_line",
-                        "current_type_labels",
+                        "input",
                         "candidate_type_label",
                         "task_mechanism",
                         "key_evidence",
@@ -198,13 +205,19 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 )
             )
             self.assertTrue(all(len(row["key_evidence"]) == 1 for row in results))
+            self.assertTrue(all("题型结构为" not in row["input"] for row in results))
+            self.assertTrue(all("题型名称为" not in row["input"] for row in results))
+            self.assertTrue(all("根据以上信息" not in row["input"] for row in results))
             self.assertEqual(report_payload["source_path"], "source.jsonl")
+            self.assertEqual(report_payload["source_instruction"], "旧 instruction 不应发送")
+            self.assertEqual(report_payload["current_type_label"], "题型@旧分类")
             self.assertEqual(report_payload["sample_path"], str(packet))
             self.assertEqual(report_payload["result_path"], str(output))
+            self.assertEqual(report_payload["classifier_prompt_path"], str(prompt))
+            self.assertEqual(report_payload["sample_count"], 2)
             self.assertEqual(report_payload["total_processed"], 2)
             self.assertEqual(report_payload["candidate"], 2)
             self.assertEqual(report_payload["error"], 0)
-            self.assertEqual(report_payload["current_type_counts"], {"题型@旧分类": 2})
             self.assertEqual(report_payload["candidate_type_counts"], {"单词拼写": 2})
             self.assertEqual(
                 report_payload["information_sufficiency_counts"], {"sufficient": 2}
