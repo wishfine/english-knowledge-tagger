@@ -184,8 +184,38 @@ def build_terminal_label_stability_packet(
     unknown_gold = sorted(set(gold_by_question) - set(source_by_question))
     if unknown_gold:
         raise ValueError(f"pseudo-gold question is absent from materialized source: {unknown_gold[0]}")
+    usable_source_by_question: dict[str, dict[str, Any]] = {}
+    skipped_questions: list[dict[str, object]] = []
+    for question_id in sorted(gold_by_question):
+        source = source_by_question[question_id]
+        try:
+            input_text = _text(
+                source.get("input"), field="input", origin=f"question {question_id}"
+            )
+            clean_final_label_question(input_text)
+        except ValueError as error:
+            message = str(error)
+            if "input must be a non-empty string" not in message and (
+                "question content is empty after metadata removal" not in message
+            ):
+                raise
+            skipped_questions.append(
+                {
+                    "question_id": question_id,
+                    "source_line": source["_source_line"],
+                    "reason": (
+                        "input_missing_or_empty"
+                        if "input must be a non-empty string" in message
+                        else "question_content_empty_after_metadata_removal"
+                    ),
+                }
+            )
+            continue
+        usable_source_by_question[question_id] = source
     assignments = _split_assignments(
-        source_by_question, gold_by_question, seed=seed
+        usable_source_by_question,
+        {question_id: gold_by_question[question_id] for question_id in usable_source_by_question},
+        seed=seed,
     )
     variants = [
         ("D0", record.marking_interpretation),
@@ -197,8 +227,8 @@ def build_terminal_label_stability_packet(
         raise ValueError("definition variants must be non-empty")
 
     packet_rows: list[dict[str, object]] = []
-    for question_id in sorted(gold_by_question):
-        source = source_by_question[question_id]
+    for question_id in sorted(usable_source_by_question):
+        source = usable_source_by_question[question_id]
         input_text = _text(source.get("input"), field="input", origin=f"question {question_id}")
         question_text = clean_final_label_question(input_text)
         route_key = _route_key(source)
@@ -236,8 +266,11 @@ def build_terminal_label_stability_packet(
         "verify_label": rendered,
         "canonical_label": canonical,
         "questions": len(gold_by_question),
+        "eligible_questions": len(usable_source_by_question),
         "definition_variants": [item[0] for item in variants],
         "packet_rows": len(packet_rows),
+        "skipped_insufficient_questions": len(skipped_questions),
+        "skipped_questions": skipped_questions,
         "split_counts": dict(sorted(Counter(assignments.values()).items())),
         "seed": seed,
     }

@@ -66,7 +66,7 @@ python3 scripts/prepare_low_quality_definition_batch.py \
   --seed definition-stability-v1
 ```
 
-该命令不调用 DS。每个标签生成 `materialized.jsonl` 和 `stability.packet.jsonl`，总索引为 `e1-batch/batch.index.json`。同一 question 的 D0/D1/D2 使用完全相同的 60% train、20% dev、20% locked-test 分层切分；route 和 pseudo-gold 不进入 prompt。
+该命令不调用 DS。每个标签生成 `materialized.jsonl` 和 `stability.packet.jsonl`，总索引为 `e1-batch/batch.index.json`。同一 question 的 D0/D1/D2 使用完全相同的 60% train、20% dev、20% locked-test 分层切分；route 和 pseudo-gold 不进入 prompt。如果某条 `input` 只包含题型元数据，清洗后没有题干、选项、答案或解析，程序会将其记为 `skipped_insufficient_questions`，保留 question_id、源行号和原因，并从 E1 packet 排除；该题不会被当成 `non_target`，也不会让同一 label 的其他题停止处理。
 
 ## 4. E1：D0/D1/D2 三分类稳定性
 

@@ -121,7 +121,10 @@ class LowQualityExperimentManifestTests(unittest.TestCase):
             index = json.loads((output_root / "batch.index.json").read_text(encoding="utf-8"))
             item = index["labels"][0]
             self.assertEqual(item["questions"], 1)
+            self.assertEqual(item["eligible_questions"], 1)
             self.assertEqual(item["packet_rows"], 3)
+            self.assertEqual(item["skipped_insufficient_questions"], 0)
+            self.assertEqual(item["skipped_questions"], [])
             self.assertTrue(Path(item["packet_path"]).is_file())
 
     def test_rejects_duplicate_labels(self):

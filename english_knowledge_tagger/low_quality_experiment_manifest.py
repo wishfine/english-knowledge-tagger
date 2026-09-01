@@ -203,7 +203,12 @@ def prepare_low_quality_definition_batch(
                 "materialized_path": str(materialized),
                 "packet_path": str(packet),
                 "questions": packet_report["questions"],
+                "eligible_questions": packet_report["eligible_questions"],
                 "packet_rows": packet_report["packet_rows"],
+                "skipped_insufficient_questions": packet_report[
+                    "skipped_insufficient_questions"
+                ],
+                "skipped_questions": packet_report["skipped_questions"],
                 "definition_variants": packet_report["definition_variants"],
                 "materialized_records": materialization["materialized_records"],
             }

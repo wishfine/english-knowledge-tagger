@@ -119,6 +119,66 @@ class TerminalLabelStabilityTests(unittest.TestCase):
                 self.assertNotIn("题型名称为", row["question_text"])
             self.assertTrue(all(len(splits) == 1 for splits in split_by_question.values()))
 
+    def test_packet_quarantines_questions_without_content_after_metadata_removal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rulebook = self._rulebook(root)
+            materialized = root / "materialized.jsonl"
+            materialized.write_text(
+                json.dumps(
+                    {
+                        "verify_label": "知识点@词汇@构词法@转化法",
+                        "question_id": "empty-q",
+                        "parent_id": "empty-q",
+                        "is_sub_question": False,
+                        "input": "题型结构为：单选题\n题型名称为：选择题",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            gold = root / "gold.jsonl"
+            gold.write_text(
+                json.dumps(
+                    {
+                        "verify_label": "知识点@词汇@构词法@转化法",
+                        "question_id": "empty-q",
+                        "decision": "uncertain",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            output = root / "packet.jsonl"
+
+            report = build_terminal_label_stability_packet(
+                materialized,
+                pseudo_gold_path=gold,
+                verify_label="知识点@词汇@构词法@转化法",
+                rulebook=rulebook,
+                migration=KnowledgeTaxonomyMigration(aliases=()),
+                output_path=output,
+                seed="definition-stability-v1",
+            )
+
+            self.assertEqual(report["questions"], 1)
+            self.assertEqual(report["eligible_questions"], 0)
+            self.assertEqual(report["packet_rows"], 0)
+            self.assertEqual(report["skipped_insufficient_questions"], 1)
+            self.assertEqual(
+                report["skipped_questions"],
+                [
+                    {
+                        "question_id": "empty-q",
+                        "source_line": 1,
+                        "reason": "question_content_empty_after_metadata_removal",
+                    }
+                ],
+            )
+            self.assertEqual(output.read_text(encoding="utf-8"), "")
+
     def test_prompt_hides_gold_and_route(self):
         row = {
             "legacy_label": "知识点@词汇@构词法@转化法",
