@@ -80,7 +80,7 @@ Expected: script/module import or CLI failure because the executable is not pres
 
 - [ ] **Step 3: Implement streaming two-pass CLI**
 
-Pass 1 indexes outer parents and every nested child. Pass 2 copies enhanced rows and only changes `input` for uniquely matched child rows whose parent `stem` is non-empty and not already represented in the input; the parent context is placed before the child text so the original final task instruction remains last. Write one audit row per enhanced record and refuse existing output files.
+Pass 1 indexes outer parents and every nested child. Pass 2 copies enhanced rows and only changes `input` for uniquely matched child rows whose parent `stem` is non-empty and not already represented in the input; the parent context is placed after leading type/audio metadata and before the child text so the original final task instruction remains last. Write one audit row per enhanced record and refuse existing output files.
 
 - [ ] **Step 4: Run focused and regression tests**
 

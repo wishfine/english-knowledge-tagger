@@ -7,11 +7,24 @@ from pathlib import Path
 from english_knowledge_tagger.parent_context_repair import (
     build_raw_index,
     enrich_enhanced_source,
+    insert_parent_context,
     render_parent_context,
 )
 
 
 class ParentContextRepairTests(unittest.TestCase):
+    def test_insert_parent_context_preserves_type_and_audio_headers(self):
+        rendered = insert_parent_context(
+            "题型结构为：听力题\n题型名称为：听力单选\n"
+            "本题题干中包含音频内容，音频片段时长16秒，\n"
+            "当前小题题干：What did he do?",
+            "父题上下文：\n大题材料：\nListen to the dialogue.",
+        )
+
+        self.assertLess(rendered.index("题型结构为："), rendered.index("父题上下文："))
+        self.assertLess(rendered.index("父题上下文："), rendered.index("当前小题题干："))
+        self.assertIn("音频片段时长16秒", rendered)
+
     def test_render_parent_context_uses_text_only(self):
         rendered = render_parent_context(
             {
@@ -71,7 +84,11 @@ class ParentContextRepairTests(unittest.TestCase):
             enhanced.write_text(
                 json.dumps(
                     {
-                        "input": "当前小题题干：What is the answer?",
+                        "input": (
+                            "题型结构为：填空题\n"
+                            "题型名称为：完成句子\n"
+                            "题目题干：What is the answer?"
+                        ),
                         "output": "题型@阅读理解@阅读选择",
                         "question_id": "c1",
                         "parent_id": "p1",
@@ -106,8 +123,11 @@ class ParentContextRepairTests(unittest.TestCase):
             self.assertEqual(repair_report["raw_sha256"], "raw-sha")
             self.assertEqual(repair_report["index_schema_version"], "parent-context-index-v1")
             self.assertIn("A parent passage.", repaired["input"])
-            self.assertTrue(repaired["input"].startswith("父题上下文："))
-            self.assertTrue(repaired["input"].endswith("当前小题题干：What is the answer?"))
+            self.assertTrue(repaired["input"].startswith("题型结构为：填空题\n题型名称为：完成句子\n"))
+            self.assertLess(
+                repaired["input"].index("父题上下文："),
+                repaired["input"].index("题目题干：What is the answer?"),
+            )
             self.assertEqual(repaired["output"], "题型@阅读理解@阅读选择")
             self.assertFalse(repaired["contain_audio"])
             self.assertEqual(audit_row["status"], "added")

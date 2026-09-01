@@ -12,6 +12,14 @@ from typing import Any, Iterable, Mapping
 
 INDEX_SCHEMA_VERSION = "parent-context-index-v1"
 REPAIR_SCHEMA_VERSION = "parent-context-repair-v1"
+_HEADER_PREFIXES = (
+    "题型结构为：",
+    "题型名称为：",
+    "所给图片为题目题干",
+    "本题题干中包含音频内容",
+    "题目题干中包含音频内容",
+    "音频片段时长",
+)
 
 
 def _text(value: object) -> str:
@@ -45,6 +53,26 @@ def render_parent_context(parent: Mapping[str, object]) -> str:
     if not parts:
         return ""
     return "父题上下文：\n" + "\n\n".join(parts)
+
+
+def insert_parent_context(input_text: str, parent_context: str) -> str:
+    """Place parent context after leading metadata and before child content."""
+    if not input_text.strip():
+        return parent_context
+    lines = input_text.splitlines()
+    header_end = 0
+    while header_end < len(lines):
+        stripped = lines[header_end].strip()
+        if not stripped or stripped.startswith(_HEADER_PREFIXES):
+            header_end += 1
+            continue
+        break
+    prefix = lines[:header_end]
+    suffix = lines[header_end:]
+    rendered = [*prefix, parent_context]
+    if suffix:
+        rendered.extend(("", *suffix))
+    return "\n".join(rendered)
 
 
 def _create_index(connection: sqlite3.Connection) -> None:
@@ -269,7 +297,7 @@ def enrich_enhanced_source(
                             if parent_context in input_value or body in input_value:
                                 status = "already_present"
                             else:
-                                new_input = parent_context + "\n\n" + input_value.lstrip()
+                                new_input = insert_parent_context(input_value, parent_context)
                                 status = "added"
 
                 if new_input != old_input:
