@@ -1,0 +1,80 @@
+{
+  "schema_version": "knowledge-definition-overrides-v1",
+  "policy_id": "knowledge-definition-overrides-v0.1",
+  "status": "active_for_experiment",
+  "base_rulebook": "data/rulebooks/初中英语知识点题型方法释义.csv",
+  "base_rulebook_sha256": "5f0e04a5c2ac97e0b910ef1615508e292bb8a984624b623867c18c3a27cc3db2",
+  "purpose": "只覆盖已确认存在边界问题的知识点释义；不修改教师原始 CSV，不代表最终金标。",
+  "overrides": [
+    {
+      "label": "知识点->词汇->构词法->转化法",
+      "replacement_definition": "适用题型：单选题、单词拼写、语法填空，但前提是题目要求判断同一词的词性或词义功能转换。核心判据：同一词形不增加或删除字母、不添加前后缀，并且不是时态、三单、复数、比较级/最高级、-ing/-ed 等屈折变化；只是因为句中功能不同而由一种词性或词义转作另一种。正例：water（名词）→ water（动词）、answer（名词）→ answer（动词）、run（名词）→ run（动词）。不标：like→likes、work→worked、happy→happiness、direct→director、warm→warmth、build→building、weigh→weight。若题目同时明确要求判断目标词的拼写或读音，可再并行标注相应的词汇音形义标签；仅仅出现同形词、普通翻译或固定搭配不标本标签。",
+      "change_kind": "semantic_boundary",
+      "reason": "删除 like/likes 这一屈折变化示例，明确与派生法和屈折变化的排除边界。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->构词法->派生法（词根词缀）",
+      "replacement_definition": "适用题型：单选题、单词拼写、语法填空。只有当题目要求通过词根、前缀、后缀或其他显性词形变化构成并识别目标词时才标本标签。典型关系包括 direct→director、predict→prediction、happy→happiness、possible→impossible；添加 -or、-ion、-ness、un- 等会改变词形，通常也会改变词性或词义。不标仅有时态、三单、复数、比较级/最高级、-ing/-ed 等屈折变化；也不因答案词恰好是派生词就自动标，必须是构词步骤对作答有直接依赖。若同时明确要求目标词的拼写或读音，可并行标注相应的词汇音形义标签。",
+      "change_kind": "semantic_boundary",
+      "reason": "把“显性词缀/词形变化”和转化法、屈折变化分开，并增加答案直接依赖条件。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->构词法->合成法",
+      "replacement_definition": "适用题型：单选题、单词拼写、语法填空。只有当两个或多个独立词素或单词直接组合成一个新词，且组合关系对答案有直接作用时才标本标签，如 bedroom、blackboard、13-year-old。可考查合成词的词义、拼写、连字符或用法。不标前缀/后缀派生、不标同形异词的转化法，也不标普通时态、复数等屈折变化。若同时明确要求合成词的拼写或读音，可并行标注相应的词汇音形义标签。",
+      "change_kind": "copy_error_and_boundary",
+      "reason": "修正原释义中误写的“转化后的单词拼写”，并明确合成法边界。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->词汇（音/形/义）->名词（短语）的音/形/义",
+      "replacement_definition": "适用范围：各类填空、听力填空、单词拼写、首字母填空等。仅当答案本身需要根据名词（短语）的读音、拼写、词义或名词形式作出判断时才标本标签。若答案形式主要由时态、语态、非谓语、复数规则、构词法或固定搭配决定，而题目不要求额外判断名词的音/形/义，则不标；若题目同时明确要求写出或辨认该名词的拼写、读音或词义，可与相应语法/构词标签并行。不能因为填空答案是名词就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“所有涉及到写名词都打”改为答案直接依赖条件，减少语法题过标。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->词汇（音/形/义）->动词（短语）的音/形/义",
+      "replacement_definition": "适用范围：各类填空、听力填空、单词拼写、首字母填空等。仅当答案本身需要根据动词（短语）的读音、拼写或词义作出判断时才标本标签。若答案形式主要由时态、语态、非谓语、三单、复数、构词法或固定搭配决定，而题目不要求额外判断动词的音/形/义，则不标；若题目同时明确要求写出或辨认该动词（短语）的拼写、读音或词义，可并行标注相应语法/构词标签。不能因为填空答案是动词就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“所有涉及到写动词都打”改为答案直接依赖条件，减少时态/语态题过标。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->词汇（音/形/义）->形容词（短语）的音/形/义",
+      "replacement_definition": "适用范围：各类填空、听力填空、单词拼写、首字母填空等。仅当答案本身需要根据形容词（短语）的读音、拼写或词义作出判断时才标本标签。若答案形式主要由比较级/最高级、-ing/-ed、构词法、固定搭配或句法位置决定，而题目不要求额外判断形容词的音/形/义，则不标；若题目同时明确要求写出或辨认该形容词（短语）的拼写、读音或词义，可并行标注相应标签。不能因为填空答案是形容词就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“所有涉及到写形容词都打”改为答案直接依赖条件，减少比较级和句法题过标。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->词汇（音/形/义）->副词（短语）的音/形/义",
+      "replacement_definition": "适用范围：各类填空、听力填空、单词拼写、首字母填空等。仅当答案本身需要根据副词（短语）的读音、拼写或词义作出判断时才标本标签。若答案形式主要由比较级/最高级、构词法、副词位置、固定搭配或句法功能决定，而题目不要求额外判断副词的音/形/义，则不标；若题目同时明确要求写出或辨认该副词（短语）的拼写、读音或词义，可并行标注相应标签。不能因为填空答案是副词就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“所有涉及到写副词都打”改为答案直接依赖条件，减少副词位置和比较级题过标。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->词汇（音/形/义）->介词（短语）的音/形/义",
+      "replacement_definition": "适用范围：各类填空、听力填空、单词拼写、首字母填空等。仅当答案本身需要根据介词（短语）的读音、拼写或词义作出判断时才标本标签。若答案形式主要由时间、地点、方向、方式等介词规则，或由固定搭配、句法结构直接决定，而题目不要求额外判断介词的音/形/义，则不标；若题目同时明确要求写出或辨认该介词（短语）的拼写、读音或词义，可并行标注相应标签。不能因为填空答案是介词就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“所有涉及到写介词都打”改为答案直接依赖条件，减少介词规则题过标。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->词汇->固定搭配/句型",
+      "replacement_definition": "适用题型：单选题、语法填空、语法选择等。只有当答案必须依赖某个固定搭配或固定句型的固定槽位、连接词、动词形式、介词搭配或整体含义时才标本标签，如 have a great time doing、be good at、too...to...。仅在题干或解析中顺带出现的搭配、可由一般语法规则独立确定的动词形式、普通词义翻译，不触发本标签。若同题还考查时态、语态、非谓语或词性变化，应分别标注对应知识点；不能因为题干出现一个短语就自动标注。",
+      "change_kind": "overlabel_guard",
+      "reason": "将“只要题干涉及固定搭配就标”改为答案直接依赖条件。",
+      "status": "active_for_experiment"
+    },
+    {
+      "label": "知识点->语用->时间->顺序",
+      "replacement_definition": "适用题型：选择题、补全对话、听力单选题、情景运用。只有当答案必须比较两个或多个事件、步骤或时间点的相对先后，或必须排列事件/操作步骤时才标本标签。正例：按 first→then→finally 排列步骤，判断谁先做某事，比较两个历史事件的先后。不标：只询问一个钟点、日期、星期、持续时长、发生频率或将来多久以后；也不因题干出现 before/after、一般过去时或时间状语就自动标。若 before/after 只是普通从句连接而题目不要求判断相对顺序，不标本标签。",
+      "change_kind": "semantic_boundary",
+      "reason": "收窄顺序标签，排除时刻、时段、频率、How soon/How long 和普通时态题。",
+      "status": "active_for_experiment"
+    }
+  ]
+}

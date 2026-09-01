@@ -123,6 +123,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--teacher-csv", type=Path, required=True)
+    parser.add_argument(
+        "--definition-overrides",
+        type=Path,
+        help="Optional versioned JSON definition overlay; source CSV remains unchanged.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--report",
@@ -172,7 +177,9 @@ def main() -> None:
         parser.error("--report must differ from --output")
 
     try:
-        tree = KnowledgeTaxonomyTree.from_rulebook(load_knowledge_rulebook(args.teacher_csv))
+        tree = KnowledgeTaxonomyTree.from_rulebook(
+            load_knowledge_rulebook(args.teacher_csv, overrides_path=args.definition_overrides)
+        )
     except (OSError, ValueError) as error:
         parser.error(str(error))
     client = KnowledgeTreeChoiceClient(
@@ -256,6 +263,9 @@ def main() -> None:
             **timing_report,
             "input": str(args.input),
             "output": str(args.output),
+            "definition_overrides": (
+                str(args.definition_overrides) if args.definition_overrides is not None else None
+            ),
             "model": args.model,
             "max_steps": args.max_steps,
             "max_backtracks": args.max_backtracks,
@@ -272,6 +282,9 @@ def main() -> None:
             {
                 "input": str(args.input),
                 "output": str(args.output),
+                "definition_overrides": (
+                    str(args.definition_overrides) if args.definition_overrides is not None else None
+                ),
                 "processed": len(queued_rows),
                 "status_counts": dict(sorted(counts.items())),
                 "model": args.model,

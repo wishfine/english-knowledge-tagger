@@ -246,6 +246,13 @@ CSV 中 377/386 条知识点记录的 `所含其他知识点（除当前知识�
 
 这样可以继续逐标签跑 DS，但最终以 `question_id` 合并所有通过验证的标签；一次只处理当前标签，不强迫 DS 在一次调用中穷举全树。
 
+目前已建立第一版实验覆盖层：
+
+`configs/knowledge_definition_overrides/knowledge-definition-overrides-v0.1.json`
+
+它只修订 10 个边界最明确的知识点，具体格式和运行方式见
+[`docs/knowledge-definition-overrides.md`](knowledge-definition-overrides.md)。
+
 ## 7. 建议处理优先级
 
 ### P0：先修数据和规则基础

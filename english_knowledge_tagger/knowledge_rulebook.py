@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import Mapping
@@ -23,14 +24,15 @@ class KnowledgeRulebookRecord:
     status: str
     marking_interpretation: str
     compressed_definition: str
+    definition_override: str | None = None
 
     @property
     def target_definition(self) -> str:
-        return self.marking_interpretation or self.compressed_definition
+        return self.definition_override or self.marking_interpretation or self.compressed_definition
 
     @property
     def alternative_definition(self) -> str:
-        return self.compressed_definition or self.marking_interpretation
+        return self.definition_override or self.compressed_definition or self.marking_interpretation
 
 
 @dataclass(frozen=True)
@@ -100,8 +102,44 @@ def _status(interpretation: str) -> str:
     return "active"
 
 
-def load_knowledge_rulebook(path: Path) -> KnowledgeRulebook:
+def _load_definition_overrides(path: Path) -> dict[str, str]:
+    """Load active, label-specific definition replacements from a versioned JSON file."""
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, Mapping):
+        raise ValueError("definition overrides JSON must be an object")
+    if payload.get("schema_version") != "knowledge-definition-overrides-v1":
+        raise ValueError("definition overrides schema_version must be knowledge-definition-overrides-v1")
+    raw_overrides = payload.get("overrides")
+    if not isinstance(raw_overrides, list):
+        raise ValueError("definition overrides must contain an overrides list")
+    overrides: dict[str, str] = {}
+    for index, raw_override in enumerate(raw_overrides, 1):
+        if not isinstance(raw_override, Mapping):
+            raise ValueError(f"definition override {index} must be an object")
+        label = raw_override.get("label")
+        replacement = raw_override.get("replacement_definition")
+        status = raw_override.get("status")
+        if not isinstance(label, str) or not label.strip().startswith("知识点->"):
+            raise ValueError(f"definition override {index} label must start with 知识点->")
+        label = label.strip()
+        if not isinstance(replacement, str) or not replacement.strip():
+            raise ValueError(f"definition override {index} replacement_definition must be non-empty")
+        if status not in {"active", "active_for_experiment"}:
+            raise ValueError(
+                f"definition override {index} status must be active or active_for_experiment"
+            )
+        if label in overrides:
+            raise ValueError(f"duplicate definition override label: {label}")
+        overrides[label] = replacement.strip()
+    return overrides
+
+
+def load_knowledge_rulebook(
+    path: Path, *, overrides_path: Path | None = None
+) -> KnowledgeRulebook:
     """Load only terminal knowledge-point rows from a UTF-8 teacher CSV."""
+    overrides = _load_definition_overrides(overrides_path) if overrides_path is not None else {}
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         if reader.fieldnames is None or LABEL_COLUMN not in reader.fieldnames:
@@ -123,5 +161,9 @@ def load_knowledge_rulebook(path: Path) -> KnowledgeRulebook:
                 status=_status(interpretation),
                 marking_interpretation=interpretation,
                 compressed_definition=compressed,
+                definition_override=overrides.get(knowledge_path),
             )
+    missing = sorted(set(overrides) - set(records))
+    if missing:
+        raise ValueError(f"definition override label is absent from teacher CSV: {missing[0]}")
     return KnowledgeRulebook(records=records)
