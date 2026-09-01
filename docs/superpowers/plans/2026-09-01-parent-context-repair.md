@@ -4,7 +4,7 @@
 
 **Goal:** 从嵌套的 `初中英语_labeled.jsonl` 中为 `cleaned_final_enhanced_v2.jsonl` 的子题补充必要父题文本上下文，生成可审计的新派生源，不修改任一原始文件或历史标签。
 
-**Architecture:** 第一遍流式扫描 raw，建立磁盘 SQLite 的父题和嵌套子题身份索引；第二遍流式扫描 enhanced v2，按 `(question_id, parent_id)` 匹配并只追加唯一父题的 `stem` 文本。所有无法唯一匹配、身份冲突或缺少父题的记录进入审计状态，原始 `output`、题型、知识点和多模态增强字段保持不变。
+**Architecture:** 第一遍流式扫描 raw，建立磁盘 SQLite 的父题和嵌套子题身份索引；第二遍流式扫描 enhanced v2，按 `(question_id, parent_id)` 匹配并只前置唯一父题的 `stem` 文本。所有无法唯一匹配、身份冲突或缺少父题的记录进入审计状态，原始 `output`、题型、知识点和多模态增强字段保持不变。
 
 **Tech Stack:** Python 3 标准库、SQLite、JSONL、`unittest`。
 
@@ -80,7 +80,7 @@ Expected: script/module import or CLI failure because the executable is not pres
 
 - [ ] **Step 3: Implement streaming two-pass CLI**
 
-Pass 1 indexes outer parents and every nested child. Pass 2 copies enhanced rows and only changes `input` for uniquely matched child rows whose parent `stem` is non-empty and not already represented in the input. Write one audit row per enhanced record and refuse existing output files.
+Pass 1 indexes outer parents and every nested child. Pass 2 copies enhanced rows and only changes `input` for uniquely matched child rows whose parent `stem` is non-empty and not already represented in the input; the parent context is placed before the child text so the original final task instruction remains last. Write one audit row per enhanced record and refuse existing output files.
 
 - [ ] **Step 4: Run focused and regression tests**
 

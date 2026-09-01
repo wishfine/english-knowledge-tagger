@@ -25,7 +25,8 @@ cleaned_final_enhanced_v2.jsonl
 `cleaned_final_enhanced_v2.jsonl` 已将其展平；部分 child 行没有带上父题材料。
 使用 `scripts/repair_parent_context.py` 生成 `v3_parent_context` 派生源时，只能从
 raw 唯一匹配的父题 `stem/options` 补文本上下文，不能复制父题的
-`knowledge_points` 或 `question_types`，也不能覆盖 v2 的音频/图片增强。修复输出、
+`knowledge_points` 或 `question_types`，也不能覆盖 v2 的音频/图片增强。父题上下文
+前置于 child `input`，使原有“当前小题…”和末尾任务指令仍保持在后面。修复输出、
 审计 JSONL、SQLite 索引和源 SHA 必须独立保存；v2 上生成的 DS packet 不能套用到 v3。
 
 从 2026-08-26 起，**历史末级知识点的直接判别**是小题知识点高质量提取的主入口：

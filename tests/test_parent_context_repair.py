@@ -106,6 +106,8 @@ class ParentContextRepairTests(unittest.TestCase):
             self.assertEqual(repair_report["raw_sha256"], "raw-sha")
             self.assertEqual(repair_report["index_schema_version"], "parent-context-index-v1")
             self.assertIn("A parent passage.", repaired["input"])
+            self.assertTrue(repaired["input"].startswith("父题上下文："))
+            self.assertTrue(repaired["input"].endswith("当前小题题干：What is the answer?"))
             self.assertEqual(repaired["output"], "题型@阅读理解@阅读选择")
             self.assertFalse(repaired["contain_audio"])
             self.assertEqual(audit_row["status"], "added")

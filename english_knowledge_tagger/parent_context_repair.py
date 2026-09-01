@@ -269,7 +269,7 @@ def enrich_enhanced_source(
                             if parent_context in input_value or body in input_value:
                                 status = "already_present"
                             else:
-                                new_input = input_value.rstrip() + "\n\n" + parent_context
+                                new_input = parent_context + "\n\n" + input_value.lstrip()
                                 status = "added"
 
                 if new_input != old_input:
