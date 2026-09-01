@@ -12,7 +12,7 @@ from typing import Any, Iterable, Mapping
 
 
 INDEX_SCHEMA_VERSION = "parent-context-index-v1"
-REPAIR_SCHEMA_VERSION = "parent-context-repair-v2"
+REPAIR_SCHEMA_VERSION = "parent-context-repair-v3"
 _HEADER_PREFIXES = (
     "题型结构为：",
     "题型名称为：",
@@ -48,16 +48,17 @@ def render_parent_context(parent: Mapping[str, object]) -> str:
     stem = _text(parent.get("stem"))
     options = _text(parent.get("options"))
     if stem:
-        parts.append(f"大题材料：\n{stem}")
+        parts.append(f"题目大题题干：{stem}")
     if options:
-        parts.append(f"大题补充信息：\n{options}")
+        parts.append(f"题目大题选项：{options}")
     if not parts:
         return ""
-    return "父题上下文：\n" + "\n\n".join(parts)
+    return "\n\n".join(parts)
 
 
 def insert_parent_context(input_text: str, parent_context: str) -> str:
     """Place parent context after leading metadata and before child content."""
+    parent_context = _canonical_parent_context(parent_context)
     if not input_text.strip():
         return parent_context
     lines = input_text.splitlines()
@@ -70,6 +71,11 @@ def insert_parent_context(input_text: str, parent_context: str) -> str:
         break
     prefix = lines[:header_end]
     suffix = lines[header_end:]
+    for index, line in enumerate(suffix):
+        if line.lstrip().startswith("题目题干："):
+            leading = line[: len(line) - len(line.lstrip())]
+            suffix[index] = leading + "当前小题题干：" + line.lstrip()[len("题目题干：") :]
+            break
     rendered = [*prefix, parent_context]
     if suffix:
         rendered.extend(("", *suffix))
@@ -81,18 +87,58 @@ def _normalise_for_containment(value: str) -> str:
 
 
 def _parent_text_fragments(parent_context: str) -> tuple[str, ...]:
-    body = parent_context.removeprefix("父题上下文：\n")
+    markers = ("题目大题题干：", "题目大题选项：", "大题材料：", "大题补充信息：")
     fragments: list[str] = []
-    for marker in ("大题材料：\n", "大题补充信息：\n"):
-        if marker in body:
-            value = body.split(marker, 1)[1]
-            for other in ("\n\n大题材料：\n", "\n\n大题补充信息：\n"):
-                value = value.split(other, 1)[0]
-            if value.strip():
-                fragments.append(value.strip())
-    if body.strip() and not fragments:
-        fragments.append(body.strip())
-    return tuple(fragments)
+    current: list[str] | None = None
+
+    def flush() -> None:
+        if current is not None:
+            value = "\n".join(current).strip()
+            if value:
+                fragments.append(value)
+
+    for line in parent_context.splitlines():
+        stripped = line.strip()
+        if stripped == "父题上下文：":
+            continue
+        marker = next((item for item in markers if stripped.startswith(item)), None)
+        if marker is not None:
+            flush()
+            current = []
+            inline = stripped[len(marker) :].strip()
+            if inline:
+                current.append(inline)
+            continue
+        if current is not None:
+            current.append(line)
+
+    flush()
+    if fragments:
+        return tuple(fragments)
+    body = parent_context.removeprefix("父题上下文：").strip()
+    return (body,) if body else ()
+
+
+def _canonical_parent_context(parent_context: str) -> str:
+    """Use the compact parent/child section names for new derived inputs.
+
+    Accept the previous ``父题上下文`` rendering so old callers and fixtures remain
+    readable, but always emit the new explicit parent-stem format.
+    """
+    if not parent_context.strip():
+        return ""
+    if any(
+        line.lstrip().startswith(("题目大题题干：", "题目大题选项："))
+        for line in parent_context.splitlines()
+    ):
+        return parent_context.strip()
+    fragments = _parent_text_fragments(parent_context)
+    if not fragments:
+        return parent_context.strip()
+    parts = [f"题目大题题干：{fragments[0]}"]
+    if len(fragments) > 1:
+        parts.extend(f"题目大题选项：{fragment}" for fragment in fragments[1:])
+    return "\n\n".join(parts)
 
 
 def _context_present(input_text: str, parent_context: str) -> bool:

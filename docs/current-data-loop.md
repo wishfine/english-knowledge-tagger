@@ -23,11 +23,11 @@ cleaned_final_enhanced_v2.jsonl
 当前复合题输入另有一个独立的数据完整性修复层。原始全量文件
 `初中英语_labeled.jsonl` 是“外层父题 + `sub_questions` 嵌套子题”，而
 `cleaned_final_enhanced_v2.jsonl` 已将其展平；部分 child 行没有带上父题材料。
-使用 `scripts/repair_parent_context.py`（`parent-context-repair-v2`）生成 `v3_parent_context` 派生源时，只能从
+使用 `scripts/repair_parent_context.py`（`parent-context-repair-v3`）生成 `v3_parent_context` 派生源时，只能从
 raw 唯一匹配的父题 `stem/options` 补文本上下文，不能复制父题的
 `knowledge_points` 或 `question_types`，也不能覆盖 v2 的音频/图片增强。父题上下文
-插在开头题型/音频元信息之后、当前小题正文之前，使原有“当前小题…”和末尾任务指令
-仍保持在后面。修复输出、
+统一按 `题目大题题干：...`、`当前小题题干：...` 的字段格式拼接，插在开头题型/音频元信息
+之后、当前小题正文之前；已有 `当前小题选项/解析/答案` 等字段保持原样。修复输出、
 审计 JSONL、SQLite 索引和源 SHA 必须独立保存；v2 上生成的 DS packet 不能套用到 v3。
 
 在全量修复前，先用 `scripts/profile_enhanced_source.py` 对 v2 做画像。该画像按

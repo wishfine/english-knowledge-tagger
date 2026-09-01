@@ -70,7 +70,7 @@ git commit -m "feat: define nested parent context repair contract"
 
 - [ ] **Step 1: Write failing CLI tests**
 
-Use temporary JSONL fixtures with one parent containing one child and one standalone parent; assert output has the same number of rows, child input gains a `父题上下文` section, and labels remain byte-equivalent.
+Use temporary JSONL fixtures with one parent containing one child and one standalone parent; assert output has the same number of rows, child input gains `题目大题题干：...` and normalizes its child stem to `当前小题题干：...`, and labels remain byte-equivalent.
 
 - [ ] **Step 2: Run CLI tests and verify failure**
 

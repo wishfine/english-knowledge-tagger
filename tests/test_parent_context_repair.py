@@ -13,6 +13,18 @@ from english_knowledge_tagger.parent_context_repair import (
 
 
 class ParentContextRepairTests(unittest.TestCase):
+    def test_insert_parent_context_uses_explicit_parent_and_child_stem_markers(self):
+        rendered = insert_parent_context(
+            "题型结构为：完形填空\n题型名称为：完形填空\n"
+            "题目题干：The child sentence.\n题目选项：A. one",
+            "题目大题题干：\nThe parent passage.",
+        )
+
+        self.assertIn("题目大题题干：\nThe parent passage.", rendered)
+        self.assertIn("当前小题题干：The child sentence.", rendered)
+        self.assertNotIn("题目题干：The child sentence.", rendered)
+        self.assertNotIn("父题上下文：", rendered)
+
     def test_insert_parent_context_preserves_type_and_audio_headers(self):
         rendered = insert_parent_context(
             "题型结构为：听力题\n题型名称为：听力单选\n"
@@ -21,8 +33,8 @@ class ParentContextRepairTests(unittest.TestCase):
             "父题上下文：\n大题材料：\nListen to the dialogue.",
         )
 
-        self.assertLess(rendered.index("题型结构为："), rendered.index("父题上下文："))
-        self.assertLess(rendered.index("父题上下文："), rendered.index("当前小题题干："))
+        self.assertLess(rendered.index("题型结构为："), rendered.index("题目大题题干："))
+        self.assertLess(rendered.index("题目大题题干："), rendered.index("当前小题题干："))
         self.assertIn("音频片段时长16秒", rendered)
 
     def test_render_parent_context_uses_text_only(self):
@@ -37,7 +49,7 @@ class ParentContextRepairTests(unittest.TestCase):
         )
 
         self.assertIn("Read the passage.", rendered)
-        self.assertIn("父题上下文", rendered)
+        self.assertIn("题目大题题干：", rendered)
         self.assertNotIn("知识点@不应复制", rendered)
         self.assertNotIn("不应进入上下文", rendered)
 
@@ -119,14 +131,15 @@ class ParentContextRepairTests(unittest.TestCase):
             repaired = json.loads(output.read_text(encoding="utf-8"))
             audit_row = json.loads(audit.read_text(encoding="utf-8"))
             self.assertEqual(repair_report["status_counts"], {"added": 1})
+            self.assertEqual(repair_report["schema_version"], "parent-context-repair-v3")
             self.assertEqual(repair_report["source_sha256"], "enhanced-sha")
             self.assertEqual(repair_report["raw_sha256"], "raw-sha")
             self.assertEqual(repair_report["index_schema_version"], "parent-context-index-v1")
             self.assertIn("A parent passage.", repaired["input"])
             self.assertTrue(repaired["input"].startswith("题型结构为：填空题\n题型名称为：完成句子\n"))
             self.assertLess(
-                repaired["input"].index("父题上下文："),
-                repaired["input"].index("题目题干：What is the answer?"),
+                repaired["input"].index("题目大题题干："),
+                repaired["input"].index("当前小题题干：What is the answer?"),
             )
             self.assertEqual(repaired["output"], "题型@阅读理解@阅读选择")
             self.assertFalse(repaired["contain_audio"])
