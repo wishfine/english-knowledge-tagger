@@ -90,6 +90,41 @@ def _strip_fence(text: str) -> str:
     return normalized.strip()
 
 
+def _extract_json_payload(raw: str) -> Mapping[str, Any]:
+    """Extract the final JSON object from an optional thinking-wrapped response."""
+    normalized = _strip_fence(raw)
+    try:
+        payload = json.loads(normalized)
+        if isinstance(payload, Mapping):
+            return payload
+    except json.JSONDecodeError:
+        pass
+
+    without_thinking = re.sub(
+        r"<think\b[^>]*>.*?</think\s*>", "", normalized, flags=re.IGNORECASE | re.DOTALL
+    ).strip()
+    if without_thinking != normalized:
+        try:
+            payload = json.loads(_strip_fence(without_thinking))
+            if isinstance(payload, Mapping):
+                return payload
+        except json.JSONDecodeError:
+            normalized = without_thinking
+
+    decoder = json.JSONDecoder()
+    candidates: list[Mapping[str, Any]] = []
+    for match in re.finditer(r"\{", normalized):
+        try:
+            payload, _ = decoder.raw_decode(normalized[match.start() :])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, Mapping):
+            candidates.append(payload)
+    if candidates:
+        return candidates[-1]
+    raise LabelingServiceError("conversion gate response is not JSON")
+
+
 def _string_list(value: object, *, field: str) -> tuple[str, ...]:
     if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
         raise LabelingServiceError(f"conversion gate response {field} must be a list of non-empty strings")
@@ -109,12 +144,7 @@ def _form_key(value: str) -> str:
 
 
 def _parse_response(raw: str) -> dict[str, Any]:
-    try:
-        payload = json.loads(_strip_fence(raw))
-    except json.JSONDecodeError as error:
-        raise LabelingServiceError("conversion gate response is not JSON") from error
-    if not isinstance(payload, Mapping):
-        raise LabelingServiceError("conversion gate response must be a JSON object")
+    payload = _extract_json_payload(raw)
     decision = payload.get("decision")
     confidence = payload.get("confidence")
     evidence = payload.get("evidence")

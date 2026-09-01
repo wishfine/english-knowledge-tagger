@@ -111,6 +111,43 @@ class ConversionGateTests(unittest.TestCase):
             captured["payload"]["chat_template_kwargs"], {"enable_thinking": True}
         )
 
+    def test_client_parses_json_after_thinking_block(self):
+        def transport(endpoint, payload, timeout, headers):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                "<think>先判断 direct 和 director 的词形关系。</think>\n"
+                                + json.dumps(
+                                    {
+                                        "decision": "non_target",
+                                        "confidence": "high",
+                                        "source_forms": ["direct"],
+                                        "target_forms": ["director"],
+                                        "form_unchanged": False,
+                                        "pos_or_function_changed": True,
+                                        "answer_depends_on_relation": True,
+                                        "evidence": "词形发生变化，属于派生法。",
+                                    },
+                                    ensure_ascii=False,
+                                )
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = ConversionGateClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            enable_thinking=True,
+            transport=transport,
+        )
+        result = client.classify({"question_context": "direct → director"})
+
+        self.assertEqual(result.decision, "non_target")
+        self.assertEqual(result.evidence, "词形发生变化，属于派生法。")
+
     def test_client_omits_thinking_override_when_unspecified(self):
         captured = {}
 
