@@ -37,6 +37,54 @@ python3 scripts/route_knowledge_tree.py \
 
 不传 `--definition-overrides` 时，行为与原来一致。运行报告会记录 `definition_overrides` 路径，结果中的 `prompt_version` 不变，因此必须同时保存报告和覆盖层文件。
 
+## A/B 实验
+
+两次运行必须使用同一个冻结的 `TREE_INPUT`、同一个 endpoint、同一个并发数和同一组 search 参数。先跑 baseline，再跑 override；不要把两次结果混写到同一个文件。
+
+```bash
+export TREE_INPUT="/path/to/frozen/tree-input.jsonl"
+export ABLATION_DIR="/path/to/runtime/knowledge-definition-ablation-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$ABLATION_DIR"
+
+# A：原始释义
+python3 scripts/route_knowledge_tree.py \
+  --input "$TREE_INPUT" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --output "$ABLATION_DIR/baseline.jsonl" \
+  --report "$ABLATION_DIR/baseline.report.json" \
+  --endpoint http://172.22.0.35:9102/v1/chat/completions \
+  --model DeepSeek-V4-Flash \
+  --limit 60 \
+  --concurrency 10 \
+  --max-steps 8 \
+  --max-backtracks 2 \
+  --terminal-definition-mode compressed \
+  --timeout-seconds 180
+
+# B：释义覆盖层
+python3 scripts/route_knowledge_tree.py \
+  --input "$TREE_INPUT" \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --definition-overrides configs/knowledge_definition_overrides/knowledge-definition-overrides-v0.1.json \
+  --output "$ABLATION_DIR/override.jsonl" \
+  --report "$ABLATION_DIR/override.report.json" \
+  --endpoint http://172.22.0.35:9102/v1/chat/completions \
+  --model DeepSeek-V4-Flash \
+  --limit 60 \
+  --concurrency 10 \
+  --max-steps 8 \
+  --max-backtracks 2 \
+  --terminal-definition-mode compressed \
+  --timeout-seconds 180
+
+python3 scripts/analyze_knowledge_definition_ablation.py \
+  --baseline "$ABLATION_DIR/baseline.jsonl" \
+  --override "$ABLATION_DIR/override.jsonl" \
+  --output "$ABLATION_DIR/summary.json"
+```
+
+`summary.json` 只回答“覆盖释义是否改变 DS 的路径/耗时”，不回答哪一个结果是真值。候选发生变化的题目还要交给网页 GPT 或人工复核；出现 `unparsed`、`budget_exhausted`、`uncovered` 的题目统一保留为 hold，不自动替换标签。
+
 ## 覆盖层格式
 
 每条覆盖至少包含：
