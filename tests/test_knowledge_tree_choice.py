@@ -109,6 +109,43 @@ class KnowledgeTreeChoiceTests(unittest.TestCase):
         self.assertEqual(result.prompt_chars, len(prompt))
         self.assertEqual(result.response_chars, len(result.raw_response))
 
+    def test_client_can_explicitly_disable_thinking(self):
+        captured = {}
+        candidate = "知识点->词法->冠词->a/an的区别"
+
+        def transport(endpoint, payload, timeout_seconds, headers):
+            captured["payload"] = payload
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"choice":"知识点->词法->冠词->a/an的区别",'
+                                '"candidate_coverage":"covered","evidence":"发音规则"}'
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = KnowledgeTreeChoiceClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"),
+            _tree(),
+            enable_thinking=False,
+            transport=transport,
+        )
+        client.choose(
+            TreeChoiceRequest(
+                question_context="It is an umbrella.",
+                parent_path="知识点->词法->冠词",
+                candidate_paths=(candidate,),
+                excluded_paths=(),
+            )
+        )
+        self.assertEqual(
+            captured["payload"]["chat_template_kwargs"], {"enable_thinking": False}
+        )
+
     def test_conversion_negative_constraint_only_appears_at_conversion_terminal(self):
         conversion = "知识点->词汇->构词法->转化法"
         tree = KnowledgeTaxonomyTree.from_rulebook(

@@ -154,6 +154,7 @@ class KnowledgeTreeChoiceClient:
         terminal_definition_mode: str = "compressed",
         conversion_negative_constraint: bool = False,
         conversion_structured_guard: bool = False,
+        enable_thinking: bool | None = None,
         transport: Transport | None = None,
     ):
         if not config.endpoint:
@@ -165,6 +166,7 @@ class KnowledgeTreeChoiceClient:
         self._terminal_definition_mode = terminal_definition_mode
         self._conversion_negative_constraint = conversion_negative_constraint
         self._conversion_structured_guard = conversion_structured_guard
+        self._enable_thinking = enable_thinking
         self._transport = transport or _http_transport
 
     def choose(self, request: TreeChoiceRequest) -> TreeChoice:
@@ -189,6 +191,11 @@ class KnowledgeTreeChoiceClient:
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": self._config.max_tokens,
             "temperature": 0.0,
+            **(
+                {"chat_template_kwargs": {"enable_thinking": self._enable_thinking}}
+                if self._enable_thinking is not None
+                else {}
+            ),
         }
         call_started_ns = time.perf_counter_ns()
         response = self._transport(

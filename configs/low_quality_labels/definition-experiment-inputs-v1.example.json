@@ -1,0 +1,31 @@
+{
+  "schema_version": "low-quality-definition-experiment-manifest-v1",
+  "teacher_csv": "${PROJECT_ROOT}/data/rulebooks/初中英语知识点题型方法释义.csv",
+  "definition_overrides": "${PROJECT_ROOT}/configs/knowledge_definition_overrides/knowledge-definition-overrides-v0.1.json",
+  "taxonomy_migration": "${PROJECT_ROOT}/configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json",
+  "mentor_samples": "${MENTOR_ROOT}/sampled_for_verification.jsonl",
+  "mentor_results": "${MENTOR_ROOT}/verification_results.jsonl",
+  "pseudo_gold_sources": [
+    {"legacy_label": "知识点@语用@情感@责备", "path": "${RUNTIME}/web-gpt-reviews/blame-20260831/evidence.jsonl", "expected_records": 257},
+    {"legacy_label": "知识点@语用@情感@厌烦", "path": "${RUNTIME}/web-gpt-reviews/boredom-20260831/evidence.jsonl", "expected_records": 113},
+    {"legacy_label": "知识点@语法词法@名词@集合名词", "path": "${RUNTIME}/web-gpt-reviews/collective-noun-20260831/evidence.jsonl", "expected_records": 128},
+    {"legacy_label": "知识点@语用@存在@存在", "path": "${RUNTIME}/web-gpt-reviews/existence-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@一般将来时@一般将来时的肯否疑", "path": "${RUNTIME}/web-gpt-reviews/future-affirmative-negative-question-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语篇主题@人与社会@互联通讯", "path": "${RUNTIME}/web-gpt-reviews/internet-communication-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@过去进行时@过去进行时的肯否疑", "path": "${RUNTIME}/web-gpt-reviews/past-progressive-affirmative-negative-question-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@一般过去时@一般过去时的肯否疑", "path": "${RUNTIME}/web-gpt-reviews/past-tense-affirmative-negative-question-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语用@社会交往@介绍", "path": "${RUNTIME}/web-gpt-reviews/prag-introduce-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法句法@句子成分@谓语", "path": "${RUNTIME}/web-gpt-reviews/predicate-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@现在进行时@现在进行时的肯否疑", "path": "${RUNTIME}/web-gpt-reviews/present-progressive-affirmative-negative-question-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@时态辨析@一般现在时与现在进行时的区别", "path": "${RUNTIME}/web-gpt-reviews/present-vs-progressive-contrast-20260829/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语用@社会交往@争辩", "path": "${RUNTIME}/web-gpt-reviews/social-argument-20260828/evidence.jsonl", "expected_records": 365},
+    {"legacy_label": "知识点@语用@社会交往@描述", "path": "${RUNTIME}/web-gpt-reviews/social-description-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语篇主题@人与社会@社会/政治/历史的变迁与发展", "path": "${RUNTIME}/web-gpt-reviews/social-political-historical-change-20260828/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法句法@句子成分@主语", "path": "${RUNTIME}/web-gpt-reviews/subject-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法句法@简单句@主+系+表", "path": "${RUNTIME}/web-gpt-reviews/subject-linking-verb-predicative-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@语法词法@动词时态@时态辨析@现在完成时与过去完成时的区别", "path": "${RUNTIME}/web-gpt-reviews/tense-perfect-contrast-20260831/evidence.jsonl", "expected_records": 134},
+    {"legacy_label": "知识点@语用@时间@顺序", "path": "${RUNTIME}/web-gpt-reviews/time-order-20260828/evidence.jsonl", "expected_records": 127},
+    {"legacy_label": "知识点@语用@时间@时段", "path": "${RUNTIME}/web-gpt-reviews/time-span-20260831/evidence.jsonl", "expected_records": 500},
+    {"legacy_label": "知识点@词汇@构词法@转化法", "path": "${RUNTIME}/low-quality-label-experiments/conversion-prep-20260828-172631/c-500-unanchored-20260831-150609/web-gpt-500-review.jsonl", "expected_records": 500}
+  ]
+}

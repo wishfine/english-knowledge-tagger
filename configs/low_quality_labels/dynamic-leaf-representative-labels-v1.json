@@ -1,0 +1,36 @@
+{
+  "schema_version": "dynamic-leaf-representative-labels-v1",
+  "policy_id": "dynamic-leaf-representative-labels-v1",
+  "labels": [
+    {
+      "canonical_label": "知识点->词汇->构词法->转化法",
+      "experiment_role": "word_formation_boundary",
+      "observed_direct_siblings": 3
+    },
+    {
+      "canonical_label": "知识点->词法->动词时态->现在进行时->现在进行时的肯否疑",
+      "experiment_role": "tense_boundary",
+      "observed_direct_siblings": 2
+    },
+    {
+      "canonical_label": "知识点->句法->句子成分->谓语",
+      "experiment_role": "sentence_component",
+      "observed_direct_siblings": 7
+    },
+    {
+      "canonical_label": "知识点->语用->时间->顺序",
+      "experiment_role": "pragmatic_time",
+      "observed_direct_siblings": 3
+    },
+    {
+      "canonical_label": "知识点->语篇主题->人与社会->互联通讯",
+      "experiment_role": "discourse_theme",
+      "observed_direct_siblings": 16
+    },
+    {
+      "canonical_label": "知识点->语用->社会交往->争辩",
+      "experiment_role": "wide_pragmatic_branch",
+      "observed_direct_siblings": 27
+    }
+  ]
+}
