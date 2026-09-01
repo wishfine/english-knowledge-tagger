@@ -44,6 +44,7 @@ hq-v0.1（2–3 万） -> SFT pilot -> 错误切片 -> 定向补数 -> hq-v1.0�
 - `scripts/profile_source.py`：流式字段与标签 profile。
 - `scripts/audit_composites.py`：使用本地 SQLite 父题索引审计大/小题标签关系；不加载全量数据进内存。
 - `scripts/repair_parent_context.py`：从嵌套 raw 父题索引为展平 enhanced child 修复缺失文本上下文；不复制父题标签、不覆盖任一源文件。
+- `scripts/profile_enhanced_source.py`：对 enhanced v2 做全量 scope/题型/内容形态/多模态画像，并输出确定性分层样本；不调用 DS、不修改源文件。
 - `scripts/inventory_question_types.py`：按大题/小题分别枚举“题型结构 × 题型名称”，生成待填写的打标策略 CSV。
 - `scripts/bootstrap_type_routing_policy.py`：由题型清单生成全量 `unmapped` 的精确题型路由策略骨架。
 - `scripts/sample_type_review_packet.py`：按精确题型组合稳定抽样，生成默认隐藏历史标签的盲审包。
