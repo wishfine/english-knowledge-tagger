@@ -15,56 +15,26 @@ from urllib.request import Request, urlopen
 from .sft_labels import parse_sft_output_labels
 
 
-PROMPT_VERSION = "question-type-discovery-v1"
+PROMPT_VERSION = "question-major-type-discovery-v2"
 SAMPLE_SCHEMA_VERSION = "question-type-reclassification-sample-v1"
-RESULT_SCHEMA_VERSION = "question-type-discovery-result-v1"
-_REMOVED_INPUT_PREFIXES = ("题型结构为：", "题型名称为：")
+RESULT_SCHEMA_VERSION = "question-major-type-discovery-result-v2"
+_REMOVED_INPUT_PREFIXES = (
+    "题型结构为：",
+    "题型名称为：",
+    "根据以上信息，当前题目所属的题型方法类目和知识点类目为：",
+    "根据以上信息，当前小题所属的题型方法类目和知识点类目为：",
+)
 
 DISCOVERY_FIELDS = (
     "candidate_type_label",
-    "label_target",
-    "input_modality",
-    "material_structure",
-    "prompt_support",
-    "core_operation",
-    "response_form",
-    "assessment_focus",
-    "solution_basis",
-    "target_language_form",
-    "genre_or_product",
-    "communicative_purpose",
-    "content_focus",
-    "task_constraints",
-    "additional_distinctions",
-    "naming_basis",
+    "task_mechanism",
+    "key_evidence",
     "information_sufficiency",
     "confidence",
-    "decision_evidence",
 )
-_STRING_FIELDS = (
-    "candidate_type_label",
-    "input_modality",
-    "material_structure",
-    "prompt_support",
-    "core_operation",
-    "response_form",
-    "assessment_focus",
-    "solution_basis",
-    "target_language_form",
-    "genre_or_product",
-    "communicative_purpose",
-    "content_focus",
-)
-_LIST_FIELDS = ("task_constraints", "additional_distinctions", "decision_evidence")
+_STRING_FIELDS = ("candidate_type_label", "task_mechanism")
+_LIST_FIELDS = ("key_evidence",)
 _ALLOWED_ENUMS = {
-    "label_target": {
-        "完整大题",
-        "同机制题组",
-        "独立小题",
-        "多任务复合题",
-        "无法判断",
-    },
-    "naming_basis": {"通行题型名", "任务机制命名", "信息不足"},
     "information_sufficiency": {"sufficient", "partial", "insufficient"},
 }
 
@@ -77,7 +47,7 @@ class QuestionTypeServiceError(RuntimeError):
 class QuestionTypeServiceConfig:
     endpoint: str
     model: str = "DeepSeek-V4-Flash"
-    max_tokens: int = 1024
+    max_tokens: int = 512
     temperature: float = 0.0
     timeout_seconds: float = 60.0
     api_key: str | None = None
@@ -172,9 +142,9 @@ def parse_question_type_response(text: str) -> dict[str, Any]:
                 f"discovery response field {field} must be a string array"
             )
         payload[field] = [item.strip() for item in value]
-    if not 1 <= len(payload["decision_evidence"]) <= 3:
+    if not 1 <= len(payload["key_evidence"]) <= 3:
         raise QuestionTypeServiceError(
-            "decision_evidence must contain between 1 and 3 items"
+            "key_evidence must contain between 1 and 3 items"
         )
     confidence = payload["confidence"]
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):

@@ -15,25 +15,11 @@ from english_knowledge_tagger.type_reclassification import (
 
 def discovery_payload():
     return {
-        "candidate_type_label": "双提示单词拼写",
-        "label_target": "完整大题",
-        "input_modality": "文字",
-        "material_structure": "单句单空",
-        "prompt_support": "首字母和中文提示",
-        "core_operation": "根据双重提示拼写完整单词",
-        "response_form": "完整单词，受限生成",
-        "assessment_focus": "词汇拼写",
-        "solution_basis": "首字母、中文提示和句意",
-        "target_language_form": "单词",
-        "genre_or_product": "不适用",
-        "communicative_purpose": "不适用",
-        "content_focus": "不适用",
-        "task_constraints": ["填写一个完整单词"],
-        "additional_distinctions": [],
-        "naming_basis": "任务机制命名",
+        "candidate_type_label": "单词拼写",
+        "task_mechanism": "根据首字母、中文提示和句意填写完整单词",
+        "key_evidence": ["空格同时提供首字母和中文提示"],
         "information_sufficiency": "sufficient",
         "confidence": 0.98,
-        "decision_evidence": ["空格同时提供首字母和中文提示"],
     }
 
 
@@ -77,12 +63,53 @@ def sample_row(question_id):
         "sampled_type_labels": ["题型@旧分类"],
         "current_type_labels": ["题型@旧分类"],
         "instruction": "旧 instruction 不应发送",
-        "input": "题型结构为：填空题\n题型名称为：单词拼写\n题目题干：The E____ is our home.",
+        "input": (
+            "题型结构为：填空题\n"
+            "题型名称为：单词拼写\n"
+            "题目题干：The E____ is our home.\n\n"
+            "根据以上信息，当前题目所属的题型方法类目和知识点类目为："
+        ),
         "output": "题型@旧分类",
     }
 
 
 class ReclassifyQuestionTypesCliTests(unittest.TestCase):
+    def test_run_rejects_sub_question_before_requesting_service(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            packet = directory / "sample.jsonl"
+            row = sample_row(1)
+            row["is_sub_question"] = True
+            packet.write_text(
+                json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+            script = (
+                Path(__file__).resolve().parents[1]
+                / "scripts"
+                / "reclassify_question_types.py"
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "run",
+                    "--input",
+                    str(packet),
+                    "--output",
+                    str(directory / "results.jsonl"),
+                    "--endpoint",
+                    "http://127.0.0.1:1/v1/chat/completions",
+                    "--limit",
+                    "1",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("only is_sub_question=false is eligible", completed.stderr)
+
     def test_run_uses_both_streaming_endpoints_and_sanitizes_input(self):
         first_requests = []
         second_requests = []
@@ -140,18 +167,18 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 content = request["messages"][0]["content"]
                 self.assertNotIn("题型结构为", content)
                 self.assertNotIn("题型名称为", content)
+                self.assertNotIn("根据以上信息", content)
                 self.assertNotIn("旧 instruction", content)
             self.assertEqual(
                 {row["candidate_type_label"] for row in results},
-                {"双提示单词拼写"},
+                {"单词拼写"},
             )
-            self.assertTrue(all(row["label_target"] == "完整大题" for row in results))
-            self.assertTrue(all(len(row["decision_evidence"]) == 1 for row in results))
+            self.assertTrue(all(len(row["key_evidence"]) == 1 for row in results))
             self.assertEqual(report_payload["candidate"], 2)
-            self.assertEqual(report_payload["candidate_type_counts"], {"双提示单词拼写": 2})
+            self.assertEqual(report_payload["candidate_type_counts"], {"单词拼写": 2})
             self.assertTrue(report_payload["stream"])
             self.assertEqual(report_payload["total_concurrency"], 2)
-            self.assertTrue(all(request["max_tokens"] == 1024 for request in first_requests + second_requests))
+            self.assertTrue(all(request["max_tokens"] == 512 for request in first_requests + second_requests))
         finally:
             first.shutdown()
             first.server_close()

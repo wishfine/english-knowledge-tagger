@@ -18,25 +18,11 @@ from english_knowledge_tagger.type_reclassification import (
 
 def discovery_payload(**overrides):
     payload = {
-        "candidate_type_label": "阅读主旨选择题",
-        "label_target": "独立小题",
-        "input_modality": "文字",
-        "material_structure": "连续语篇后接一个选择小题",
-        "prompt_support": "四个选项",
-        "core_operation": "概括语篇主旨并选择答案",
-        "response_form": "选项编号，封闭选择",
-        "assessment_focus": "主旨概括",
-        "solution_basis": "整篇语篇的中心内容",
-        "target_language_form": "不适用",
-        "genre_or_product": "不适用",
-        "communicative_purpose": "不适用",
-        "content_focus": "不适用",
-        "task_constraints": [],
-        "additional_distinctions": [],
-        "naming_basis": "任务机制命名",
+        "candidate_type_label": "阅读选择",
+        "task_mechanism": "阅读共享语篇并从选项中选择各题答案",
+        "key_evidence": ["语篇后设置多个选择题"],
         "information_sufficiency": "sufficient",
         "confidence": 0.93,
-        "decision_evidence": ["根据语篇选择主旨"],
     }
     payload.update(overrides)
     return payload
@@ -48,7 +34,8 @@ class TypeReclassificationTests(unittest.TestCase):
             "题型结构为：完形填空\n"
             "题型名称为：完形填空\n"
             "题目题干：Choose the answer.\n"
-            "当前小题答案：B"
+            "题目答案：B\n\n"
+            "根据以上信息，当前题目所属的题型方法类目和知识点类目为："
         )
 
         cleaned = clean_question_input(source)
@@ -56,6 +43,7 @@ class TypeReclassificationTests(unittest.TestCase):
 
         self.assertNotIn("题型结构为", cleaned)
         self.assertNotIn("题型名称为", cleaned)
+        self.assertNotIn("根据以上信息", cleaned)
         self.assertIn("题目题干：Choose the answer.", cleaned)
         self.assertEqual(prompt.count("只输出题型标签。"), 1)
         self.assertNotIn("题型结构为", prompt)
@@ -188,16 +176,16 @@ class TypeReclassificationTests(unittest.TestCase):
         self.assertEqual(captured["payload"]["temperature"], 0)
         self.assertNotIn("题型结构为", captured["payload"]["messages"][0]["content"])
         self.assertNotIn("题型名称为", captured["payload"]["messages"][0]["content"])
-        self.assertEqual(result.discovery["candidate_type_label"], "阅读主旨选择题")
+        self.assertEqual(result.discovery["candidate_type_label"], "阅读选择")
         self.assertEqual(result.model, "served-model")
 
     def test_parser_accepts_one_fenced_discovery_object(self):
-        payload = discovery_payload(candidate_type_label="双提示单词拼写")
+        payload = discovery_payload(candidate_type_label="单词拼写")
         parsed = parse_question_type_response(
             "```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
         )
 
-        self.assertEqual(parsed["candidate_type_label"], "双提示单词拼写")
+        self.assertEqual(parsed["candidate_type_label"], "单词拼写")
         self.assertEqual(parsed["confidence"], 0.93)
 
     def test_parser_rejects_incomplete_discovery_object(self):
@@ -205,9 +193,9 @@ class TypeReclassificationTests(unittest.TestCase):
             parse_question_type_response('{"candidate_type_label":"单词拼写"}')
 
     def test_parser_rejects_invalid_enum(self):
-        payload = discovery_payload(label_target="一道题")
+        payload = discovery_payload(information_sufficiency="unknown")
 
-        with self.assertRaisesRegex(QuestionTypeServiceError, "label_target"):
+        with self.assertRaisesRegex(QuestionTypeServiceError, "information_sufficiency"):
             parse_question_type_response(json.dumps(payload, ensure_ascii=False))
 
 

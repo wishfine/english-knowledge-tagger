@@ -33,7 +33,9 @@ DEFAULT_ENDPOINTS = (
     "http://172.22.0.35:9102/v1/chat/completions",
     "http://172.22.0.35:9103/v1/chat/completions",
 )
-DEFAULT_PROMPT = PROJECT_ROOT / "configs" / "prompts" / "question-type-discovery-v1.txt"
+DEFAULT_PROMPT = (
+    PROJECT_ROOT / "configs" / "prompts" / "question-major-type-discovery-v2.txt"
+)
 
 
 def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
@@ -56,6 +58,10 @@ def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
                 raise ValueError(f"sample line {line_number}: review_id must be non-empty")
             if not isinstance(row.get("input"), str):
                 raise ValueError(f"sample line {line_number}: input must be a string")
+            if row.get("is_sub_question") is not False:
+                raise ValueError(
+                    f"sample line {line_number}: only is_sub_question=false is eligible"
+                )
             emitted += 1
             yield row
 
@@ -238,7 +244,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         parser.error(str(error))
 
     report = {
-        "schema_version": "question-type-discovery-run-report-v1",
+        "schema_version": "question-major-type-discovery-run-report-v2",
         "input_path": str(args.input),
         "output_path": str(args.output),
         "prompt_path": str(args.prompt),
@@ -282,7 +288,7 @@ def main() -> None:
     run.add_argument("--model", default="DeepSeek-V4-Flash")
     run.add_argument("--per-endpoint-concurrency", type=int, default=15)
     run.add_argument("--timeout-seconds", type=float, default=60.0)
-    run.add_argument("--max-tokens", type=int, default=1024)
+    run.add_argument("--max-tokens", type=int, default=512)
     run.add_argument("--max-retries", type=int, default=3)
     run.add_argument("--api-key-env", default="ENGLISH_TAGGER_DS_V4_API_KEY")
     run.add_argument("--limit", type=int)
