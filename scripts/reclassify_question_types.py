@@ -20,7 +20,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from english_knowledge_tagger.type_reclassification import (
     PROMPT_VERSION,
-    RESULT_SCHEMA_VERSION,
     SAMPLE_SCHEMA_VERSION,
     QuestionTypeClient,
     QuestionTypeServiceConfig,
@@ -66,8 +65,12 @@ def _packet_rows(path: Path, *, limit: int | None) -> Iterator[dict[str, Any]]:
             yield row
 
 
-def _completed_review_ids(path: Path) -> set[str]:
-    completed: set[str] = set()
+def _record_key(row: Mapping[str, Any]) -> tuple[Any, Any]:
+    return row.get("source_line"), row.get("question_id")
+
+
+def _completed_record_keys(path: Path) -> set[tuple[Any, Any]]:
+    completed: set[tuple[Any, Any]] = set()
     if not path.exists():
         return completed
     with path.open("r", encoding="utf-8") as source:
@@ -78,55 +81,35 @@ def _completed_review_ids(path: Path) -> set[str]:
                 row = json.loads(line)
             except json.JSONDecodeError as error:
                 raise ValueError(f"result line {line_number}: invalid JSON") from error
-            if not isinstance(row, Mapping) or not isinstance(row.get("review_id"), str):
+            if not isinstance(row, Mapping):
                 raise ValueError(f"result line {line_number}: invalid result row")
-            completed.add(row["review_id"])
+            completed.add(_record_key(row))
     return completed
-
-
-def _result_review_id(packet_row: Mapping[str, Any]) -> str:
-    question_id = packet_row.get("question_id") or "unknown"
-    return f"{PROMPT_VERSION}:{packet_row.get('source_line')}:{question_id}"
 
 
 def _classify_one(
     packet_row: Mapping[str, Any],
     *,
     client: QuestionTypeClient,
-    endpoint: str,
-    prompt_sha256: str,
-) -> tuple[dict[str, Any], str]:
+) -> dict[str, Any]:
     base = {
-        **packet_row,
-        "schema_version": RESULT_SCHEMA_VERSION,
-        "review_id": _result_review_id(packet_row),
-        "endpoint": endpoint,
-        "prompt_version": PROMPT_VERSION,
-        "prompt_sha256": prompt_sha256,
+        "question_id": packet_row.get("question_id"),
+        "source_line": packet_row.get("source_line"),
+        "current_type_labels": packet_row.get("current_type_labels", []),
     }
     try:
         result = client.classify(packet_row["input"])
-        return (
-            {
-                **base,
-                "status": "candidate",
-                **result.discovery,
-                "raw_response": result.raw_response,
-                "request_id": result.request_id,
-                "model": result.model,
-            },
-            "candidate",
-        )
+        return {
+            **base,
+            "status": "candidate",
+            **result.discovery,
+        }
     except (QuestionTypeServiceError, ValueError) as error:
-        return (
-            {
-                **base,
-                "status": "error",
-                "candidate_type_label": None,
-                "error": str(error),
-            },
-            "error",
-        )
+        return {
+            **base,
+            "status": "error",
+            "error": str(error),
+        }
 
 
 def _write_report(path: Path | None, report: Mapping[str, Any]) -> None:
@@ -137,6 +120,52 @@ def _write_report(path: Path | None, report: Mapping[str, Any]) -> None:
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _summarize_results(path: Path) -> dict[str, Any]:
+    status_counts: Counter[str] = Counter()
+    current_type_counts: Counter[str] = Counter()
+    candidate_type_counts: Counter[str] = Counter()
+    sufficiency_counts: Counter[str] = Counter()
+    total_processed = 0
+    with path.open("r", encoding="utf-8") as source:
+        for line_number, line in enumerate(source, 1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"result line {line_number}: invalid JSON") from error
+            if not isinstance(row, Mapping):
+                raise ValueError(f"result line {line_number}: invalid result row")
+            total_processed += 1
+            status = row.get("status")
+            if status not in {"candidate", "error"}:
+                raise ValueError(f"result line {line_number}: invalid status")
+            status_counts[status] += 1
+            labels = row.get("current_type_labels")
+            if not isinstance(labels, list):
+                raise ValueError(
+                    f"result line {line_number}: current_type_labels must be an array"
+                )
+            current_type_counts.update(
+                label for label in labels if isinstance(label, str) and label
+            )
+            if status == "candidate":
+                candidate_type = row.get("candidate_type_label")
+                sufficiency = row.get("information_sufficiency")
+                if isinstance(candidate_type, str) and candidate_type:
+                    candidate_type_counts[candidate_type] += 1
+                if isinstance(sufficiency, str) and sufficiency:
+                    sufficiency_counts[sufficiency] += 1
+    return {
+        "total_processed": total_processed,
+        "candidate": status_counts["candidate"],
+        "error": status_counts["error"],
+        "current_type_counts": dict(sorted(current_type_counts.items())),
+        "candidate_type_counts": dict(sorted(candidate_type_counts.items())),
+        "information_sufficiency_counts": dict(sorted(sufficiency_counts.items())),
+    }
 
 
 def sample_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -179,7 +208,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         if not base_prompt.strip():
             raise ValueError("classifier prompt must be non-empty")
         prompt_sha256 = hashlib.sha256(base_prompt.encode("utf-8")).hexdigest()
-        completed = _completed_review_ids(args.output) if args.resume else set()
+        completed = _completed_record_keys(args.output) if args.resume else set()
         clients = [
             QuestionTypeClient(
                 QuestionTypeServiceConfig(
@@ -197,8 +226,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
         ]
 
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        counters: Counter[str] = Counter()
-        candidate_type_counts: Counter[str] = Counter()
+        source_paths: set[str] = set()
         total_workers = len(endpoints) * args.per_endpoint_concurrency
         max_pending = total_workers * 4
         mode = "a" if args.resume else "x"
@@ -209,7 +237,7 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 )
                 for _ in endpoints
             ]
-            pending: set[Future[tuple[dict[str, Any], str]]] = set()
+            pending: set[Future[dict[str, Any]]] = set()
 
             def drain() -> None:
                 if not pending:
@@ -217,19 +245,18 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                 done, _ = wait(pending, return_when=FIRST_COMPLETED)
                 for future in done:
                     pending.remove(future)
-                    output_row, status = future.result()
+                    output_row = future.result()
                     output.write(
                         json.dumps(output_row, ensure_ascii=False, sort_keys=True) + "\n"
                     )
                     output.flush()
-                    counters[status] += 1
-                    if status == "candidate":
-                        candidate_type_counts[output_row["candidate_type_label"]] += 1
 
             submitted = 0
             for packet_row in _packet_rows(args.input, limit=args.limit):
-                if _result_review_id(packet_row) in completed:
-                    counters["skipped_completed"] += 1
+                source_path = packet_row.get("source_path")
+                if isinstance(source_path, str) and source_path:
+                    source_paths.add(source_path)
+                if _record_key(packet_row) in completed:
                     continue
                 endpoint_index = submitted % len(endpoints)
                 pending.add(
@@ -237,8 +264,6 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                         _classify_one,
                         packet_row,
                         client=clients[endpoint_index],
-                        endpoint=endpoints[endpoint_index],
-                        prompt_sha256=prompt_sha256,
                     )
                 )
                 submitted += 1
@@ -246,26 +271,24 @@ def run_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> No
                     drain()
             while pending:
                 drain()
+        if len(source_paths) > 1:
+            raise ValueError("sample contains more than one source_path")
+        result_summary = _summarize_results(args.output)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
     report = {
         "schema_version": "question-major-type-discovery-run-report-v2",
-        "input_path": str(args.input),
-        "output_path": str(args.output),
-        "prompt_path": str(args.prompt),
-        "prompt_version": PROMPT_VERSION,
-        "prompt_sha256": prompt_sha256,
+        "source_path": next(iter(source_paths), None),
+        "sample_path": str(args.input),
+        "result_path": str(args.output),
         "model": args.model,
         "endpoints": endpoints,
+        "prompt_version": PROMPT_VERSION,
+        "prompt_sha256": prompt_sha256,
         "stream": True,
-        "per_endpoint_concurrency": args.per_endpoint_concurrency,
-        "total_concurrency": len(endpoints) * args.per_endpoint_concurrency,
-        "submitted": submitted,
-        "candidate": counters["candidate"],
-        "error": counters["error"],
-        "skipped_completed": counters["skipped_completed"],
-        "candidate_type_counts": dict(sorted(candidate_type_counts.items())),
+        "max_tokens": args.max_tokens,
+        **result_summary,
     }
     _write_report(args.report, report)
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))

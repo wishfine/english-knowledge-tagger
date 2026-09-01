@@ -156,6 +156,13 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                     text=True,
                 )
                 self.assertEqual(completed.returncode, 0, completed.stderr)
+                resumed = subprocess.run(
+                    [*completed.args, "--resume"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(resumed.returncode, 0, resumed.stderr)
                 results = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
                 report_payload = json.loads(report.read_text(encoding="utf-8"))
 
@@ -174,13 +181,36 @@ class ReclassifyQuestionTypesCliTests(unittest.TestCase):
                 {"单词拼写"},
             )
             self.assertTrue(
-                all(row["review_id"].startswith(f"{PROMPT_VERSION}:") for row in results)
+                all(
+                    set(row)
+                    == {
+                        "question_id",
+                        "source_line",
+                        "current_type_labels",
+                        "candidate_type_label",
+                        "task_mechanism",
+                        "key_evidence",
+                        "information_sufficiency",
+                        "confidence",
+                        "status",
+                    }
+                    for row in results
+                )
             )
             self.assertTrue(all(len(row["key_evidence"]) == 1 for row in results))
+            self.assertEqual(report_payload["source_path"], "source.jsonl")
+            self.assertEqual(report_payload["sample_path"], str(packet))
+            self.assertEqual(report_payload["result_path"], str(output))
+            self.assertEqual(report_payload["total_processed"], 2)
             self.assertEqual(report_payload["candidate"], 2)
+            self.assertEqual(report_payload["error"], 0)
+            self.assertEqual(report_payload["current_type_counts"], {"题型@旧分类": 2})
             self.assertEqual(report_payload["candidate_type_counts"], {"单词拼写": 2})
+            self.assertEqual(
+                report_payload["information_sufficiency_counts"], {"sufficient": 2}
+            )
             self.assertTrue(report_payload["stream"])
-            self.assertEqual(report_payload["total_concurrency"], 2)
+            self.assertEqual(report_payload["max_tokens"], 512)
             self.assertTrue(all(request["max_tokens"] == 512 for request in first_requests + second_requests))
         finally:
             first.shutdown()
