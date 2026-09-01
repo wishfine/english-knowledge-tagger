@@ -53,7 +53,7 @@ python3 scripts/build_definition_ambiguity_profile.py \
 
 输出包括 mentor yield、P0、override、文本风险、审计歧义家族、直接兄弟数、定义长度和混淆邻居。`summary.json` 给出 Fisher exact、odds ratio 和 Spearman 相关；只用于排优先级。
 
-mentor 的全量 `verification_results.jsonl` 可能同时包含 `知识点@...` 和 `题型@...` 结果。E0 只把 `知识点@...` 纳入 386 个知识点统计；题型等其他 scope 会记录在 `summary.mentor_result_diagnostics.out_of_scope_records`。经过 migration 仍不在老师 CSV 中的历史知识点会进入 `unknown_knowledge_labels` 隔离清单，不参与当前标签的分母，也不会让整轮画像失败。
+mentor 的全量 `verification_results.jsonl` 可能同时包含 `知识点@...` 和 `题型@...` 结果。E0 只把 `知识点@...` 纳入 386 个知识点统计；题型等其他 scope 会记录在 `summary.mentor_result_diagnostics.out_of_scope_records`。当前 migration 除两个旧根前缀外，还明确合并 `how/wh 类特殊疑问句→特殊疑问词` 和 `(don't/doesn't/didn't) have to→have to` 三个名称变更；`can/can't 表示推测` 仍不映射。经过 migration 仍不在老师 CSV 中的历史知识点会进入 `unknown_knowledge_labels` 隔离清单，不参与当前标签的分母，也不会让整轮画像失败。
 
 已识别知识点但缺少有效 `question_id`、`llm_match` 不是 JSON 布尔值或出现重复 `label/question_id` 的记录，会进入 `quarantine_by_reason` 和最多 20 条 `quarantine_samples`，同样不进入任何标签分母；JSON 损坏、记录不是对象或缺少 `verify_label` 仍会直接报错，以免掩盖文件损坏。
 

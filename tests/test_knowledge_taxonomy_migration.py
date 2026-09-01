@@ -12,6 +12,26 @@ except ModuleNotFoundError:
 
 
 class KnowledgeTaxonomyMigrationTests(unittest.TestCase):
+    def test_teacher_migration_covers_three_explicit_renamed_labels(self):
+        self.assertTrue(callable(load_knowledge_taxonomy_migration))
+        policy = (
+            Path(__file__).resolve().parents[1]
+            / "configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json"
+        )
+        migration = load_knowledge_taxonomy_migration(policy)
+        expected = {
+            "知识点->词法->动词->情态动词->(don't/doesn't/didn't) have to":
+                "知识点->词法->动词->情态动词->have to",
+            "知识点->句法->句子种类->疑问句->特殊疑问句->how类特殊疑问句":
+                "知识点->句法->句子种类->疑问句->特殊疑问句->how类特殊疑问词",
+            "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问句":
+                "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问词",
+        }
+        for legacy, canonical in expected.items():
+            result = migration.canonicalize(legacy)
+            self.assertEqual(result.canonical_path, canonical)
+            self.assertEqual(result.status, "prefix_alias")
+
     def test_prefix_alias_maps_legacy_grammar_roots_to_teacher_taxonomy(self):
         self.assertTrue(
             callable(load_knowledge_taxonomy_migration),
