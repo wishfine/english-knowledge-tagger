@@ -27,8 +27,12 @@ _SECTION_PREFIXES = (
     "题目答案：",
     "当前小题答案：",
     "小题序号：",
+    "题目大题题干：",
+    "大题题干：",
+    "父题上下文：",
     "根据以上信息，当前题目所属的题型方法类目和知识点类目为：",
 )
+_PARENT_MATERIAL_PREFIXES = ("题目大题题干：", "大题题干：", "父题上下文：")
 _HEADER_PREFIXES = (
     "题型结构为：",
     "题型名称为：",
@@ -92,6 +96,7 @@ def _content_shape(row: Mapping[str, Any], input_text: str) -> str:
     has_options = _section_has_content(input_text, ("题目选项：", "当前小题选项："))
     has_analysis = _section_has_content(input_text, ("题目解析：", "当前小题解析："))
     has_answer = _section_has_content(input_text, ("题目答案：", "当前小题答案："))
+    has_parent_material = _section_has_content(input_text, _PARENT_MATERIAL_PREFIXES)
 
     if scope == "parent":
         if not has_stem:
@@ -110,6 +115,8 @@ def _content_shape(row: Mapping[str, Any], input_text: str) -> str:
     if scope == "child":
         if has_stem:
             return "child_with_stem"
+        if has_parent_material:
+            return "child_with_parent_material_no_stem"
         if has_options or has_analysis or has_answer:
             return "child_without_stem"
         return "child_empty"
@@ -280,6 +287,9 @@ def profile_enhanced_source(
                 )
                 input_presence_counts["has_answer"] += int(
                     _section_has_content(input_text, ("题目答案：", "当前小题答案："))
+                )
+                input_presence_counts["has_parent_material"] += int(
+                    _section_has_content(input_text, _PARENT_MATERIAL_PREFIXES)
                 )
 
                 type_key = (scope, structure, name)

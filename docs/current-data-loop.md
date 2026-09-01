@@ -32,8 +32,10 @@ raw 唯一匹配的父题 `stem/options` 补文本上下文，不能复制父题
 
 在全量修复前，先用 `scripts/profile_enhanced_source.py` 对 v2 做画像。该画像按
 `parent/child × 题型结构 × 题型名称` 统计，并额外切分 `parent_shell_compact`、
-`parent_with_material`、`child_with_stem`、`child_without_stem`、音频/图片和知识点
-数量；同一报告旁边保存确定性 `type`/`shape` 样本。父题壳记录、缺题面和多模态缺失
+`parent_with_material`、`child_with_stem`、`child_with_parent_material_no_stem`、
+`child_without_stem`、音频/图片和知识点数量；其中后两种 child 必须区分：前者已有
+`题目大题题干`，后者才是没有父题材料的候选。报告旁边保存确定性 `type`/`shape`
+样本。父题壳记录、缺题面和多模态缺失
 样本必须先人工确认，再决定是否进入上下文修复或单独的 parent-aggregate 审计。
 
 从 2026-08-26 起，**历史末级知识点的直接判别**是小题知识点高质量提取的主入口：

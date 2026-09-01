@@ -36,6 +36,15 @@ class EnhancedSourceAuditTests(unittest.TestCase):
                             "whole_image": False,
                         },
                         {
+                            "input": "题型结构为：复合题\n题型名称为：语法填空\n题目大题题干：A full passage.\n当前小题解析：选择。\n当前小题答案：A",
+                            "output": "题型@语法填空",
+                            "question_id": "c1b",
+                            "parent_id": "p2",
+                            "is_sub_question": True,
+                            "contain_audio": False,
+                            "whole_image": False,
+                        },
+                        {
                             "input": "题型结构为：复合题\n题型名称为：听力单选\n本题题干中包含音频内容，音频片段时长3秒，\n当前小题题干：What?",
                             "output": "知识点@听力",
                             "question_id": "c2",
@@ -59,12 +68,13 @@ class EnhancedSourceAuditTests(unittest.TestCase):
                 seed="test-seed",
             )
 
-            self.assertEqual(report["valid_records"], 3)
-            self.assertEqual(report["scope_counts"], {"parent": 1, "child": 2, "unknown": 0})
+            self.assertEqual(report["valid_records"], 4)
+            self.assertEqual(report["scope_counts"], {"parent": 1, "child": 3, "unknown": 0})
             self.assertEqual(report["content_shape_counts"]["parent_shell_compact"], 1)
             self.assertEqual(report["content_shape_counts"]["child_without_stem"], 1)
+            self.assertEqual(report["content_shape_counts"]["child_with_parent_material_no_stem"], 1)
             self.assertEqual(report["content_shape_counts"]["child_with_stem"], 1)
-            self.assertEqual(report["modality_counts"]["text"], 2)
+            self.assertEqual(report["modality_counts"]["text"], 3)
             self.assertEqual(report["modality_counts"]["audio_image"], 1)
             self.assertEqual(report["duplicate_identity_count"], 0)
             self.assertGreaterEqual(report["type_bucket_count"], 3)
@@ -73,7 +83,7 @@ class EnhancedSourceAuditTests(unittest.TestCase):
                 json.loads(line)
                 for line in sample_output.read_text(encoding="utf-8").splitlines()
             ]
-            self.assertEqual(len(samples), 6)
+            self.assertEqual(len(samples), 8)
             self.assertTrue(all("input" in row and "output" in row for row in samples))
             self.assertTrue(any(row["content_shape"] == "parent_shell_compact" for row in samples))
 
