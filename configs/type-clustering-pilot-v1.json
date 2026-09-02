@@ -1,0 +1,15 @@
+{
+  "schema_version": "local-type-clustering-pilot-config-v1",
+  "source_type_labels": [
+    "题型@书面表达@写作体裁@写作：应用文@写作：日记",
+    "题型@书面表达@写作体裁@写作：应用文@写作：书信/电子邮件类",
+    "题型@书面表达@写作体裁@写作：议论文"
+  ],
+  "core_confidence_threshold": 0.7,
+  "auxiliary_confidence_threshold": 0.4,
+  "local_distance_threshold": 0.48,
+  "auxiliary_similarity_threshold": 0.52,
+  "candidate_label_weight": 0.7,
+  "task_mechanism_weight": 0.3,
+  "representative_count": 5
+}
