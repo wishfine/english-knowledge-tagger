@@ -20,7 +20,7 @@ from english_knowledge_tagger.local_type_clustering import (
 )
 
 
-DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v1.json"
+DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v2.json"
 
 
 def _jsonl_rows(path: Path) -> Iterator[dict[str, Any]]:
@@ -124,7 +124,7 @@ def main() -> None:
             _write_json(
                 label_output / "local-clusters.json",
                 {
-                    "schema_version": "local-type-clusters-pilot-v1",
+                    "schema_version": "local-type-clusters-pilot-v2",
                     "source_type_label": label,
                     "clusters": clustered["clusters"],
                 },
@@ -134,7 +134,7 @@ def main() -> None:
             )
             _write_jsonl(label_output / "local-outliers.jsonl", clustered["outliers"])
             report = {
-                "schema_version": "local-type-clustering-pilot-report-v1",
+                "schema_version": "local-type-clustering-pilot-report-v2",
                 "source_result_path": str(result_path),
                 "source_report_path": str(report_path),
                 "source_prompt_version": source_report.get("prompt_version"),
@@ -146,6 +146,10 @@ def main() -> None:
                     "source_type_label": label,
                     "output_directory": str(label_output),
                     "cluster_count": report["cluster_count"],
+                    "stable_cluster_count": report["stable_cluster_count"],
+                    "micro_cluster_count": report["micro_cluster_count"],
+                    "unresolved_cluster_count": report["unresolved_cluster_count"],
+                    "unresolved_row_count": report["unresolved_row_count"],
                     "clustered_rows": report["clustered_rows"],
                     "outlier_rows": report["outlier_rows"],
                 }
@@ -153,7 +157,7 @@ def main() -> None:
         _write_json(
             args.output_root / "pilot-report.json",
             {
-                "schema_version": "local-type-clustering-pilot-summary-v1",
+                "schema_version": "local-type-clustering-pilot-summary-v2",
                 "config_path": str(args.config),
                 "results_root": str(args.results_root),
                 "labels": manifest,

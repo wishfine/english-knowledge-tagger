@@ -68,6 +68,61 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(result["report"]["clustered_rows"], 5)
         self.assertEqual(result["report"]["outlier_rows"], 1)
 
+    @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
+    def test_high_confidence_partial_row_is_core(self):
+        rows = [
+            result_row(
+                1,
+                "听句子选图片",
+                "听句子，从图片中选择与内容相符的图片",
+                confidence=0.85,
+                sufficiency="partial",
+            ),
+            result_row(
+                2,
+                "听力图片匹配",
+                "听录音，从图片选项中匹配与内容对应的图片",
+                confidence=0.85,
+                sufficiency="partial",
+            ),
+        ]
+
+        result = cluster_local_results(rows, source_type_label="听力测试")
+
+        self.assertEqual(result["report"]["core_rows"], 2)
+        self.assertEqual(result["report"]["auxiliary_rows"], 0)
+        self.assertEqual(result["report"]["clustered_rows"], 2)
+
+    @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
+    def test_cluster_status_reflects_member_count(self):
+        rows = [
+            *[
+                result_row(index, "电子邮件写作", "根据要点撰写电子邮件")
+                for index in range(1, 6)
+            ],
+            *[
+                result_row(index, "日记写作", "记录一天经历并写成日记")
+                for index in range(6, 9)
+            ],
+            result_row(9, "听力图片排序", "听短文并按顺序排列图片"),
+        ]
+
+        result = cluster_local_results(
+            rows,
+            source_type_label="簇状态测试",
+            local_distance_threshold=0.2,
+        )
+
+        status_by_size = {
+            cluster["member_count"]: cluster["cluster_status"]
+            for cluster in result["clusters"]
+        }
+        self.assertEqual(status_by_size, {5: "stable", 3: "micro", 1: "unresolved"})
+        self.assertEqual(result["report"]["stable_cluster_count"], 1)
+        self.assertEqual(result["report"]["micro_cluster_count"], 1)
+        self.assertEqual(result["report"]["unresolved_cluster_count"], 1)
+        self.assertEqual(result["report"]["unresolved_row_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

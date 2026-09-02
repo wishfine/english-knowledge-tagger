@@ -66,7 +66,10 @@ def _quality_tier(
     confidence = row.get("confidence")
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
         return "excluded", "invalid_confidence"
-    if row.get("information_sufficiency") == "sufficient" and confidence >= core_threshold:
+    if (
+        row.get("information_sufficiency") in {"sufficient", "partial"}
+        and confidence >= core_threshold
+    ):
         return "core", None
     if confidence >= auxiliary_threshold:
         return "auxiliary", None
@@ -87,8 +90,8 @@ def cluster_local_results(
     auxiliary_confidence_threshold: float = 0.4,
     local_distance_threshold: float = 0.48,
     auxiliary_similarity_threshold: float = 0.52,
-    candidate_label_weight: float = 0.7,
-    task_mechanism_weight: float = 0.3,
+    candidate_label_weight: float = 0.3,
+    task_mechanism_weight: float = 0.7,
     representative_count: int = 5,
 ) -> dict[str, Any]:
     """Cluster one source label using existing candidate labels and mechanisms only."""
@@ -162,6 +165,10 @@ def cluster_local_results(
                 "core_rows": 0,
                 "auxiliary_rows": len(prepared),
                 "cluster_count": 0,
+                "stable_cluster_count": 0,
+                "micro_cluster_count": 0,
+                "unresolved_cluster_count": 0,
+                "unresolved_row_count": 0,
                 "clustered_rows": 0,
                 "outlier_rows": len(rows),
             },
@@ -255,11 +262,19 @@ def cluster_local_results(
             normalized_label_counts.items(), key=lambda item: (-item[1], item[0])
         )[0][0]
         medoid = prepared[ranked_indices[0]]
+        member_count = len(indices)
+        if member_count >= 5:
+            cluster_status = "stable"
+        elif member_count >= 2:
+            cluster_status = "micro"
+        else:
+            cluster_status = "unresolved"
         clusters.append(
             {
                 "local_cluster_id": cluster_id,
                 "source_type_label": source_type_label,
                 "local_candidate_type_label": local_candidate_type_label,
+                "cluster_status": cluster_status,
                 "candidate_label_counts": dict(
                     sorted(raw_label_counts.items(), key=lambda item: (-item[1], item[0]))
                 ),
@@ -268,7 +283,7 @@ def cluster_local_results(
                     "candidate_type_label": local_candidate_type_label,
                     "task_mechanism": medoid["mechanism"],
                 },
-                "member_count": len(indices),
+                "member_count": member_count,
                 "representative_question_ids": [
                     prepared[index]["row"].get("question_id")
                     for index in ranked_indices[:representative_count]
@@ -289,6 +304,12 @@ def cluster_local_results(
 
     members.sort(key=lambda row: (row["local_cluster_id"], str(row["question_id"])))
     clusters.sort(key=lambda row: (-row["member_count"], row["local_cluster_id"]))
+    cluster_status_counts = Counter(cluster["cluster_status"] for cluster in clusters)
+    unresolved_row_count = sum(
+        cluster["member_count"]
+        for cluster in clusters
+        if cluster["cluster_status"] == "unresolved"
+    )
     return {
         "clusters": clusters,
         "members": members,
@@ -299,6 +320,10 @@ def cluster_local_results(
             "core_rows": len(core_indices),
             "auxiliary_rows": len(auxiliary_indices),
             "cluster_count": len(clusters),
+            "stable_cluster_count": cluster_status_counts["stable"],
+            "micro_cluster_count": cluster_status_counts["micro"],
+            "unresolved_cluster_count": cluster_status_counts["unresolved"],
+            "unresolved_row_count": unresolved_row_count,
             "clustered_rows": len(members),
             "outlier_rows": len(outliers),
             "cluster_size_distribution": [cluster["member_count"] for cluster in clusters],
