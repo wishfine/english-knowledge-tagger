@@ -37,6 +37,13 @@ def normalize_candidate_label(label: str) -> str:
     return normalized
 
 
+def safe_label_directory_name(source_type_label: str) -> str:
+    """Keep the original label readable while escaping the path separator."""
+    if not source_type_label or "\0" in source_type_label:
+        raise ValueError("source type label must be a non-empty filesystem-safe string")
+    return source_type_label.replace("/", "／")
+
+
 def _question_key(row: Mapping[str, Any]) -> str:
     return f"{row.get('question_id')}:{row.get('source_line')}"
 

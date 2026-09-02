@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import sys
@@ -17,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from english_knowledge_tagger.local_type_clustering import (
     LocalTypeClusteringError,
     cluster_local_results,
+    safe_label_directory_name,
 )
 
 
@@ -119,8 +119,7 @@ def main() -> None:
                 task_mechanism_weight=float(config["task_mechanism_weight"]),
                 representative_count=int(config["representative_count"]),
             )
-            label_hash = hashlib.sha256(label.encode("utf-8")).hexdigest()[:12]
-            label_output = args.output_root / f"label-{label_hash}"
+            label_output = args.output_root / safe_label_directory_name(label)
             label_output.mkdir()
             _write_json(
                 label_output / "local-clusters.json",

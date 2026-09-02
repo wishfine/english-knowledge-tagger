@@ -1,9 +1,9 @@
 {
   "schema_version": "local-type-clustering-pilot-config-v1",
   "source_type_labels": [
-    "题型@书面表达@写作体裁@写作：应用文@写作：日记",
-    "题型@书面表达@写作体裁@写作：应用文@写作：书信/电子邮件类",
-    "题型@书面表达@写作体裁@写作：议论文"
+    "题型@特殊题型@语法填空@语法填空（动词）",
+    "题型@完形填空@词性@完形：动词/动词短语",
+    "题型@听力理解@听力匹配"
   ],
   "core_confidence_threshold": 0.7,
   "auxiliary_confidence_threshold": 0.4,

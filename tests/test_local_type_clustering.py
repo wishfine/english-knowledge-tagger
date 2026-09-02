@@ -4,6 +4,7 @@ import unittest
 from english_knowledge_tagger.local_type_clustering import (
     cluster_local_results,
     normalize_candidate_label,
+    safe_label_directory_name,
 )
 
 
@@ -30,6 +31,13 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(normalize_candidate_label("英语邮件写作"), "电子邮件写作")
         self.assertEqual(normalize_candidate_label("电子邮件写作"), "电子邮件写作")
         self.assertEqual(normalize_candidate_label("命题作文"), "命题写作")
+
+    def test_source_label_directory_keeps_label_and_escapes_slash(self):
+        label = "题型@完形填空@词性@完形：动词/动词短语"
+        self.assertEqual(
+            safe_label_directory_name(label),
+            "题型@完形填空@词性@完形：动词／动词短语",
+        )
 
     @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
     def test_clusters_similar_labels_and_keeps_different_mechanisms_apart(self):
