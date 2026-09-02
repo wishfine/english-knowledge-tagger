@@ -1,0 +1,15 @@
+{
+  "schema_version": "local-type-clustering-pilot-config-v3",
+  "source_type_labels": [
+    "题型@特殊题型@语法填空@语法填空（动词）",
+    "题型@完形填空@词性@完形：动词/动词短语",
+    "题型@听力理解@听力匹配"
+  ],
+  "core_confidence_threshold": 0.7,
+  "auxiliary_confidence_threshold": 0.4,
+  "local_distance_threshold": 0.48,
+  "auxiliary_similarity_threshold": 0.52,
+  "candidate_label_weight": 0.5,
+  "task_mechanism_weight": 0.5,
+  "representative_count": 5
+}

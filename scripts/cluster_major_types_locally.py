@@ -20,7 +20,14 @@ from english_knowledge_tagger.local_type_clustering import (
 )
 
 
-DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v2.json"
+DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v3.json"
+
+OUTPUT_FILE_NAMES = (
+    "local-clusters.json",
+    "local-cluster-members.jsonl",
+    "local-outliers.jsonl",
+    "report.json",
+)
 
 
 def _jsonl_rows(path: Path) -> Iterator[dict[str, Any]]:
@@ -89,17 +96,22 @@ def main() -> None:
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace only the known clustering output files in an existing output root",
+    )
     args = parser.parse_args()
 
-    if args.output_root.exists():
-        parser.error("output root already exists")
+    if args.output_root.exists() and not args.overwrite:
+        parser.error("output root already exists; use --overwrite to replace its clustering files")
     try:
         config = _load_config(args.config)
         completed = _completed_results(args.results_root)
         missing = [label for label in config["source_type_labels"] if label not in completed]
         if missing:
             raise ValueError(f"configured labels are not complete: {missing}")
-        args.output_root.mkdir(parents=True)
+        args.output_root.mkdir(parents=True, exist_ok=args.overwrite)
         manifest: list[dict[str, Any]] = []
         for label in config["source_type_labels"]:
             result_path, report_path, source_report = completed[label]
@@ -120,11 +132,16 @@ def main() -> None:
                 representative_count=int(config["representative_count"]),
             )
             label_output = args.output_root / safe_label_directory_name(label)
-            label_output.mkdir()
+            label_output.mkdir(exist_ok=args.overwrite)
+            if args.overwrite:
+                for file_name in OUTPUT_FILE_NAMES:
+                    output_file = label_output / file_name
+                    if output_file.exists():
+                        output_file.unlink()
             _write_json(
                 label_output / "local-clusters.json",
                 {
-                    "schema_version": "local-type-clusters-pilot-v2",
+                    "schema_version": "local-type-clusters-pilot-v3",
                     "source_type_label": label,
                     "clusters": clustered["clusters"],
                 },
@@ -134,7 +151,7 @@ def main() -> None:
             )
             _write_jsonl(label_output / "local-outliers.jsonl", clustered["outliers"])
             report = {
-                "schema_version": "local-type-clustering-pilot-report-v2",
+                "schema_version": "local-type-clustering-pilot-report-v3",
                 "source_result_path": str(result_path),
                 "source_report_path": str(report_path),
                 "source_prompt_version": source_report.get("prompt_version"),
@@ -146,6 +163,7 @@ def main() -> None:
                     "source_type_label": label,
                     "output_directory": str(label_output),
                     "cluster_count": report["cluster_count"],
+                    "candidate_label_group_count": report["candidate_label_group_count"],
                     "stable_cluster_count": report["stable_cluster_count"],
                     "micro_cluster_count": report["micro_cluster_count"],
                     "unresolved_cluster_count": report["unresolved_cluster_count"],
@@ -157,7 +175,7 @@ def main() -> None:
         _write_json(
             args.output_root / "pilot-report.json",
             {
-                "schema_version": "local-type-clustering-pilot-summary-v2",
+                "schema_version": "local-type-clustering-pilot-summary-v3",
                 "config_path": str(args.config),
                 "results_root": str(args.results_root),
                 "labels": manifest,

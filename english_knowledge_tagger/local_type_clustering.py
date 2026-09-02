@@ -94,7 +94,7 @@ def cluster_local_results(
     task_mechanism_weight: float = 0.7,
     representative_count: int = 5,
 ) -> dict[str, Any]:
-    """Cluster one source label using existing candidate labels and mechanisms only."""
+    """Cluster normalized candidate-label groups using their mean mechanism vectors."""
     try:
         import numpy as np
         from scipy.sparse import hstack
@@ -164,6 +164,9 @@ def cluster_local_results(
                 "total_rows": len(rows),
                 "core_rows": 0,
                 "auxiliary_rows": len(prepared),
+                "candidate_label_group_count": len(
+                    {item["normalized_label"] for item in prepared}
+                ),
                 "cluster_count": 0,
                 "stable_cluster_count": 0,
                 "micro_cluster_count": 0,
@@ -180,12 +183,43 @@ def cluster_local_results(
     mechanism_vectorizer = TfidfVectorizer(
         analyzer="char", ngram_range=(2, 4), sublinear_tf=True
     )
-    label_matrix = label_vectorizer.fit_transform(labels) * candidate_label_weight
-    mechanism_matrix = mechanism_vectorizer.fit_transform(mechanisms) * task_mechanism_weight
-    features = normalize(hstack([label_matrix, mechanism_matrix], format="csr"))
-    core_features = features[core_indices]
+    label_matrix = label_vectorizer.fit_transform(labels)
+    mechanism_matrix = mechanism_vectorizer.fit_transform(mechanisms)
+    features = normalize(
+        hstack(
+            [
+                label_matrix * candidate_label_weight,
+                mechanism_matrix * task_mechanism_weight,
+            ],
+            format="csr",
+        )
+    )
 
-    if len(core_indices) == 1:
+    label_groups: dict[str, list[int]] = defaultdict(list)
+    for index, item in enumerate(prepared):
+        label_groups[item["normalized_label"]].append(index)
+    ordered_label_groups = sorted(label_groups.items())
+    group_features = []
+    core_group_indices: list[int] = []
+    auxiliary_group_indices: list[int] = []
+    for group_index, (_, indices) in enumerate(ordered_label_groups):
+        label_centroid = np.asarray(label_matrix[indices].mean(axis=0)).ravel()
+        mechanism_centroid = np.asarray(mechanism_matrix[indices].mean(axis=0)).ravel()
+        group_vector = np.concatenate(
+            [
+                label_centroid * candidate_label_weight,
+                mechanism_centroid * task_mechanism_weight,
+            ]
+        )
+        norm = np.linalg.norm(group_vector)
+        group_features.append(group_vector / norm if norm else group_vector)
+        if any(prepared[index]["quality_tier"] == "core" for index in indices):
+            core_group_indices.append(group_index)
+        else:
+            auxiliary_group_indices.append(group_index)
+    group_features = np.asarray(group_features)
+
+    if len(core_group_indices) == 1:
         core_cluster_labels = np.array([0])
     else:
         model = AgglomerativeClustering(
@@ -195,42 +229,43 @@ def cluster_local_results(
             distance_threshold=local_distance_threshold,
             compute_full_tree=True,
         )
-        core_cluster_labels = model.fit_predict(core_features.toarray())
+        core_cluster_labels = model.fit_predict(group_features[core_group_indices])
 
     grouped_indices: dict[int, list[int]] = defaultdict(list)
-    for prepared_index, cluster_label in zip(core_indices, core_cluster_labels):
-        grouped_indices[int(cluster_label)].append(prepared_index)
+    grouped_label_groups: dict[int, list[int]] = defaultdict(list)
+    for group_index, cluster_label in zip(core_group_indices, core_cluster_labels):
+        grouped_label_groups[int(cluster_label)].append(group_index)
+        grouped_indices[int(cluster_label)].extend(ordered_label_groups[group_index][1])
 
     cluster_centroids: dict[int, Any] = {}
-    for cluster_label, indices in grouped_indices.items():
-        centroid = np.asarray(features[indices].mean(axis=0)).ravel()
+    for cluster_label, group_indices in grouped_label_groups.items():
+        centroid = np.asarray(group_features[group_indices].mean(axis=0)).ravel()
         norm = np.linalg.norm(centroid)
         cluster_centroids[cluster_label] = centroid / norm if norm else centroid
 
-    auxiliary_indices = [
-        index for index, item in enumerate(prepared) if item["quality_tier"] == "auxiliary"
-    ]
-    auxiliary_similarity: dict[int, float] = {}
-    for index in auxiliary_indices:
-        vector = features[index]
+    auxiliary_indices = [index for index, item in enumerate(prepared) if item["quality_tier"] == "auxiliary"]
+    for group_index in auxiliary_group_indices:
+        vector = group_features[group_index]
         similarities = {
-            cluster_label: float(vector.dot(centroid).item())
+            cluster_label: float(vector.dot(centroid))
             for cluster_label, centroid in cluster_centroids.items()
         }
         best_cluster, best_similarity = max(similarities.items(), key=lambda item: item[1])
+        indices = ordered_label_groups[group_index][1]
         if best_similarity >= auxiliary_similarity_threshold:
-            grouped_indices[best_cluster].append(index)
-            auxiliary_similarity[index] = best_similarity
+            grouped_label_groups[best_cluster].append(group_index)
+            grouped_indices[best_cluster].extend(indices)
         else:
-            item = prepared[index]
-            outliers.append(
-                {
-                    **item["row"],
-                    "question_key": item["question_key"],
-                    "outlier_reason": "auxiliary_similarity_below_threshold",
-                    "nearest_cluster_similarity": best_similarity,
-                }
-            )
+            for index in indices:
+                item = prepared[index]
+                outliers.append(
+                    {
+                        **item["row"],
+                        "question_key": item["question_key"],
+                        "outlier_reason": "auxiliary_group_similarity_below_threshold",
+                        "nearest_cluster_similarity": best_similarity,
+                    }
+                )
 
     clusters: list[dict[str, Any]] = []
     members: list[dict[str, Any]] = []
@@ -278,6 +313,7 @@ def cluster_local_results(
                 "candidate_label_counts": dict(
                     sorted(raw_label_counts.items(), key=lambda item: (-item[1], item[0]))
                 ),
+                "candidate_label_group_count": len(normalized_label_counts),
                 "canonical_task_mechanism": medoid["mechanism"],
                 "mechanism_signature": {
                     "candidate_type_label": local_candidate_type_label,
@@ -297,6 +333,7 @@ def cluster_local_results(
                     "question_id": item["row"].get("question_id"),
                     "source_line": item["row"].get("source_line"),
                     "local_cluster_id": cluster_id,
+                    "candidate_label_group": item["normalized_label"],
                     "quality_tier": item["quality_tier"],
                     "similarity_to_centroid": round(similarities[index], 6),
                 }
@@ -327,6 +364,7 @@ def cluster_local_results(
             "clustered_rows": len(members),
             "outlier_rows": len(outliers),
             "cluster_size_distribution": [cluster["member_count"] for cluster in clusters],
+            "candidate_label_group_count": len(label_groups),
             "parameters": {
                 "core_confidence_threshold": core_confidence_threshold,
                 "auxiliary_confidence_threshold": auxiliary_confidence_threshold,
@@ -336,6 +374,7 @@ def cluster_local_results(
                 "task_mechanism_weight": task_mechanism_weight,
                 "representative_count": representative_count,
                 "vectorizer": "character-tfidf",
+                "clustering_unit": "normalized-candidate-label-group",
                 "clustering": "agglomerative-cosine-average",
             },
         },

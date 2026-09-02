@@ -123,6 +123,21 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(result["report"]["unresolved_cluster_count"], 1)
         self.assertEqual(result["report"]["unresolved_row_count"], 1)
 
+    @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
+    def test_same_normalized_candidate_label_is_never_split(self):
+        rows = [
+            result_row(1, "听力匹配题", "听句子并匹配图片"),
+            result_row(2, "听力匹配题", "听独白并匹配人物信息"),
+            result_row(3, "听力匹配题", "听对话并匹配地点"),
+        ]
+
+        result = cluster_local_results(rows, source_type_label="听力匹配")
+
+        self.assertEqual(result["report"]["candidate_label_group_count"], 1)
+        self.assertEqual(result["report"]["cluster_count"], 1)
+        self.assertEqual(result["clusters"][0]["member_count"], 3)
+        self.assertEqual(result["clusters"][0]["candidate_label_group_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
