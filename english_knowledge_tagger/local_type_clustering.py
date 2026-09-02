@@ -82,6 +82,12 @@ def _stable_cluster_id(source_type_label: str, question_keys: Sequence[str]) -> 
     return f"LOCAL-{digest}"
 
 
+def _unit_vector(vector: Any, np: Any) -> Any:
+    """Normalize one dense feature block before applying its configured weight."""
+    norm = np.linalg.norm(vector)
+    return vector / norm if norm else vector
+
+
 def cluster_local_results(
     rows: Sequence[Mapping[str, Any]],
     *,
@@ -90,8 +96,8 @@ def cluster_local_results(
     auxiliary_confidence_threshold: float = 0.4,
     local_distance_threshold: float = 0.48,
     auxiliary_similarity_threshold: float = 0.52,
-    candidate_label_weight: float = 0.3,
-    task_mechanism_weight: float = 0.7,
+    candidate_label_weight: float = 0.2,
+    task_mechanism_weight: float = 0.8,
     representative_count: int = 5,
 ) -> dict[str, Any]:
     """Cluster normalized candidate-label groups using their mean mechanism vectors."""
@@ -205,14 +211,15 @@ def cluster_local_results(
     for group_index, (_, indices) in enumerate(ordered_label_groups):
         label_centroid = np.asarray(label_matrix[indices].mean(axis=0)).ravel()
         mechanism_centroid = np.asarray(mechanism_matrix[indices].mean(axis=0)).ravel()
+        label_centroid = _unit_vector(label_centroid, np)
+        mechanism_centroid = _unit_vector(mechanism_centroid, np)
         group_vector = np.concatenate(
             [
                 label_centroid * candidate_label_weight,
                 mechanism_centroid * task_mechanism_weight,
             ]
         )
-        norm = np.linalg.norm(group_vector)
-        group_features.append(group_vector / norm if norm else group_vector)
+        group_features.append(_unit_vector(group_vector, np))
         if any(prepared[index]["quality_tier"] == "core" for index in indices):
             core_group_indices.append(group_index)
         else:
@@ -240,8 +247,7 @@ def cluster_local_results(
     cluster_centroids: dict[int, Any] = {}
     for cluster_label, group_indices in grouped_label_groups.items():
         centroid = np.asarray(group_features[group_indices].mean(axis=0)).ravel()
-        norm = np.linalg.norm(centroid)
-        cluster_centroids[cluster_label] = centroid / norm if norm else centroid
+        cluster_centroids[cluster_label] = _unit_vector(centroid, np)
 
     auxiliary_indices = [index for index, item in enumerate(prepared) if item["quality_tier"] == "auxiliary"]
     for group_index in auxiliary_group_indices:
@@ -375,6 +381,7 @@ def cluster_local_results(
                 "representative_count": representative_count,
                 "vectorizer": "character-tfidf",
                 "clustering_unit": "normalized-candidate-label-group",
+                "group_feature_block_normalization": "l2-before-weighting",
                 "clustering": "agglomerative-cosine-average",
             },
         },

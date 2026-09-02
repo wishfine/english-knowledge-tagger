@@ -138,6 +138,32 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(result["clusters"][0]["member_count"], 3)
         self.assertEqual(result["clusters"][0]["candidate_label_group_count"], 1)
 
+    @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
+    def test_mechanism_dominant_group_features_merge_different_major_type_names(self):
+        rows = [
+            result_row(1, "听力图片匹配题", "听录音，根据内容选择对应图片完成匹配"),
+            result_row(2, "听句子选图", "听录音，根据句子选择对应图片完成匹配"),
+            result_row(3, "听力匹配题", "听录音，根据内容选择对应选项完成匹配"),
+            result_row(4, "语法填空", "根据句子语境填写单词的正确形式"),
+        ]
+
+        result = cluster_local_results(
+            rows,
+            source_type_label="机制主导测试",
+            candidate_label_weight=0.2,
+            task_mechanism_weight=0.8,
+        )
+
+        cluster_sizes = sorted(
+            (cluster["member_count"] for cluster in result["clusters"]), reverse=True
+        )
+        self.assertEqual(cluster_sizes, [3, 1])
+        self.assertEqual(result["clusters"][0]["candidate_label_group_count"], 3)
+        self.assertEqual(
+            result["report"]["parameters"]["group_feature_block_normalization"],
+            "l2-before-weighting",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
