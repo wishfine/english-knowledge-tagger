@@ -113,6 +113,8 @@ python3 scripts/select_terminal_definition_variants.py \
 
 释义门禁为：三次 decision 一致率 `>=95%`、unanimous keep precision `>=95%`、high-confidence false-positive rate `<=1%`、uncertain unanimous high keep 为 0。recall 不参与门禁。
 
+所有实验客户端的 DS 请求统一经过公共传输层，以 SSE 流式方式发送（请求体包含 `"stream": true`，请求头声明 `Accept: text/event-stream`），并将 `delta.content` 按顺序拼接后再按原有 JSON 契约解析。这样不会改变 prompt、temperature、thinking 或 review-id；只改变响应传输方式。为兼容旧代理，服务端若忽略 `stream` 并返回普通 JSON，客户端仍接受该响应；流式内容缺少 `[DONE]`、chunk 非法或无法拼接时仍记录为 error，不会静默当作成功。
+
 ## 5. D3：失败标签的自动对比式释义
 
 D0–D2 在 dev 全部失败时，生成器只读取 definition-train：

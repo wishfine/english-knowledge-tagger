@@ -1,3 +1,6 @@
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import unittest
 
 try:
@@ -87,3 +90,66 @@ class CandidateLabelingTests(unittest.TestCase):
             ),
         )
         self.assertEqual(unparsed, ("本题考查名词辨析。",))
+
+    def test_default_transport_requests_streaming_and_reassembles_sse(self):
+        captured = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802 - stdlib hook
+                length = int(self.headers["Content-Length"])
+                captured["payload"] = json.loads(self.rfile.read(length))
+                captured["accept"] = self.headers.get("Accept")
+                chunks = [
+                    {
+                        "id": "chatcmpl-stream",
+                        "model": "ds-v4-flash",
+                        "choices": [{"delta": {"role": "assistant"}}],
+                    },
+                    {
+                        "id": "chatcmpl-stream",
+                        "model": "ds-v4-flash",
+                        "choices": [{"delta": {"content": "新知识树@词汇@"}}],
+                    },
+                    {
+                        "id": "chatcmpl-stream",
+                        "model": "ds-v4-flash",
+                        "choices": [{"delta": {"content": "转化法"}}],
+                    },
+                ]
+                body = "".join(
+                    f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                    for chunk in chunks
+                ) + "data: [DONE]\n\n"
+                encoded = body.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(encoded)))
+                self.end_headers()
+                self.wfile.write(encoded)
+
+            def log_message(self, *_args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            client = CandidateLabelClient(
+                LabelingServiceConfig(
+                    endpoint=f"http://127.0.0.1:{server.server_port}/v1/chat/completions"
+                )
+            )
+            result = client.label(
+                LabelingRequest(
+                    review_id="stream-1",
+                    question_context="题目题干：测试\n题目答案：A",
+                )
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        self.assertTrue(captured["payload"]["stream"])
+        self.assertEqual(captured["accept"], "text/event-stream")
+        self.assertEqual(result.raw_response, "新知识树@词汇@转化法")
+        self.assertEqual(result.request_id, "chatcmpl-stream")
