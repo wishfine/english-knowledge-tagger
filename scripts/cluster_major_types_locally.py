@@ -20,9 +20,10 @@ from english_knowledge_tagger.local_type_clustering import (
 )
 
 
-DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v4.json"
+DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-pilot-v5.json"
 
 OUTPUT_FILE_NAMES = (
+    "base-clusters.json",
     "local-clusters.json",
     "local-cluster-members.jsonl",
     "local-outliers.jsonl",
@@ -124,11 +125,18 @@ def main() -> None:
                     config["auxiliary_confidence_threshold"]
                 ),
                 local_distance_threshold=float(config["local_distance_threshold"]),
+                merge_distance_threshold=float(config["merge_distance_threshold"]),
                 auxiliary_similarity_threshold=float(
                     config["auxiliary_similarity_threshold"]
                 ),
                 candidate_label_weight=float(config["candidate_label_weight"]),
                 task_mechanism_weight=float(config["task_mechanism_weight"]),
+                merge_candidate_label_weight=float(
+                    config["merge_candidate_label_weight"]
+                ),
+                merge_task_mechanism_weight=float(
+                    config["merge_task_mechanism_weight"]
+                ),
                 representative_count=int(config["representative_count"]),
             )
             label_output = args.output_root / safe_label_directory_name(label)
@@ -139,9 +147,17 @@ def main() -> None:
                     if output_file.exists():
                         output_file.unlink()
             _write_json(
+                label_output / "base-clusters.json",
+                {
+                    "schema_version": "local-type-base-clusters-pilot-v5",
+                    "source_type_label": label,
+                    "clusters": clustered["base_clusters"],
+                },
+            )
+            _write_json(
                 label_output / "local-clusters.json",
                 {
-                    "schema_version": "local-type-clusters-pilot-v4",
+                    "schema_version": "local-type-clusters-pilot-v5",
                     "source_type_label": label,
                     "clusters": clustered["clusters"],
                 },
@@ -151,7 +167,7 @@ def main() -> None:
             )
             _write_jsonl(label_output / "local-outliers.jsonl", clustered["outliers"])
             report = {
-                "schema_version": "local-type-clustering-pilot-report-v4",
+                "schema_version": "local-type-clustering-pilot-report-v5",
                 "source_result_path": str(result_path),
                 "source_report_path": str(report_path),
                 "source_prompt_version": source_report.get("prompt_version"),
@@ -163,6 +179,11 @@ def main() -> None:
                     "source_type_label": label,
                     "output_directory": str(label_output),
                     "cluster_count": report["cluster_count"],
+                    "base_cluster_count": report["base_cluster_count"],
+                    "split_base_cluster_count": report["split_base_cluster_count"],
+                    "multi_base_final_cluster_count": report[
+                        "multi_base_final_cluster_count"
+                    ],
                     "candidate_label_group_count": report["candidate_label_group_count"],
                     "stable_cluster_count": report["stable_cluster_count"],
                     "micro_cluster_count": report["micro_cluster_count"],
@@ -175,7 +196,7 @@ def main() -> None:
         _write_json(
             args.output_root / "pilot-report.json",
             {
-                "schema_version": "local-type-clustering-pilot-summary-v4",
+                "schema_version": "local-type-clustering-pilot-summary-v5",
                 "config_path": str(args.config),
                 "results_root": str(args.results_root),
                 "labels": manifest,

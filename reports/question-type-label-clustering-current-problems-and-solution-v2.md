@@ -1,6 +1,6 @@
 # 题型标签聚类现有问题与解决方案
 
-_文档修订：2026-09-02；比较基线：V1；最新版：V4；实验对象：三个典型旧标签各1000题_
+_文档修订：2026-09-03；比较基线：V1；最新实验：V4；待运行实现：V5；实验对象：三个典型旧标签各1000题_
 
 ---
 
@@ -23,6 +23,8 @@ _文档修订：2026-09-02；比较基线：V1；最新版：V4；实验对象�
 这样能够保留 V1 已有的稳定结果，同时获得 V4 在机制归并方面的新增能力。
 
 V2、V3属于中间调参过程，不作为本报告的主要比较对象。评价最新版是否有效，只比较相同数据上的 V1 与 V4。
+
+根据本报告结论，V5代码已经改为“V1基础聚类 + 基础簇级只合并”两阶段流程，但尚未产生服务器实验结果。因此，下文的量化比较仍然是V1与V4，V5只作为待验证实现说明。
 
 ## 🎯 实验范围与评价口径
 
@@ -326,9 +328,10 @@ flowchart LR
 | --- | --- |
 | 聚类实现 | `english_knowledge_tagger/local_type_clustering.py` |
 | 运行脚本 | `scripts/cluster_major_types_locally.py` |
-| 最新配置 | `configs/type-clustering-pilot-v4.json` |
+| 最新实验配置 | `configs/type-clustering-pilot-v4.json` |
+| 两阶段待运行配置 | `configs/type-clustering-pilot-v5.json` |
 | V1下载结果 | `D:/xdf/ai题库/downloads/题型@.../`三个标签目录 |
 | V4下载结果 | `D:/xdf/ai题库/downloads/local-type-clustering-pilot-v2-20260902-rerun-01/` |
 | 服务器模型结果 | `/local_data/zhangyonglin/english-knowledge-tagger-runtime/major-type-sample-v1-20260901/by-type-full-v2` |
 
-当前 V4代码提交为 `bd78f0b`。本报告结论是：保留 V4的质量分层、名称组和机制合并能力，但将其从“重新分区”改为“在 V1簇基础上只做合并”。
+V5实现保留V1基础聚类参数，并将第二阶段改为基础簇级机制主导合并。每道成员记录同时保存 `base_cluster_id` 和最终 `local_cluster_id`，可以直接验证任何V1基础簇都没有被拆分。

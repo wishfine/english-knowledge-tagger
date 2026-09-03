@@ -69,18 +69,18 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(result["report"]["outlier_rows"], 1)
 
     @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
-    def test_high_confidence_partial_row_is_core(self):
+    def test_high_confidence_partial_row_is_v1_auxiliary(self):
         rows = [
             result_row(
                 1,
                 "听句子选图片",
                 "听句子，从图片中选择与内容相符的图片",
                 confidence=0.85,
-                sufficiency="partial",
+                sufficiency="sufficient",
             ),
             result_row(
                 2,
-                "听力图片匹配",
+                "听句子选图片",
                 "听录音，从图片选项中匹配与内容对应的图片",
                 confidence=0.85,
                 sufficiency="partial",
@@ -89,8 +89,8 @@ class LocalTypeClusteringTests(unittest.TestCase):
 
         result = cluster_local_results(rows, source_type_label="听力测试")
 
-        self.assertEqual(result["report"]["core_rows"], 2)
-        self.assertEqual(result["report"]["auxiliary_rows"], 0)
+        self.assertEqual(result["report"]["core_rows"], 1)
+        self.assertEqual(result["report"]["auxiliary_rows"], 1)
         self.assertEqual(result["report"]["clustered_rows"], 2)
 
     @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
@@ -124,22 +124,31 @@ class LocalTypeClusteringTests(unittest.TestCase):
         self.assertEqual(result["report"]["unresolved_row_count"], 1)
 
     @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
-    def test_same_normalized_candidate_label_is_never_split(self):
+    def test_final_clusters_never_split_a_v1_base_cluster(self):
         rows = [
             result_row(1, "听力匹配题", "听句子并匹配图片"),
             result_row(2, "听力匹配题", "听独白并匹配人物信息"),
             result_row(3, "听力匹配题", "听对话并匹配地点"),
+            result_row(4, "语法填空", "根据语境填写动词的正确形式"),
         ]
 
         result = cluster_local_results(rows, source_type_label="听力匹配")
 
-        self.assertEqual(result["report"]["candidate_label_group_count"], 1)
-        self.assertEqual(result["report"]["cluster_count"], 1)
-        self.assertEqual(result["clusters"][0]["member_count"], 3)
-        self.assertEqual(result["clusters"][0]["candidate_label_group_count"], 1)
+        final_ids_by_base = {}
+        for member in result["members"]:
+            final_ids_by_base.setdefault(member["base_cluster_id"], set()).add(
+                member["local_cluster_id"]
+            )
+        self.assertTrue(final_ids_by_base)
+        self.assertTrue(all(len(final_ids) == 1 for final_ids in final_ids_by_base.values()))
+        self.assertEqual(result["report"]["split_base_cluster_count"], 0)
+        self.assertEqual(
+            sum(cluster["member_count"] for cluster in result["base_clusters"]),
+            result["report"]["clustered_rows"],
+        )
 
     @unittest.skipUnless(SKLEARN_AVAILABLE, "scikit-learn is optional")
-    def test_mechanism_dominant_group_features_merge_different_major_type_names(self):
+    def test_second_stage_merges_whole_v1_clusters_by_mechanism(self):
         rows = [
             result_row(1, "听力图片匹配题", "听录音，根据内容选择对应图片完成匹配"),
             result_row(2, "听句子选图", "听录音，根据句子选择对应图片完成匹配"),
@@ -150,18 +159,15 @@ class LocalTypeClusteringTests(unittest.TestCase):
         result = cluster_local_results(
             rows,
             source_type_label="机制主导测试",
-            candidate_label_weight=0.2,
-            task_mechanism_weight=0.8,
         )
 
-        cluster_sizes = sorted(
-            (cluster["member_count"] for cluster in result["clusters"]), reverse=True
+        self.assertGreater(
+            result["report"]["base_cluster_count"], result["report"]["cluster_count"]
         )
-        self.assertEqual(cluster_sizes, [3, 1])
-        self.assertEqual(result["clusters"][0]["candidate_label_group_count"], 3)
+        self.assertGreater(result["clusters"][0]["base_cluster_count"], 1)
         self.assertEqual(
-            result["report"]["parameters"]["group_feature_block_normalization"],
-            "l2-before-weighting",
+            result["report"]["parameters"]["base_cluster_constraint"],
+            "merge-only-never-split",
         )
 
 
