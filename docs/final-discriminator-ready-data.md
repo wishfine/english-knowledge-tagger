@@ -57,6 +57,8 @@ train_candidate
 
 当最终判别器已完成但源题面随后产生了父题上下文补充时，不需要重跑 DS。使用已有 run 的 per-label `evidence.jsonl` 与修复后的 v3 源执行离线快照：它会重新按 `question_id + parent_id + is_sub_question` 对齐题目，保留 `llm_match=true` 的正向证据，并要求该题历史输出中的每一个 active 知识点都有唯一正向证据，才写入 `silver_question_candidate_unreleased`。其余记录写入 `holds.jsonl`。
 
+本次使用的是实际执行过的 `run133`：`positive-candidates-133-20260828-130222`。它与后续 `wilson141` 的交集只有 129 个标签；run133 中另外 4 个未通过快速池门禁的标签必须排除。`wilson141 - run133` 的 12 个标签没有本次终判 evidence，不会被补造；涉及这些标签的题目会因 `missing_label_evidence` 留在 hold。
+
 模型终判没有 `uncertain` 枚举：`llm_match=false` 和 `status=error` 都是 hold；`confidence=low` 会在统计中记录，但不自动改写成 uncertain 或删除。离线快照也必须排除未通过 Wilson 快速池门禁的标签，不能把它们的 true 结果混入候选。
 
 服务器执行示例（不调用 DS、不修改 v3 源）：
