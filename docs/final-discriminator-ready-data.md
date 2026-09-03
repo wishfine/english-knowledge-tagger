@@ -82,9 +82,10 @@ python3 scripts/build_final_quality_snapshot.py \
 
 | 项目 | 值 |
 |---|---|
-| 最终源 | `/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl` |
-| 最终源记录数 | 3,203,122 |
-| 最终源 SHA-256 | `995191fb78f9ef0b9e9958563704b8d3bd2752809ef838815c443a80fe2b77ec` |
+| DS 运行时最终源 | `/local_data/zhangyonglin/english-knowledge-tagger-data/sources/cleaned_final_enhanced_v2.jsonl` |
+| DS 运行时源记录数 | 3,203,122 |
+| DS 运行时源 SHA-256 | `995191fb78f9ef0b9e9958563704b8d3bd2752809ef838815c443a80fe2b77ec` |
+| 离线快照源（父题上下文 v3） | `/local_data/zhangyonglin/english-knowledge-tagger-runtime/source-audit/parent-context-v3-20260901-152542/cleaned_final_enhanced_v3_parent_context.jsonl` |
 | mentor 定义文件 | `mentor-direct-v1/label_definitions_for_verification.json` |
 | 定义 SHA-256 | `2eef1146ef601808e4995d3aeda3228867a0a6b7dff6df13c9a0dfa368d08b62` |
 | route packet 批次 | `lexical-pos-v0.1-20260827-140630` |
