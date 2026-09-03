@@ -82,6 +82,26 @@ python3 scripts/build_final_quality_snapshot.py \
 
 该命令产出的是未发布候选，不等于 `released_silver`；后续仍需每标签独立 60 条人工复核，以及完整题目标签集合和多模态门禁。
 
+## 独立 60 条 post-sweep 复核包
+
+合并快照完成后，可以从 SQLite 中每个标签的全量 `llm_match=true` evidence 独立抽取最多 60 条。抽样会排除初始校准样本，并扫描 v3 源补回完整题面；输出包不包含历史 `output`、DS 判定或其他标签，适合人工盲审。`条件状语从句的时态` 即使校准为 `11/12`，本轮也可以抽样，但审核结果必须单独记录。
+
+```bash
+python3 scripts/sample_final_post_sweep.py \
+  --snapshot-db "$MERGED_RUN/snapshot.sqlite3" \
+  --source /local_data/zhangyonglin/english-knowledge-tagger-runtime/source-audit/parent-context-v3-20260901-152542/cleaned_final_enhanced_v3_parent_context.jsonl \
+  --exclude-jsonl /local_data/zhangyonglin/english-knowledge-tagger-data/calibration/knowledge-label-calibration-sample.jsonl \
+  --exclude-label '知识点@语法词法@动词时态@一般过去时@动词过去式变化规则' \
+  --exclude-label '知识点@语法词法@非谓语动词@动名词@动名词的结构@动名词的一般式' \
+  --exclude-label '知识点@语法词法@形容词与副词@副词的用法@副词修饰副词' \
+  --exclude-label '知识点@语法词法@非谓语动词@动词不定式@动词不定式的结构@动词不定式的被动式' \
+  --output-dir "$RUNTIME/final-post-sweep/run133-delta11-v3-$(date +%Y%m%d-%H%M%S)" \
+  --sample-size 60 \
+  --seed final-post-sweep-v1
+```
+
+报告中的 `total_selected_records` 应接近 `有效标签数 × 60`；如果某标签正向 evidence 不足 60，报告会明确列出。每个标签的 `.review.jsonl` 必须在人工审核完成后再决定是否升级为 `released_silver`；抽样本身不修改源数据。
+
 `run133` 与 `wilson141-delta11` 都完成后，用同一份 v3 源合并筛选。`条件状语从句的时态` 虽然 final-v1 true 校准为 `11/12`，本轮仍按要求保留其全量 evidence；它进入的是未发布候选，后续 60 条人工审核时需重点关注，不能据此直接发布 released silver：
 
 ```bash
