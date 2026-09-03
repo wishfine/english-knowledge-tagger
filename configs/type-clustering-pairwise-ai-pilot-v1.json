@@ -1,0 +1,12 @@
+{
+  "schema_version": "pairwise-ai-local-type-clustering-config-v1",
+  "pair_prompt_version": "question-major-type-pairwise-equivalence-v1",
+  "naming_prompt_version": "question-major-type-cluster-naming-v1",
+  "source_type_labels": [
+    "题型@特殊题型@语法填空@语法填空（动词）",
+    "题型@完形填空@词性@完形：动词/动词短语",
+    "题型@听力理解@听力匹配"
+  ],
+  "minimum_merge_confidence": 0.8,
+  "representative_count": 5
+}
