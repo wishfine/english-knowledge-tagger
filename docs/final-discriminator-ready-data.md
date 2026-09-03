@@ -82,7 +82,7 @@ python3 scripts/build_final_quality_snapshot.py \
 
 该命令产出的是未发布候选，不等于 `released_silver`；后续仍需每标签独立 60 条人工复核，以及完整题目标签集合和多模态门禁。
 
-`run133` 与 `wilson141-delta11` 都完成后，用同一份 v3 源合并筛选。由于 `条件状语从句的时态` 的 final-v1 true 校准为 `11/12`，它可以保留诊断 evidence，但在正式候选快照中继续排除：
+`run133` 与 `wilson141-delta11` 都完成后，用同一份 v3 源合并筛选。`条件状语从句的时态` 虽然 final-v1 true 校准为 `11/12`，本轮仍按要求保留其全量 evidence；它进入的是未发布候选，后续 60 条人工审核时需重点关注，不能据此直接发布 released silver：
 
 ```bash
 python3 scripts/build_final_quality_snapshot.py \
@@ -95,7 +95,6 @@ python3 scripts/build_final_quality_snapshot.py \
   --exclude-label '知识点@语法词法@非谓语动词@动名词@动名词的结构@动名词的一般式' \
   --exclude-label '知识点@语法词法@形容词与副词@副词的用法@副词修饰副词' \
   --exclude-label '知识点@语法词法@非谓语动词@动词不定式@动词不定式的结构@动词不定式的被动式' \
-  --exclude-label '知识点@语法句法@主从复合句@状语从句@条件状语从句@条件状语从句的时态' \
   --output-dir "$RUNTIME/final-quality-snapshot/run133-delta11-v3-$(date +%Y%m%d-%H%M%S)"
 ```
 
