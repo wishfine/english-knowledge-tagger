@@ -1,0 +1,93 @@
+{
+  "schema_version": "positive-candidate-manifest-v1",
+  "purpose": "non_releasing_positive_candidate_work_queue",
+  "criteria": {
+    "human_true_audit": "12/12 retain",
+    "wilson_lower_one_sided_95": ">=0.70",
+    "source_scope": "wilson141 - run133, active teacher taxonomy only"
+  },
+  "inputs": {
+    "reconciliation_doc": "docs/positive-candidate-execution-reconciliation-20260828.md",
+    "run133": "final-label-full/positive-candidates-133-20260828-130222",
+    "source_for_new_packet": "cleaned_final_enhanced_v3_parent_context.jsonl"
+  },
+  "candidate_count": 11,
+  "candidates": [
+    {
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 作形式宾语",
+      "canonical_label": "知识点->词法->代词->it 的用法->it 作形式宾语",
+      "raw_yield": {"matches": 491, "sample_size": 500, "match_rate": 0.982, "wilson_lower_one_sided_95": 0.9693},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@代词@不定代词@复合不定代词@复合不定代词的词义与用法",
+      "canonical_label": "知识点->词法->代词->不定代词->复合不定代词->复合不定代词的词义与用法",
+      "raw_yield": {"matches": 458, "sample_size": 500, "match_rate": 0.916, "wilson_lower_one_sided_95": 0.8933},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@介词@表“除······以外”的介词",
+      "canonical_label": "知识点->词法->介词->表“除······以外”的介词",
+      "raw_yield": {"matches": 443, "sample_size": 500, "match_rate": 0.886, "wilson_lower_one_sided_95": 0.8605},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@both/all/none/either/neither的用法",
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->both/all/none/either/neither的用法",
+      "raw_yield": {"matches": 438, "sample_size": 500, "match_rate": 0.876, "wilson_lower_one_sided_95": 0.8497},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@特殊疑问句@wh-类特殊疑问句",
+      "canonical_label": "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问词",
+      "raw_yield": {"matches": 432, "sample_size": 500, "match_rate": 0.864, "wilson_lower_one_sided_95": 0.8368},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@介词@时间介词",
+      "canonical_label": "知识点->词法->介词->时间介词",
+      "raw_yield": {"matches": 427, "sample_size": 500, "match_rate": 0.854, "wilson_lower_one_sided_95": 0.8261},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@代词@it 的用法@it 作形式主语",
+      "canonical_label": "知识点->词法->代词->it 的用法->it 作形式主语",
+      "raw_yield": {"matches": 412, "sample_size": 500, "match_rate": 0.824, "wilson_lower_one_sided_95": 0.7943},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法句法@句子种类@疑问句@特殊疑问句@how类特殊疑问句",
+      "canonical_label": "知识点->句法->句子种类->疑问句->特殊疑问句->how类特殊疑问词",
+      "raw_yield": {"matches": 406, "sample_size": 500, "match_rate": 0.812, "wilson_lower_one_sided_95": 0.7816},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法句法@主从复合句@状语从句@条件状语从句@条件状语从句的时态",
+      "canonical_label": "知识点->句法->主从复合句->状语从句->条件状语从句->条件状语从句的时态",
+      "raw_yield": {"matches": 396, "sample_size": 500, "match_rate": 0.792, "wilson_lower_one_sided_95": 0.7606},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@形容词与副词@形容词/副词的位置@形容词的位置",
+      "canonical_label": "知识点->词法->形容词与副词->形容词/副词的位置->形容词的位置",
+      "raw_yield": {"matches": 391, "sample_size": 500, "match_rate": 0.782, "wilson_lower_one_sided_95": 0.7502},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    },
+    {
+      "legacy_label": "知识点@语法词法@代词@不定代词@普通不定代词@a few/few/a little/little/a lot (of)的用法",
+      "canonical_label": "知识点->词法->代词->不定代词->普通不定代词->a few/few/a little/little/a lot (of)的用法",
+      "raw_yield": {"matches": 381, "sample_size": 500, "match_rate": 0.762, "wilson_lower_one_sided_95": 0.7293},
+      "human_true_audit": {"retain": 12, "reviewed": 12}
+    }
+  ],
+  "taxonomy_blocked": [
+    {
+      "legacy_label": "知识点@语法词法@动词@情态动词@can@can/can't表示推测",
+      "canonical_label": "知识点->词法->动词->情态动词->can->can/can't表示推测",
+      "raw_yield": {"matches": 417, "sample_size": 500, "match_rate": 0.834, "wilson_lower_one_sided_95": 0.8048},
+      "human_true_audit": {"retain": 12, "reviewed": 12},
+      "reason": "canonical_label_not_active_in_teacher_csv; requires teacher taxonomy decision before packetization"
+    }
+  ],
+  "excluded": []
+}

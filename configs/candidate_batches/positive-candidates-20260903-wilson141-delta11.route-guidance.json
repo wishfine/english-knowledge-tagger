@@ -1,0 +1,11 @@
+{
+  "schema_version": "candidate-route-guidance-v1",
+  "purpose": "non_releasing_teacher_route_interpretation",
+  "manifest_sha256": "0c1de94582507909513fe36ccc048ca320b47593c54cfe342fa60a295e14c5ad",
+  "default": {
+    "mode": "soft_typical",
+    "allowed_routes": [],
+    "reason": "这 11 个 active 标签没有明确题型排他限制；常见题型仅用于分层诊断和抽检，不构成来源过滤条件。"
+  },
+  "hard_exclusive_overrides": []
+}
