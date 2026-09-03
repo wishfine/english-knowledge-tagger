@@ -114,7 +114,11 @@ def main() -> None:
             raise ValueError(f"configured labels are not complete: {missing}")
         args.output_root.mkdir(parents=True, exist_ok=args.overwrite)
         manifest: list[dict[str, Any]] = []
-        for label in config["source_type_labels"]:
+        labels = config["source_type_labels"]
+        total_labels = len(labels)
+        print(f"共需处理 {total_labels} 个题型标签", flush=True)
+        for label_index, label in enumerate(labels, 1):
+            print(f"[{label_index}/{total_labels}] 开始处理: {label}", flush=True)
             result_path, report_path, source_report = completed[label]
             rows = list(_jsonl_rows(result_path))
             clustered = cluster_local_results(
@@ -192,6 +196,12 @@ def main() -> None:
                     "clustered_rows": report["clustered_rows"],
                     "outlier_rows": report["outlier_rows"],
                 }
+            )
+            print(
+                f"[{label_index}/{total_labels}] 处理完成: {label} | "
+                f"题目={len(rows)} | 基础簇={report['base_cluster_count']} | "
+                f"聚类簇={report['cluster_count']} | 异常={report['outlier_rows']}",
+                flush=True,
             )
         _write_json(
             args.output_root / "pilot-report.json",
