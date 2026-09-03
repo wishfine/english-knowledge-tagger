@@ -13,6 +13,8 @@ try:
     from english_knowledge_tagger.final_label_discriminator import (
         FinalLabelDiscriminatorClient,
         FinalLabelDiscriminatorRequest,
+        FINAL_PROMPT_VERSION_WITH_INPUT_STATUS,
+        _parse_final_label_response,
         build_final_label_discriminator_packet,
         build_final_label_discriminator_prompt,
         final_result_to_evidence,
@@ -26,6 +28,8 @@ except ImportError:
     build_final_label_discriminator_packet = None
     build_final_label_discriminator_prompt = None
     final_result_to_evidence = None
+    FINAL_PROMPT_VERSION_WITH_INPUT_STATUS = None
+    _parse_final_label_response = None
 
 
 LABEL = "知识点@词汇@词汇辨析@名词（短语）辨析"
@@ -202,6 +206,71 @@ class FinalLabelDiscriminatorPacketTests(unittest.TestCase):
         client.verify(FinalLabelDiscriminatorRequest(packet_row=packet_row))
 
         self.assertTrue(payloads[0]["stream"])
+
+    def test_input_status_prompt_requires_and_parses_input_status(self):
+        payloads = []
+        packet_row = {
+            "schema_version": "final-label-discriminator-packet-v1",
+            "review_id": "final-label-discriminator-v2-input-status:9:label",
+            "source_line": 9,
+            "question_id": "question-9",
+            "parent_id": "parent-9",
+            "is_sub_question": True,
+            "route_key": {"scope": "child", "declared_type_structure": "复合题", "declared_type_name": "语法选择"},
+            "verify_label": LABEL,
+            "question_text": (
+                "题目大题题干：阅读短文。\n"
+                "当前小题选项：A. what B. where\n"
+                "当前小题解析：空处引导宾语从句，表示在哪里，故选 where。\n"
+                "当前小题答案：B"
+            ),
+        }
+        definitions = {LABEL: {"definition": "仅非复合单选中的名词辨析。"}}
+        client = FinalLabelDiscriminatorClient(
+            LabelingServiceConfig(endpoint="http://example.invalid", model="ds-v4-flash"),
+            label_definitions=definitions,
+            prompt_version=FINAL_PROMPT_VERSION_WITH_INPUT_STATUS,
+            include_input_status=True,
+            transport=lambda _endpoint, payload, _timeout, _headers: (
+                payloads.append(payload)
+                or {
+                    "id": "request-9",
+                    "model": "ds-v4-flash",
+                    "choices": [{"message": {"content": (
+                        '{"match":true,"input_status":"analysis_supported",'
+                        '"confidence":"medium","reason":"解析明确给出 where 宾语从句。"}'
+                    )}}],
+                }
+            ),
+        )
+
+        result = client.verify(FinalLabelDiscriminatorRequest(packet_row=packet_row))
+
+        self.assertTrue(result.llm_match)
+        self.assertEqual(result.input_status, "analysis_supported")
+        self.assertIn("input_status", payloads[0]["messages"][0]["content"])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory = Path(temp_dir)
+            evidence = final_result_to_evidence(
+                packet_row,
+                result=result,
+                rulebook=load_knowledge_rulebook(write_rulebook(directory / "rulebook.csv")),
+                migration=load_knowledge_taxonomy_migration(write_migration(directory / "migration.json")),
+            )
+
+        self.assertEqual(evidence["llm_input_status"], "analysis_supported")
+        self.assertEqual(evidence["input_precheck"]["status"], "analysis_supported")
+
+    def test_input_status_parser_rejects_unknown_status(self):
+        from english_knowledge_tagger.candidate_labeling import LabelingServiceError
+
+        with self.assertRaises(LabelingServiceError):
+            _parse_final_label_response(
+                '{"match":true,"input_status":"maybe",'
+                '"confidence":"high","reason":"无法确定。"}',
+                require_input_status=True,
+            )
 
     def test_stream_transport_reassembles_sse_delta_content(self):
         from english_knowledge_tagger.final_label_discriminator import _stream_http_transport

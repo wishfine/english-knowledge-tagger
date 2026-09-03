@@ -13,12 +13,17 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .candidate_labeling import LabelingServiceConfig, LabelingServiceError, Transport
+from .input_completeness import (
+    LLM_INPUT_STATUS_VALUES,
+    classify_input_completeness,
+)
 from .knowledge_rulebook import KnowledgeRulebook
 from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
 from .mentor_direct_rollout import load_mentor_label_definitions
 
 
 FINAL_PROMPT_VERSION = "final-label-discriminator-v1"
+FINAL_PROMPT_VERSION_WITH_INPUT_STATUS = "final-label-discriminator-v2-input-status"
 FINAL_PACKET_SCHEMA_VERSION = "final-label-discriminator-packet-v1"
 PROMPT_CLARIFICATIONS_SCHEMA_VERSION = "final-label-prompt-clarifications-v1"
 _REMOVED_INPUT_PREFIXES = (
@@ -59,6 +64,7 @@ class FinalLabelDiscriminatorResult:
     request_id: str | None
     raw_response: str
     llm_match: bool
+    input_status: str | None
     confidence: str
     reason: str
     prompt_chars: int
@@ -217,6 +223,7 @@ def build_final_label_discriminator_prompt(
     *,
     label_definitions: Mapping[str, Mapping[str, Any]],
     clarification: str | None = None,
+    include_input_status: bool = False,
 ) -> str:
     """Render an unanchored direct-label decision prompt.
 
@@ -231,6 +238,17 @@ def build_final_label_discriminator_prompt(
     clarification_section = (
         f"\n## 本轮边界澄清\n{clarification.strip()}\n" if clarification else ""
     )
+    input_status_section = ""
+    if include_input_status:
+        input_status_section = """
+## 输入完整性判断
+除标签判断外，还要判断当前证据是否足够支持这个判断：
+- `complete`：有当前题干，且题干/选项/答案或解析能直接核验。
+- `analysis_supported`：当前题干缺失，但解析明确给出当前小题的具体结构、语义和答案依据。
+- `insufficient`：缺少当前题干，且解析、答案或选项不足以核验。
+- `ambiguous`：解析引用其他小题、兄弟题或材料无法对应当前小题。
+只有 `complete` 或 `analysis_supported` 才能根据证据判断标签；`insufficient` 或 `ambiguous` 时将 `match` 设为 false，但这表示证据不足，不表示标签确定错误。
+"""
     return f"""你是一位资深的初中英语教研老师，需要核验一个候选知识点标签是否适用于给定题目。
 
 ## 待验证标签
@@ -241,13 +259,14 @@ def build_final_label_discriminator_prompt(
 
 ## 题目内容
 {question_text}
+{input_status_section}
 {clarification_section}
 
 ## 判断要求
 仅依据题目内容和标签释义判断。题目必须直接考查该标签所述的知识点才可判定为 true；不要因为答案词性、题目背景或其他可能知识点而勉强判定。若题目信息不足，或无法确认是否直接考查该知识点，判定为 false 并说明信息缺失或边界原因。
 
 请仅输出 JSON，不要输出 Markdown 或其他文字：
-{{"match": true/false, "confidence": "high"/"medium"/"low", "reason": "不超过80字的判断依据"}}
+{{"match": true/false, "confidence": "high"/"medium"/"low", "reason": "不超过80字的判断依据"{', "input_status": "complete"/"analysis_supported"/"insufficient"/"ambiguous"' if include_input_status else ''}}}
 """
 
 
@@ -260,7 +279,9 @@ def _strip_fence(text: str) -> str:
     return normalized.strip()
 
 
-def _parse_final_label_response(text: str) -> tuple[bool, str, str]:
+def _parse_final_label_response(
+    text: str, *, require_input_status: bool = False
+) -> tuple[bool, str | None, str, str]:
     normalized = _strip_fence(text)
     try:
         payload = json.loads(normalized)
@@ -274,13 +295,22 @@ def _parse_final_label_response(text: str) -> tuple[bool, str, str]:
             raise LabelingServiceError("final label discriminator response is not valid JSON") from error
     if not isinstance(payload, Mapping) or not isinstance(payload.get("match"), bool):
         raise LabelingServiceError("final label discriminator response must contain boolean match")
+    input_status = payload.get("input_status")
+    if input_status is not None and input_status not in LLM_INPUT_STATUS_VALUES:
+        raise LabelingServiceError(
+            "final label discriminator input_status must be complete, analysis_supported, insufficient, or ambiguous"
+        )
+    if require_input_status and input_status is None:
+        raise LabelingServiceError(
+            "final label discriminator response must contain input_status"
+        )
     confidence = payload.get("confidence")
     reason = payload.get("reason")
     if confidence not in _CONFIDENCE_VALUES:
         raise LabelingServiceError("final label discriminator confidence must be high, medium, or low")
     if not isinstance(reason, str) or not reason.strip():
         raise LabelingServiceError("final label discriminator reason must be a non-empty string")
-    return payload["match"], confidence, reason.strip()
+    return payload["match"], input_status, confidence, reason.strip()
 
 
 def _stream_http_transport(
@@ -389,6 +419,7 @@ class FinalLabelDiscriminatorClient:
         retry_delay_seconds: float = 2.0,
         prompt_version: str = FINAL_PROMPT_VERSION,
         clarifications: FinalLabelPromptClarifications | None = None,
+        include_input_status: bool = False,
     ):
         if not config.endpoint:
             raise ValueError("final label discriminator endpoint must be non-empty")
@@ -407,6 +438,7 @@ class FinalLabelDiscriminatorClient:
         self._retry_delay_seconds = retry_delay_seconds
         self._prompt_version = prompt_version
         self._clarifications = clarifications
+        self._include_input_status = include_input_status
 
     def verify(self, request: FinalLabelDiscriminatorRequest) -> FinalLabelDiscriminatorResult:
         review_id = _text(request.packet_row.get("review_id"), field="packet review_id")
@@ -417,6 +449,7 @@ class FinalLabelDiscriminatorClient:
             clarification=self._clarifications.for_label(verify_label)
             if self._clarifications is not None
             else None,
+            include_input_status=self._include_input_status,
         )
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
@@ -452,7 +485,9 @@ class FinalLabelDiscriminatorClient:
             ) from error
         if not isinstance(raw_response, str):
             raise LabelingServiceError("final label discriminator completion content must be a string")
-        llm_match, confidence, reason = _parse_final_label_response(raw_response)
+        llm_match, input_status, confidence, reason = _parse_final_label_response(
+            raw_response, require_input_status=self._include_input_status
+        )
         return FinalLabelDiscriminatorResult(
             review_id=review_id,
             model=response.get("model") if isinstance(response.get("model"), str) else self._config.model,
@@ -461,6 +496,7 @@ class FinalLabelDiscriminatorClient:
             request_id=response.get("id") if isinstance(response.get("id"), str) else None,
             raw_response=raw_response,
             llm_match=llm_match,
+            input_status=input_status,
             confidence=confidence,
             reason=reason,
             prompt_chars=len(prompt),
@@ -505,6 +541,8 @@ def final_result_to_evidence(
             packet_row.get("verify_label"), rulebook=rulebook, migration=migration
         ),
         "llm_match": result.llm_match,
+        "input_precheck": classify_input_completeness(packet_row),
+        "llm_input_status": result.input_status,
         "status": "candidate",
         "model": result.model,
         "endpoint": result.endpoint,
@@ -549,6 +587,8 @@ def final_error_to_evidence(
             packet_row.get("verify_label"), rulebook=rulebook, migration=migration
         ),
         "llm_match": None,
+        "input_precheck": classify_input_completeness(packet_row),
+        "llm_input_status": None,
         "status": "error",
         "model": model,
         "endpoint": endpoint,

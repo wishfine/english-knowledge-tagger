@@ -241,6 +241,84 @@ class ValidateFinalLabelDiscriminatorCliTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_cli_include_input_status_writes_model_status_and_precheck(self):
+        requests: list[dict[str, object]] = []
+
+        class StatusHandler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802 - stdlib hook
+                content_length = int(self.headers["Content-Length"])
+                requests.append(json.loads(self.rfile.read(content_length)))
+                body = json.dumps(
+                    {
+                        "id": "chatcmpl-status",
+                        "model": "ds-v4-flash",
+                        "choices": [{"message": {"content": (
+                            '{"match":true,"input_status":"analysis_supported",'
+                            '"confidence":"medium","reason":"解析提供直接证据。"}'
+                        )}}],
+                    }
+                ).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), StatusHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                directory = Path(temp_dir)
+                packet = directory / "packet.jsonl"
+                row = packet_row()
+                row["is_sub_question"] = True
+                row["question_text"] = (
+                    "题目大题题干：阅读短文。\n"
+                    "当前小题选项：A. what B. where\n"
+                    "当前小题解析：空处引导宾语从句，表示在哪里，故选 where。\n"
+                    "当前小题答案：B"
+                )
+                packet.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+                definitions = write_json(
+                    directory / "definitions.json", {LABEL: {"definition": "仅非复合单选中的名词辨析。"}}
+                )
+                output = directory / "evidence.jsonl"
+                report = directory / "report.json"
+                script = Path(__file__).resolve().parents[1] / "scripts" / "validate_final_label_discriminator.py"
+                completed = subprocess.run(
+                    [
+                        sys.executable, str(script),
+                        "--input", str(packet),
+                        "--label-definitions", str(definitions),
+                        "--teacher-csv", str(write_rulebook(directory / "rulebook.csv")),
+                        "--taxonomy-migration", str(write_migration(directory / "migration.json")),
+                        "--output", str(output),
+                        "--report", str(report),
+                        "--endpoint", f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
+                        "--include-input-status",
+                        "--limit", "1",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                evidence = json.loads(output.read_text(encoding="utf-8"))
+                report_payload = json.loads(report.read_text(encoding="utf-8"))
+
+            self.assertEqual(evidence["llm_input_status"], "analysis_supported")
+            self.assertEqual(evidence["input_precheck"]["status"], "analysis_supported")
+            self.assertEqual(report_payload["prompt_version"], "final-label-discriminator-v2-input-status")
+            self.assertTrue(requests)
+            self.assertIn("input_status", requests[0]["messages"][0]["content"])
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_cli_round_robins_repeatable_endpoints_under_one_global_concurrency_budget(self):
         first_requests: list[dict[str, object]] = []
         second_requests: list[dict[str, object]] = []

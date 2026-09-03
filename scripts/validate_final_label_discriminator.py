@@ -98,6 +98,11 @@ def main() -> None:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--endpoint", action="append")
     parser.add_argument("--prompt-clarifications", type=Path)
+    parser.add_argument(
+        "--include-input-status",
+        action="store_true",
+        help="Use the opt-in prompt schema that requires the model to report input_status",
+    )
     parser.add_argument("--model", default="ds-v4-flash")
     parser.add_argument("--concurrency", type=int, default=64)
     parser.add_argument("--limit", type=int)
@@ -124,7 +129,15 @@ def main() -> None:
             if args.prompt_clarifications is not None
             else None
         )
-        prompt_version = clarifications.prompt_version if clarifications else "final-label-discriminator-v1"
+        prompt_version = (
+            clarifications.prompt_version
+            if clarifications
+            else (
+                "final-label-discriminator-v2-input-status"
+                if args.include_input_status
+                else "final-label-discriminator-v1"
+            )
+        )
         endpoints = args.endpoint or [os.getenv("ENGLISH_TAGGER_DS_V4_ENDPOINT", DEFAULT_ENDPOINT)]
         if not all(isinstance(endpoint, str) and endpoint.strip() for endpoint in endpoints):
             parser.error("--endpoint values must be non-empty")
@@ -139,6 +152,7 @@ def main() -> None:
                 label_definitions=label_definitions,
                 prompt_version=prompt_version,
                 clarifications=clarifications,
+                include_input_status=args.include_input_status,
             )
             for endpoint in endpoints
         ]
@@ -194,6 +208,7 @@ def main() -> None:
         if args.prompt_clarifications is not None
         else None,
         "prompt_clarifications_sha256": clarifications.sha256 if clarifications else None,
+        "include_input_status": args.include_input_status,
         "concurrency": args.concurrency,
         "processed": processed,
         "candidate": candidate,
