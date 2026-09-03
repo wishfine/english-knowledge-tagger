@@ -38,6 +38,20 @@ StreamTransport = Callable[
 ]
 
 
+def _compact_base_clusters(
+    base_clusters: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "base_cluster_id": cluster.get("base_cluster_id"),
+            "member_count": cluster.get("member_count"),
+            "candidate_label_counts": cluster.get("candidate_label_counts"),
+            "canonical_task_mechanism": cluster.get("canonical_task_mechanism"),
+        }
+        for cluster in base_clusters
+    ]
+
+
 def build_cluster_merge_prompt(
     base_prompt: str,
     *,
@@ -50,21 +64,9 @@ def build_cluster_merge_prompt(
         raise ValueError("cluster merge prompt must be non-empty")
     if not source_type_label.strip():
         raise ValueError("source_type_label must be non-empty")
-    summaries = []
-    for cluster in base_clusters:
-        summaries.append(
-            {
-                "base_cluster_id": cluster.get("base_cluster_id"),
-                "member_count": cluster.get("member_count"),
-                "candidate_label_counts": cluster.get("candidate_label_counts"),
-                "canonical_task_mechanism": cluster.get(
-                    "canonical_task_mechanism"
-                ),
-            }
-        )
     payload = {
         "source_type_label": source_type_label,
-        "base_clusters": summaries,
+        "base_clusters": _compact_base_clusters(base_clusters),
     }
     if granularity_guidance is not None:
         if not granularity_guidance.strip():
@@ -74,6 +76,32 @@ def build_cluster_merge_prompt(
         f"{base_prompt.strip()}\n\n"
         "--------------------------------\n"
         "本批基础簇信息\n"
+        "--------------------------------\n\n"
+        f"{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)}"
+    )
+
+
+def build_cluster_audit_prompt(
+    base_prompt: str,
+    *,
+    source_type_label: str,
+    base_clusters: Sequence[Mapping[str, Any]],
+    initial_decisions: Sequence[Mapping[str, Any]],
+) -> str:
+    """Build a focused second-pass request that audits one initial partition."""
+    if not base_prompt.strip():
+        raise ValueError("cluster audit prompt must be non-empty")
+    if not source_type_label.strip():
+        raise ValueError("source_type_label must be non-empty")
+    payload = {
+        "source_type_label": source_type_label,
+        "base_clusters": _compact_base_clusters(base_clusters),
+        "initial_clusters": list(initial_decisions),
+    }
+    return (
+        f"{base_prompt.strip()}\n\n"
+        "--------------------------------\n"
+        "待审核的基础簇与初步分组\n"
         "--------------------------------\n\n"
         f"{json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)}"
     )
@@ -205,6 +233,32 @@ class AIClusterMergeClient:
             granularity_guidance=granularity_guidance,
             base_clusters=base_clusters,
         )
+        return self._complete_partition(prompt, expected_ids)
+
+    def audit(
+        self,
+        *,
+        source_type_label: str,
+        base_clusters: Sequence[Mapping[str, Any]],
+        initial_decisions: Sequence[Mapping[str, Any]],
+    ) -> AIClusterMergeResult:
+        expected_ids = {
+            str(cluster.get("base_cluster_id", "")).strip()
+            for cluster in base_clusters
+        }
+        if "" in expected_ids or len(expected_ids) != len(base_clusters):
+            raise ValueError("base_cluster_id values must be non-empty and unique")
+        prompt = build_cluster_audit_prompt(
+            self._base_prompt,
+            source_type_label=source_type_label,
+            base_clusters=base_clusters,
+            initial_decisions=initial_decisions,
+        )
+        return self._complete_partition(prompt, expected_ids)
+
+    def _complete_partition(
+        self, prompt: str, expected_ids: set[str]
+    ) -> AIClusterMergeResult:
         headers = {"Content-Type": "application/json"}
         if self._config.api_key:
             headers["Authorization"] = f"Bearer {self._config.api_key}"

@@ -3,6 +3,7 @@ import unittest
 
 from english_knowledge_tagger.ai_type_cluster_merge import (
     AIClusterMergeClient,
+    build_cluster_audit_prompt,
     build_cluster_merge_prompt,
     materialize_ai_clusters,
     parse_cluster_merge_response,
@@ -56,6 +57,25 @@ class AITypeClusterMergeTests(unittest.TestCase):
 
         self.assertIn("题型@任意原标签", prompt)
         self.assertNotIn("granularity_guidance", prompt)
+
+    def test_audit_prompt_contains_initial_partition_and_compact_bases(self):
+        prompt = build_cluster_audit_prompt(
+            "统一审核方法",
+            source_type_label="题型@任意原标签",
+            base_clusters=self.base_clusters,
+            initial_decisions=[
+                {
+                    "canonical_type_label": "听力任务",
+                    "canonical_task_mechanism": "听音频后作答",
+                    "decision_status": "candidate",
+                    "base_cluster_ids": ["BASE-1", "BASE-2", "BASE-3"],
+                }
+            ],
+        )
+
+        self.assertIn("initial_clusters", prompt)
+        self.assertIn("BASE-3", prompt)
+        self.assertNotIn("representative_question_ids", prompt)
 
     def test_response_must_partition_every_base_cluster_exactly_once(self):
         valid = {
@@ -128,14 +148,21 @@ class AITypeClusterMergeTests(unittest.TestCase):
             granularity_guidance="不按图片和人物拆分",
             base_clusters=self.base_clusters,
         )
+        audited = client.audit(
+            source_type_label="题型@听力理解@听力匹配",
+            base_clusters=self.base_clusters,
+            initial_decisions=result.decisions,
+        )
         clusters, base_to_final = materialize_ai_clusters(
             source_type_label="题型@听力理解@听力匹配",
             base_clusters=self.base_clusters,
-            decisions=result.decisions,
+            decisions=audited.decisions,
         )
 
         self.assertTrue(requests[0][1]["stream"])
         self.assertEqual(requests[0][1]["max_tokens"], 4096)
+        self.assertEqual(len(requests), 2)
+        self.assertIn("initial_clusters", requests[1][1]["messages"][0]["content"])
         self.assertEqual(len(clusters), 2)
         self.assertEqual(base_to_final["BASE-1"], base_to_final["BASE-2"])
         self.assertNotEqual(base_to_final["BASE-1"], base_to_final["BASE-3"])

@@ -134,6 +134,7 @@ def main() -> None:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--prompt", type=Path, default=DEFAULT_PROMPT)
+    parser.add_argument("--audit-prompt", type=Path)
     parser.add_argument("--endpoint", action="append")
     parser.add_argument("--model", default="DeepSeek-V4-Flash")
     parser.add_argument("--timeout-seconds", type=float, default=300.0)
@@ -160,6 +161,18 @@ def main() -> None:
         if not base_prompt.strip():
             raise ValueError("prompt must be non-empty")
         prompt_sha256 = hashlib.sha256(base_prompt.encode("utf-8")).hexdigest()
+        audit_prompt = (
+            args.audit_prompt.read_text(encoding="utf-8")
+            if args.audit_prompt is not None
+            else None
+        )
+        if audit_prompt is not None and not audit_prompt.strip():
+            raise ValueError("audit prompt must be non-empty")
+        audit_prompt_sha256 = (
+            hashlib.sha256(audit_prompt.encode("utf-8")).hexdigest()
+            if audit_prompt is not None
+            else None
+        )
         clients = [
             AIClusterMergeClient(
                 QuestionTypeServiceConfig(
@@ -175,6 +188,25 @@ def main() -> None:
             )
             for endpoint in endpoints
         ]
+        audit_clients = (
+            [
+                AIClusterMergeClient(
+                    QuestionTypeServiceConfig(
+                        endpoint=endpoint,
+                        model=args.model,
+                        max_tokens=args.max_tokens,
+                        temperature=0,
+                        timeout_seconds=args.timeout_seconds,
+                        api_key=os.getenv(args.api_key_env) or None,
+                    ),
+                    base_prompt=audit_prompt,
+                    max_retries=args.max_retries,
+                )
+                for endpoint in endpoints
+            ]
+            if audit_prompt is not None
+            else []
+        )
         args.output_root.mkdir(parents=True)
         manifest: list[dict[str, Any]] = []
         for label_index, source_type_label in enumerate(config["source_type_labels"]):
@@ -213,10 +245,36 @@ def main() -> None:
                 granularity_guidance=guidance,
                 base_clusters=base_clusters,
             )
-            clusters, base_to_final = materialize_ai_clusters(
+            initial_clusters, _ = materialize_ai_clusters(
                 source_type_label=source_type_label,
                 base_clusters=base_clusters,
                 decisions=result.decisions,
+                representative_count=int(config.get("representative_count", 5)),
+            )
+            final_result = result
+            if audit_clients:
+                audit_endpoint_index = (label_index + 1) % len(audit_clients)
+                print(
+                    json.dumps(
+                        {
+                            "status": "auditing",
+                            "source_type_label": source_type_label,
+                            "initial_cluster_count": len(initial_clusters),
+                            "endpoint": endpoints[audit_endpoint_index],
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+                final_result = audit_clients[audit_endpoint_index].audit(
+                    source_type_label=source_type_label,
+                    base_clusters=base_clusters,
+                    initial_decisions=result.decisions,
+                )
+            clusters, base_to_final = materialize_ai_clusters(
+                source_type_label=source_type_label,
+                base_clusters=base_clusters,
+                decisions=final_result.decisions,
                 representative_count=int(config.get("representative_count", 5)),
             )
             members = list(_jsonl_rows(members_path))
@@ -236,10 +294,21 @@ def main() -> None:
 
             output_directory = args.output_root / directory_name
             output_directory.mkdir()
+            if audit_clients:
+                _write_json(
+                    output_directory / "initial-local-clusters.json",
+                    {
+                        "schema_version": "ai-local-type-clusters-initial-v1",
+                        "source_type_label": source_type_label,
+                        "clusters": initial_clusters,
+                    },
+                )
             _write_json(
                 output_directory / "local-clusters.json",
                 {
-                    "schema_version": "ai-local-type-clusters-v1",
+                    "schema_version": "ai-local-type-clusters-v2"
+                    if audit_clients
+                    else "ai-local-type-clusters-v1",
                     "source_type_label": source_type_label,
                     "clusters": clusters,
                 },
@@ -266,17 +335,28 @@ def main() -> None:
             )
             if outliers_path.exists():
                 shutil.copyfile(outliers_path, output_directory / "local-outliers.jsonl")
-            (output_directory / "raw-response.txt").write_text(
-                result.raw_response.rstrip() + "\n", encoding="utf-8"
-            )
+            if audit_clients:
+                (output_directory / "initial-raw-response.txt").write_text(
+                    result.raw_response.rstrip() + "\n", encoding="utf-8"
+                )
+                (output_directory / "audit-raw-response.txt").write_text(
+                    final_result.raw_response.rstrip() + "\n", encoding="utf-8"
+                )
+            else:
+                (output_directory / "raw-response.txt").write_text(
+                    result.raw_response.rstrip() + "\n", encoding="utf-8"
+                )
             status_counts = Counter(
                 cluster["decision_status"] for cluster in clusters
             )
             report = {
-                "schema_version": "ai-local-type-cluster-merge-report-v1",
+                "schema_version": "ai-local-type-cluster-merge-report-v2"
+                if audit_clients
+                else "ai-local-type-cluster-merge-report-v1",
                 "source_type_label": source_type_label,
                 "guidance_profile": profile_name,
                 "base_cluster_count": len(base_clusters),
+                "initial_cluster_count": len(initial_clusters),
                 "cluster_count": len(clusters),
                 "merged_base_cluster_count": len(base_clusters) - len(clusters),
                 "multi_base_cluster_count": sum(
@@ -289,6 +369,9 @@ def main() -> None:
                 if outliers_path.exists()
                 else 0,
                 "request_id": result.request_id,
+                "audit_request_id": final_result.request_id
+                if audit_clients
+                else None,
             }
             _write_json(output_directory / "report.json", report)
             manifest.append({**report, "output_directory": str(output_directory)})
@@ -306,13 +389,22 @@ def main() -> None:
             )
 
         root_report = {
-            "schema_version": "ai-local-type-cluster-merge-summary-v1",
+            "schema_version": "ai-local-type-cluster-merge-summary-v2"
+            if audit_clients
+            else "ai-local-type-cluster-merge-summary-v1",
             "input_root": str(args.input_root),
             "output_root": str(args.output_root),
             "config_path": str(args.config),
             "prompt_path": str(args.prompt),
             "prompt_version": config.get("prompt_version", PROMPT_VERSION),
             "prompt_sha256": prompt_sha256,
+            "audit_prompt_path": str(args.audit_prompt)
+            if args.audit_prompt is not None
+            else None,
+            "audit_prompt_version": config.get("audit_prompt_version")
+            if audit_clients
+            else None,
+            "audit_prompt_sha256": audit_prompt_sha256,
             "model": args.model,
             "endpoints": endpoints,
             "stream": True,
