@@ -270,6 +270,39 @@ class TerminalLabelStabilityTests(unittest.TestCase):
         )
         self.assertEqual(result.missing_context, ("缺少题目解析",))
 
+    def test_client_normalizes_null_optional_context_to_empty_list(self):
+        def transport(endpoint, payload, timeout, headers):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "non_target",
+                                    "confidence": "high",
+                                    "criterion_evidence": "不依赖目标知识点",
+                                    "missing_context": None,
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = TerminalLabelStabilityClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"), transport=transport
+        )
+        result = client.classify(
+            {
+                "legacy_label": "知识点@词汇@构词法@转化法",
+                "definition_text": "词形不变且词性改变。",
+                "question_text": "题目内容充分，但不依赖目标知识点。",
+            }
+        )
+        self.assertEqual(result.criterion_evidence, ("不依赖目标知识点",))
+        self.assertEqual(result.missing_context, ())
+
     def test_three_run_summary_applies_precision_first_gate(self):
         packet = (
             {

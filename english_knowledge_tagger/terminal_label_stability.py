@@ -330,7 +330,10 @@ def build_terminal_label_stability_prompt(row: Mapping[str, Any]) -> str:
 def _string_tuple(value: object, *, field: str) -> tuple[str, ...]:
     # Some vLLM responses serialize a one-item field as a scalar string even
     # though the contract asks for a string list.  Normalize that harmless
-    # shape difference while keeping all other malformed values invalid.
+    # shape difference (and an omitted/null optional field) while keeping all
+    # other malformed values invalid.
+    if value is None:
+        return ()
     if isinstance(value, str):
         item = value.strip()
         return (item,) if item else ()
