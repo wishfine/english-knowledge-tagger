@@ -11,6 +11,7 @@ from typing import Iterable, Mapping
 
 from .knowledge_rulebook import load_knowledge_rulebook
 from .knowledge_taxonomy_migration import KnowledgeTaxonomyMigration, load_knowledge_taxonomy_migration
+from .input_completeness import INPUT_STATUS_VALUES, LLM_INPUT_STATUS_VALUES
 from .sft_labels import parse_sft_output_labels
 
 
@@ -68,6 +69,8 @@ def _create_index(connection: sqlite3.Connection) -> None:
             status TEXT NOT NULL,
             llm_match INTEGER,
             confidence TEXT,
+            input_precheck_status TEXT,
+            llm_input_status TEXT,
             review_id TEXT NOT NULL,
             source_path TEXT NOT NULL
         );
@@ -100,7 +103,7 @@ def _iter_jsonl(path: Path) -> Iterable[tuple[int, dict[str, object]]]:
 
 def _load_evidence(
     connection: sqlite3.Connection,
-    run_dir: Path,
+    run_dirs: tuple[Path, ...],
     *,
     excluded_labels: frozenset[str],
 ) -> tuple[Counter[str], set[str], int]:
@@ -108,57 +111,83 @@ def _load_evidence(
     labels: set[str] = set()
     records = 0
     insert_rows: list[tuple[object, ...]] = []
-    for evidence_path in sorted(run_dir.glob("labels/*/evidence.jsonl")):
-        for line_number, row in _iter_jsonl(evidence_path):
-            origin = f"{evidence_path} line {line_number}"
-            if row.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
-                raise ValueError(f"{origin}: unexpected evidence schema_version")
-            identity = _identity(row)
-            canonical_label = _text(row.get("canonical_label"))
-            legacy_label = _text(row.get("legacy_label"))
-            status = _text(row.get("status"))
-            review_id = _text(row.get("review_id"))
-            if identity is None or canonical_label is None or legacy_label is None or status is None or review_id is None:
-                raise ValueError(f"{origin}: missing evidence identity or label fields")
-            if status not in {"candidate", "error"}:
-                raise ValueError(f"{origin}: unsupported evidence status {status!r}")
-            llm_match = row.get("llm_match")
-            if llm_match is not None and not isinstance(llm_match, bool):
-                raise ValueError(f"{origin}: llm_match must be boolean or null")
-            confidence = row.get("confidence")
-            if confidence is not None and not isinstance(confidence, str):
-                raise ValueError(f"{origin}: confidence must be a string or null")
-            labels.add(canonical_label)
-            records += 1
-            counts["evidence_records"] += 1
-            counts[f"evidence_status:{status}"] += 1
-            if llm_match is True:
-                counts["positive_evidence"] += 1
-                counts[f"positive_confidence:{confidence or 'missing'}"] += 1
-            elif llm_match is False:
-                counts["negative_evidence"] += 1
-            if canonical_label in excluded_labels:
-                counts["excluded_label_evidence"] += 1
-            insert_rows.append(
-                (
-                    identity[0],
-                    identity[1],
-                    identity[2],
-                    canonical_label,
-                    legacy_label,
-                    status,
-                    None if llm_match is None else int(llm_match),
-                    confidence,
-                    review_id,
-                    str(evidence_path),
+    for run_dir in run_dirs:
+        for evidence_path in sorted(run_dir.glob("labels/*/evidence.jsonl")):
+            for line_number, row in _iter_jsonl(evidence_path):
+                origin = f"{evidence_path} line {line_number}"
+                if row.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+                    raise ValueError(f"{origin}: unexpected evidence schema_version")
+                identity = _identity(row)
+                canonical_label = _text(row.get("canonical_label"))
+                legacy_label = _text(row.get("legacy_label"))
+                status = _text(row.get("status"))
+                review_id = _text(row.get("review_id"))
+                if identity is None or canonical_label is None or legacy_label is None or status is None or review_id is None:
+                    raise ValueError(f"{origin}: missing evidence identity or label fields")
+                if status not in {"candidate", "error"}:
+                    raise ValueError(f"{origin}: unsupported evidence status {status!r}")
+                llm_match = row.get("llm_match")
+                if llm_match is not None and not isinstance(llm_match, bool):
+                    raise ValueError(f"{origin}: llm_match must be boolean or null")
+                confidence = row.get("confidence")
+                if confidence is not None and not isinstance(confidence, str):
+                    raise ValueError(f"{origin}: confidence must be a string or null")
+                input_precheck = row.get("input_precheck")
+                input_precheck_status = None
+                if input_precheck is not None:
+                    if not isinstance(input_precheck, Mapping):
+                        raise ValueError(f"{origin}: input_precheck must be an object or null")
+                    input_precheck_status = input_precheck.get("status")
+                    if input_precheck_status not in INPUT_STATUS_VALUES:
+                        raise ValueError(
+                            f"{origin}: unsupported input_precheck status {input_precheck_status!r}"
+                        )
+                llm_input_status = row.get("llm_input_status")
+                if llm_input_status is not None and llm_input_status not in LLM_INPUT_STATUS_VALUES:
+                    raise ValueError(f"{origin}: unsupported llm_input_status {llm_input_status!r}")
+                labels.add(canonical_label)
+                records += 1
+                counts["evidence_records"] += 1
+                counts[f"evidence_status:{status}"] += 1
+                if llm_match is True:
+                    counts["positive_evidence"] += 1
+                    counts[f"positive_confidence:{confidence or 'missing'}"] += 1
+                elif llm_match is False:
+                    counts["negative_evidence"] += 1
+                if input_precheck_status is not None:
+                    counts[f"input_precheck:{input_precheck_status}"] += 1
+                if llm_input_status is not None:
+                    counts[f"llm_input_status:{llm_input_status}"] += 1
+                if canonical_label in excluded_labels:
+                    counts["excluded_label_evidence"] += 1
+                insert_rows.append(
+                    (
+                        identity[0],
+                        identity[1],
+                        identity[2],
+                        canonical_label,
+                        legacy_label,
+                        status,
+                        None if llm_match is None else int(llm_match),
+                        confidence,
+                        input_precheck_status,
+                        llm_input_status,
+                        review_id,
+                        str(evidence_path),
+                    )
                 )
-            )
-            if len(insert_rows) >= 10_000:
-                connection.executemany("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", insert_rows)
-                connection.commit()
-                insert_rows.clear()
+                if len(insert_rows) >= 10_000:
+                    connection.executemany(
+                        "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        insert_rows,
+                    )
+                    connection.commit()
+                    insert_rows.clear()
     if insert_rows:
-        connection.executemany("INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", insert_rows)
+        connection.executemany(
+            "INSERT INTO evidence VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            insert_rows,
+        )
         connection.commit()
     return counts, labels, records
 
@@ -207,7 +236,8 @@ def _index_source(connection: sqlite3.Connection, source_path: Path) -> tuple[in
 
 def build_final_quality_snapshot(
     *,
-    run_dir: Path,
+    run_dir: Path | None = None,
+    run_dirs: Iterable[Path] | None = None,
     source_path: Path,
     output_dir: Path,
     excluded_labels: Iterable[str],
@@ -217,8 +247,13 @@ def build_final_quality_snapshot(
     """Join completed evidence to a repaired source and emit unreleased candidates/holds."""
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite existing snapshot directory: {output_dir}")
-    if not run_dir.is_dir() or not source_path.is_file():
-        raise FileNotFoundError("run_dir and source_path must both exist")
+    selected_run_dirs = tuple(run_dirs or ())
+    if run_dir is not None:
+        selected_run_dirs = (run_dir,) + selected_run_dirs
+    if not selected_run_dirs or any(not path.is_dir() for path in selected_run_dirs):
+        raise FileNotFoundError("at least one run_dir must exist and be a directory")
+    if not source_path.is_file():
+        raise FileNotFoundError("source_path must exist and be a file")
     excluded_raw = frozenset(label.strip() for label in excluded_labels if label.strip())
     rulebook = load_knowledge_rulebook(teacher_csv)
     migration = load_knowledge_taxonomy_migration(taxonomy_migration)
@@ -237,7 +272,9 @@ def build_final_quality_snapshot(
     connection.execute("PRAGMA journal_mode=WAL")
     connection.execute("PRAGMA synchronous=OFF")
     _create_index(connection)
-    evidence_counts, evidence_labels, evidence_records = _load_evidence(connection, run_dir, excluded_labels=excluded)
+    evidence_counts, evidence_labels, evidence_records = _load_evidence(
+        connection, selected_run_dirs, excluded_labels=excluded
+    )
     source_records, source_sha256, source_counts = _index_source(connection, source_path)
 
     candidates_path = output_dir / "question_candidates.jsonl"
@@ -284,13 +321,15 @@ def build_final_quality_snapshot(
             excluded_found = tuple(label for label in historical_labels if label in excluded)
             missing: list[str] = []
             not_positive: list[str] = []
+            input_ineligible: list[str] = []
+            input_ineligible_reasons: dict[str, str] = {}
             conflicts: list[str] = []
             approved: dict[str, list[str]] = {}
             for label in historical_labels:
                 if label in excluded:
                     continue
                 rows = connection.execute(
-                    "SELECT status,llm_match,confidence,review_id FROM evidence "
+                    "SELECT status,llm_match,confidence,input_precheck_status,llm_input_status,review_id FROM evidence "
                     "WHERE question_id=? AND parent_id=? AND is_sub_question=? AND canonical_label=?",
                     (*identity, label),
                 ).fetchall()
@@ -300,13 +339,41 @@ def build_final_quality_snapshot(
                 if len(rows) != 1:
                     conflicts.append(label)
                     continue
-                status, llm_match, confidence, review_id = rows[0]
+                (
+                    status,
+                    llm_match,
+                    confidence,
+                    input_precheck_status,
+                    llm_input_status,
+                    review_id,
+                ) = rows[0]
                 if status != "candidate" or llm_match != 1:
                     not_positive.append(label)
                     continue
+                if input_precheck_status in {
+                    "insufficient",
+                    "parent_context_only",
+                    "audio_or_image_missing",
+                    "sibling_mapping_ambiguous",
+                }:
+                    input_ineligible.append(label)
+                    input_ineligible_reasons[label] = (
+                        "input_ambiguous"
+                        if input_precheck_status == "sibling_mapping_ambiguous"
+                        else "input_insufficient"
+                    )
+                    continue
+                if llm_input_status in {"insufficient", "ambiguous"}:
+                    input_ineligible.append(label)
+                    input_ineligible_reasons[label] = (
+                        "input_ambiguous"
+                        if llm_input_status == "ambiguous"
+                        else "input_insufficient"
+                    )
+                    continue
                 approved[label] = [review_id]
 
-            if inactive or excluded_found or missing or not_positive or conflicts:
+            if inactive or excluded_found or missing or not_positive or input_ineligible or conflicts:
                 reasons: list[str] = []
                 if inactive:
                     reasons.append("historical_label_not_active_taxonomy")
@@ -316,6 +383,8 @@ def build_final_quality_snapshot(
                     reasons.append("missing_label_evidence")
                 if not_positive:
                     reasons.append("label_evidence_not_positive")
+                if input_ineligible:
+                    reasons.append(input_ineligible_reasons[input_ineligible[0]])
                 if conflicts:
                     reasons.append("evidence_identity_conflict")
                 _write_jsonl(
@@ -329,6 +398,11 @@ def build_final_quality_snapshot(
                         "excluded_labels": list(excluded_found),
                         "missing_labels": sorted(missing),
                         "not_positive_labels": sorted(not_positive),
+                        "input_ineligible_labels": sorted(input_ineligible),
+                        "input_ineligible_reasons": {
+                            label: input_ineligible_reasons[label]
+                            for label in sorted(input_ineligible_reasons)
+                        },
                         "conflict_labels": sorted(conflicts),
                     },
                 )
@@ -357,7 +431,8 @@ def build_final_quality_snapshot(
 
     report = {
         "schema_version": SNAPSHOT_SCHEMA_VERSION,
-        "run_dir": str(run_dir),
+        "run_dir": str(selected_run_dirs[0]),
+        "run_dirs": [str(path) for path in selected_run_dirs],
         "source_path": str(source_path),
         "source_sha256": source_sha256,
         "teacher_csv": str(teacher_csv),

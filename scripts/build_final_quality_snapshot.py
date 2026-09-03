@@ -17,7 +17,13 @@ from english_knowledge_tagger.final_quality_snapshot import build_final_quality_
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        action="append",
+        required=True,
+        help="completed final-discriminator run directory; repeat to merge multiple runs",
+    )
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--teacher-csv", type=Path, required=True)
     parser.add_argument("--taxonomy-migration", type=Path, required=True)
@@ -26,7 +32,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         report = build_final_quality_snapshot(
-            run_dir=args.run_dir,
+            run_dirs=tuple(args.run_dir),
             source_path=args.source,
             output_dir=args.output_dir,
             excluded_labels=tuple(args.exclude_label),

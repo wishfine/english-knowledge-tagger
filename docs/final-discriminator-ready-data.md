@@ -4,7 +4,9 @@
 
 ## 最终判别器的边界
 
-最终判别器版本为 `final-label-discriminator-v1`。它参考 mentor 判别器的定义加载、结构化 JSON 输出、禁用 thinking、SSE 流式读取、可审计 evidence 与重试机制，但与 `mentor-direct-v1` 有关键区别：
+最终判别器默认版本为 `final-label-discriminator-v1`。它参考 mentor 判别器的定义加载、结构化 JSON 输出、禁用 thinking、SSE 流式读取、可审计 evidence 与重试机制，但与 `mentor-direct-v1` 有关键区别：
+
+需要同时判断输入证据时，使用 opt-in 版本 `final-label-discriminator-v2-input-status`（CLI 加 `--include-input-status`）。该版本在保留 `match`、`confidence`、`reason` 的基础上要求返回 `input_status`，并在 evidence 中追加规则侧 `input_precheck` 与模型侧 `llm_input_status`。输入不足或兄弟题映射歧义只进入 hold，不作为确定的标签负例。
 
 | 字段 | mentor 初筛 / `mentor-direct-v1` | 最终判别 / `final-label-discriminator-v1` |
 |---|---|---|
@@ -55,7 +57,7 @@ train_candidate
 
 ## 已完成终判后的离线质量快照
 
-当最终判别器已完成但源题面随后产生了父题上下文补充时，不需要重跑 DS。使用已有 run 的 per-label `evidence.jsonl` 与修复后的 v3 源执行离线快照：它会重新按 `question_id + parent_id + is_sub_question` 对齐题目，保留 `llm_match=true` 的正向证据，并要求该题历史输出中的每一个 active 知识点都有唯一正向证据，才写入 `silver_question_candidate_unreleased`。其余记录写入 `holds.jsonl`。
+当最终判别器已完成但源题面随后产生了父题上下文补充时，不需要重跑 DS。使用已有 run 的 per-label `evidence.jsonl` 与修复后的 v3 源执行离线快照：它会重新按 `question_id + parent_id + is_sub_question` 对齐题目，保留 `llm_match=true` 的正向证据，并要求该题历史输出中的每一个 active 知识点都有唯一正向证据，才写入 `silver_question_candidate_unreleased`。其余记录写入 `holds.jsonl`。CLI 的 `--run-dir` 可以重复传入，用于直接合并多个终判批次，不需要复制 evidence 文件。
 
 本次使用的是实际执行过的 `run133`：`positive-candidates-133-20260828-130222`。它与后续 `wilson141` 的交集只有 129 个标签；run133 中另外 4 个未通过快速池门禁的标签必须排除。`wilson141 - run133` 的 12 个标签没有本次终判 evidence，不会被补造；涉及这些标签的题目会因 `missing_label_evidence` 留在 hold。
 
@@ -79,6 +81,23 @@ python3 scripts/build_final_quality_snapshot.py \
 ```
 
 该命令产出的是未发布候选，不等于 `released_silver`；后续仍需每标签独立 60 条人工复核，以及完整题目标签集合和多模态门禁。
+
+`run133` 与 `wilson141-delta11` 都完成后，用同一份 v3 源合并筛选。由于 `条件状语从句的时态` 的 final-v1 true 校准为 `11/12`，它可以保留诊断 evidence，但在正式候选快照中继续排除：
+
+```bash
+python3 scripts/build_final_quality_snapshot.py \
+  --run-dir "$RUNTIME/final-label-full/positive-candidates-133-20260828-130222" \
+  --run-dir "$RUNTIME/final-label-full/wilson141-delta11-v3-<实际批次时间>" \
+  --source /local_data/zhangyonglin/english-knowledge-tagger-runtime/source-audit/parent-context-v3-20260901-152542/cleaned_final_enhanced_v3_parent_context.jsonl \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --taxonomy-migration configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json \
+  --exclude-label '知识点@语法词法@动词时态@一般过去时@动词过去式变化规则' \
+  --exclude-label '知识点@语法词法@非谓语动词@动名词@动名词的结构@动名词的一般式' \
+  --exclude-label '知识点@语法词法@形容词与副词@副词的用法@副词修饰副词' \
+  --exclude-label '知识点@语法词法@非谓语动词@动词不定式@动词不定式的结构@动词不定式的被动式' \
+  --exclude-label '知识点@语法句法@主从复合句@状语从句@条件状语从句@条件状语从句的时态' \
+  --output-dir "$RUNTIME/final-quality-snapshot/run133-delta11-v3-$(date +%Y%m%d-%H%M%S)"
+```
 
 任何 `match=false`、服务错误、route 不符或未完成最终 prompt 校准的记录均为 `hold`，绝不自动删除 source 标签。
 
