@@ -238,6 +238,38 @@ class TerminalLabelStabilityTests(unittest.TestCase):
             captured["payload"]["chat_template_kwargs"], {"enable_thinking": False}
         )
 
+    def test_client_normalizes_string_missing_context_to_single_item_list(self):
+        def transport(endpoint, payload, timeout, headers):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "decision": "insufficient",
+                                    "confidence": "low",
+                                    "criterion_evidence": [],
+                                    "missing_context": "缺少题目解析",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            }
+
+        client = TerminalLabelStabilityClient(
+            LabelingServiceConfig(endpoint="http://example.invalid"), transport=transport
+        )
+        result = client.classify(
+            {
+                "legacy_label": "知识点@词汇@构词法@转化法",
+                "definition_text": "词形不变且词性改变。",
+                "question_text": "题目内容不完整。",
+            }
+        )
+        self.assertEqual(result.missing_context, ("缺少题目解析",))
+
     def test_three_run_summary_applies_precision_first_gate(self):
         packet = (
             {

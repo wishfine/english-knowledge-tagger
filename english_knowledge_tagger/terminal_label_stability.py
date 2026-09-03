@@ -328,10 +328,18 @@ def build_terminal_label_stability_prompt(row: Mapping[str, Any]) -> str:
 
 
 def _string_tuple(value: object, *, field: str) -> tuple[str, ...]:
+    # Some vLLM responses serialize a one-item field as a scalar string even
+    # though the contract asks for a string list.  Normalize that harmless
+    # shape difference while keeping all other malformed values invalid.
+    if isinstance(value, str):
+        item = value.strip()
+        return (item,) if item else ()
     if not isinstance(value, list) or any(
         not isinstance(item, str) or not item.strip() for item in value
     ):
-        raise LabelingServiceError(f"terminal stability response {field} must be a string list")
+        raise LabelingServiceError(
+            f"terminal stability response {field} must be a string or string list"
+        )
     return tuple(item.strip() for item in value)
 
 
