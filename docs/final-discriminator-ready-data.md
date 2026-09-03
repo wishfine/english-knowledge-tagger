@@ -53,6 +53,29 @@ train_candidate
   = released silver 之外，仍通过完整标签集、图片/音频状态和 HQ 批次门禁的题目。
 ```
 
+## 已完成终判后的离线质量快照
+
+当最终判别器已完成但源题面随后产生了父题上下文补充时，不需要重跑 DS。使用已有 run 的 per-label `evidence.jsonl` 与修复后的 v3 源执行离线快照：它会重新按 `question_id + parent_id + is_sub_question` 对齐题目，保留 `llm_match=true` 的正向证据，并要求该题历史输出中的每一个 active 知识点都有唯一正向证据，才写入 `silver_question_candidate_unreleased`。其余记录写入 `holds.jsonl`。
+
+模型终判没有 `uncertain` 枚举：`llm_match=false` 和 `status=error` 都是 hold；`confidence=low` 会在统计中记录，但不自动改写成 uncertain 或删除。离线快照也必须排除未通过 Wilson 快速池门禁的标签，不能把它们的 true 结果混入候选。
+
+服务器执行示例（不调用 DS、不修改 v3 源）：
+
+```bash
+python3 scripts/build_final_quality_snapshot.py \
+  --run-dir "$FINAL_RUN" \
+  --source /local_data/zhangyonglin/english-knowledge-tagger-runtime/source-audit/parent-context-v3-20260901-152542/cleaned_final_enhanced_v3_parent_context.jsonl \
+  --teacher-csv data/rulebooks/初中英语知识点题型方法释义.csv \
+  --taxonomy-migration configs/knowledge_taxonomy_migrations/legacy-rendered-to-teacher-v1.json \
+  --exclude-label '知识点@语法词法@动词时态@一般过去时@动词过去式变化规则' \
+  --exclude-label '知识点@语法词法@非谓语动词@动名词@动名词的结构@动名词的一般式' \
+  --exclude-label '知识点@语法词法@形容词与副词@副词的用法@副词修饰副词' \
+  --exclude-label '知识点@语法词法@非谓语动词@动词不定式@动词不定式的结构@动词不定式的被动式' \
+  --output-dir "$RUNTIME/final-quality-snapshot-$(date +%Y%m%d-%H%M%S)"
+```
+
+该命令产出的是未发布候选，不等于 `released_silver`；后续仍需每标签独立 60 条人工复核，以及完整题目标签集合和多模态门禁。
+
 任何 `match=false`、服务错误、route 不符或未完成最终 prompt 校准的记录均为 `hold`，绝不自动删除 source 标签。
 
 ## 当前最终源与定义版本
