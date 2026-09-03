@@ -42,7 +42,7 @@ def build_cluster_merge_prompt(
     base_prompt: str,
     *,
     source_type_label: str,
-    granularity_guidance: str,
+    granularity_guidance: str | None = None,
     base_clusters: Sequence[Mapping[str, Any]],
 ) -> str:
     """Build one label-level request from compact V1 base-cluster summaries."""
@@ -50,8 +50,6 @@ def build_cluster_merge_prompt(
         raise ValueError("cluster merge prompt must be non-empty")
     if not source_type_label.strip():
         raise ValueError("source_type_label must be non-empty")
-    if not granularity_guidance.strip():
-        raise ValueError("granularity guidance must be non-empty")
     summaries = []
     for cluster in base_clusters:
         summaries.append(
@@ -66,9 +64,12 @@ def build_cluster_merge_prompt(
         )
     payload = {
         "source_type_label": source_type_label,
-        "granularity_guidance": granularity_guidance,
         "base_clusters": summaries,
     }
+    if granularity_guidance is not None:
+        if not granularity_guidance.strip():
+            raise ValueError("granularity guidance must be non-empty when supplied")
+        payload["granularity_guidance"] = granularity_guidance
     return (
         f"{base_prompt.strip()}\n\n"
         "--------------------------------\n"
@@ -189,7 +190,7 @@ class AIClusterMergeClient:
         self,
         *,
         source_type_label: str,
-        granularity_guidance: str,
+        granularity_guidance: str | None = None,
         base_clusters: Sequence[Mapping[str, Any]],
     ) -> AIClusterMergeResult:
         expected_ids = {

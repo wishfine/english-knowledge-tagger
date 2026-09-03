@@ -29,12 +29,12 @@ from english_knowledge_tagger.type_reclassification import (
 )
 
 
-DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-ai-merge-pilot-v1.json"
+DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "type-clustering-ai-merge-pilot-v2.json"
 DEFAULT_PROMPT = (
     PROJECT_ROOT
     / "configs"
     / "prompts"
-    / "question-major-type-cluster-merge-v1.txt"
+    / "question-major-type-cluster-merge-v2.txt"
 )
 DEFAULT_ENDPOINTS = (
     "http://172.22.0.35:9102/v1/chat/completions",
@@ -85,10 +85,14 @@ def _load_config(path: Path) -> dict[str, Any]:
         not isinstance(label, str) or not label.strip() for label in labels
     ):
         raise ValueError("source_type_labels must be a non-empty string array")
+    if profiles is None and assignments is None:
+        return config
     if not isinstance(profiles, dict) or not profiles:
-        raise ValueError("guidance_profiles must be a non-empty object")
+        raise ValueError("guidance_profiles must be a non-empty object when supplied")
     if not isinstance(assignments, dict):
-        raise ValueError("source_type_guidance_profiles must be an object")
+        raise ValueError(
+            "source_type_guidance_profiles must be an object when supplied"
+        )
     for label in labels:
         profile_name = assignments.get(label)
         if not isinstance(profile_name, str) or profile_name not in profiles:
@@ -184,8 +188,14 @@ def main() -> None:
             base_clusters = _validate_base_clusters(
                 _read_json(base_path), source_type_label=source_type_label
             )
-            profile_name = config["source_type_guidance_profiles"][source_type_label]
-            guidance = config["guidance_profiles"][profile_name]
+            profile_name = config.get("source_type_guidance_profiles", {}).get(
+                source_type_label
+            )
+            guidance = (
+                config.get("guidance_profiles", {}).get(profile_name)
+                if profile_name is not None
+                else None
+            )
             print(
                 json.dumps(
                     {
@@ -301,7 +311,7 @@ def main() -> None:
             "output_root": str(args.output_root),
             "config_path": str(args.config),
             "prompt_path": str(args.prompt),
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": config.get("prompt_version", PROMPT_VERSION),
             "prompt_sha256": prompt_sha256,
             "model": args.model,
             "endpoints": endpoints,

@@ -47,6 +47,16 @@ class AITypeClusterMergeTests(unittest.TestCase):
         self.assertNotIn("representative_question_ids", prompt)
         self.assertNotIn("local_candidate_type_label", prompt)
 
+    def test_prompt_does_not_require_label_specific_guidance(self):
+        prompt = build_cluster_merge_prompt(
+            "统一方法论",
+            source_type_label="题型@任意原标签",
+            base_clusters=self.base_clusters,
+        )
+
+        self.assertIn("题型@任意原标签", prompt)
+        self.assertNotIn("granularity_guidance", prompt)
+
     def test_response_must_partition_every_base_cluster_exactly_once(self):
         valid = {
             "clusters": [
