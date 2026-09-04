@@ -32,4 +32,6 @@
 
 ## 按标签物化包
 
-如需把 138 个标签分别落盘，使用 `scripts/materialize_processed_label_packets.py`。每个文件命名为 `有质-编号-完整历史标签名.jsonl`，例如 `有质-001-知识点@词汇@固定搭配／句型.jsonl`；因为 `/` 不能直接出现在文件名中，所以替换为全角 `／`。`label_index.json` 保存文件名与 canonical/历史标签的精确对应关系。该目录的内容是 DS true 且输入完整的 v3 题目包，不是未经判别的原始源；联合训练仍使用本流程生成的 `train.jsonl`。
+如需把 138 个标签分别落盘，使用 `scripts/materialize_processed_label_packets.py`。每个文件命名为 `优质-编号-完整历史标签名.jsonl`，例如 `优质-001-知识点@词汇@固定搭配／句型.jsonl`；因为 `/` 不能直接出现在文件名中，所以替换为全角 `／`。`label_index.json` 保存文件名与 canonical/历史标签的精确对应关系。该目录的内容是 DS true 且输入完整的 v3 题目包，不是未经判别的原始源；联合训练仍使用本流程生成的 `train.jsonl`。
+
+这里的版本关系必须保持清楚：DS 证据来自基于原始 v2 源构建的判别 packet；落盘题目则通过 `question_id + parent_id + is_sub_question` 回填最新的 v3 源记录。因此“优质”文件不是 v3 原始数据的简单副本，而是“v2 判别证据为 true、再用 v3 题干更新”的审计包。只有题目的全部未排除历史知识点标签都具备唯一、完整的正向证据，才进入联合 `train.jsonl`。

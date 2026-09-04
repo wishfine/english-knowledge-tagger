@@ -82,6 +82,7 @@ class MaterializeProcessedLabelPacketsTests(unittest.TestCase):
         self.assertEqual({row["verify_label"] for row in rows}, {LABEL_A, LABEL_B})
         self.assertEqual({row["source_record"]["input"] for row in rows}, {"v3题干"})
         self.assertTrue(all(row["evidence"]["llm_match"] is True for row in rows))
+        self.assertTrue(filenames[CANONICAL_A].startswith("优质-"))
         self.assertIn("知识点@词汇@固定搭配／句型", filenames[CANONICAL_A])
 
     def test_excludes_false_and_incomplete_evidence_from_processed_packets(self):

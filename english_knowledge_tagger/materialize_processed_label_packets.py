@@ -214,7 +214,7 @@ def materialize_processed_label_packets(
 
     sorted_labels = sorted(labels)
     label_files = {
-        label: f"有质-{index:03d}-{_safe_full_label(label_names.get(label, label))}.jsonl"
+        label: f"优质-{index:03d}-{_safe_full_label(label_names.get(label, label))}.jsonl"
         for index, label in enumerate(sorted_labels, 1)
     }
     index_payload: dict[str, object] = {
