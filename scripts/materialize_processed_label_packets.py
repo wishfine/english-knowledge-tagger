@@ -38,6 +38,12 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--expected-label-count", type=int, default=138)
+    parser.add_argument(
+        "--exclude-label",
+        action="append",
+        default=None,
+        help="knowledge label to exclude (repeatable; defaults to the six frozen exclusions)",
+    )
     args = parser.parse_args()
     if args.report.exists():
         parser.error(f"refusing to overwrite existing report: {args.report}")
@@ -48,7 +54,9 @@ def main() -> None:
             source_path=args.source,
             output_dir=args.output_dir,
             migration=migration,
-            excluded_labels=EXCLUDED_LABELS,
+            excluded_labels=(
+                EXCLUDED_LABELS if args.exclude_label is None else tuple(args.exclude_label)
+            ),
             expected_label_count=args.expected_label_count,
         )
     except (FileExistsError, FileNotFoundError, OSError, ValueError, json.JSONDecodeError) as error:
