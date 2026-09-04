@@ -61,16 +61,31 @@ def _write(handle: Any, row: dict[str, object]) -> None:
     handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def _safe_leaf(canonical_label: str) -> str:
-    leaf = canonical_label.rsplit("->", 1)[-1]
-    leaf = re.sub(r"[\\/:*?\"<>|\x00-\x1f]", "_", leaf).strip() or "label"
-    return leaf[:100]
+def _safe_full_label(legacy_label: str) -> str:
+    """Keep the complete rendered label readable and filesystem-safe."""
+    replacements = {
+        "/": "／",
+        "\\": "＼",
+        ":": "：",
+        "*": "＊",
+        "?": "？",
+        '"': "＂",
+        "<": "＜",
+        ">": "＞",
+        "|": "｜",
+    }
+    safe = "".join(replacements.get(char, "_" if ord(char) < 32 else char) for char in legacy_label)
+    safe = safe.strip() or "label"
+    # Linux allows 255 bytes per component. Leave room for the prefix,
+    # sequence number and suffix while preserving the beginning of the label.
+    return safe[:180]
 
 
 def _read_evidence(
     connection: sqlite3.Connection, *, excluded: frozenset[str]
 ) -> tuple[
     set[str],
+    dict[str, str],
     dict[tuple[str, str, bool], dict[str, list[dict[str, object]]]],
     set[tuple[str, str, bool]],
     Counter[str],
@@ -84,6 +99,7 @@ def _read_evidence(
         raise ValueError("snapshot database has no compatible evidence table") from error
 
     labels: set[str] = set()
+    label_names: dict[str, str] = {}
     grouped: dict[tuple[str, str, bool], dict[str, list[dict[str, object]]]] = defaultdict(
         lambda: defaultdict(list)
     )
@@ -107,6 +123,7 @@ def _read_evidence(
             counts["excluded_evidence_records"] += 1
             continue
         labels.add(label)
+        label_names.setdefault(label, str(legacy_label))
         identity = (str(question_id), str(parent_id), bool(is_sub_question))
         evidence = {
             "status": str(status),
@@ -136,7 +153,7 @@ def _read_evidence(
         # Older snapshots may not have the source index. The source scan still
         # detects duplicate identities encountered in the selected subset.
         pass
-    return labels, {identity: dict(by_label) for identity, by_label in grouped.items()}, duplicate_identities, counts
+    return labels, label_names, {identity: dict(by_label) for identity, by_label in grouped.items()}, duplicate_identities, counts
 
 
 def materialize_processed_label_packets(
@@ -166,7 +183,7 @@ def materialize_processed_label_packets(
 
     connection = sqlite3.connect(snapshot_db)
     try:
-        labels, evidence_by_identity, duplicate_identities, evidence_counts = _read_evidence(
+        labels, label_names, evidence_by_identity, duplicate_identities, evidence_counts = _read_evidence(
             connection, excluded=excluded
         )
     finally:
@@ -197,7 +214,7 @@ def materialize_processed_label_packets(
 
     sorted_labels = sorted(labels)
     label_files = {
-        label: f"有质-{index:03d}-{_safe_leaf(label)}.jsonl"
+        label: f"有质-{index:03d}-{_safe_full_label(label_names.get(label, label))}.jsonl"
         for index, label in enumerate(sorted_labels, 1)
     }
     index_payload: dict[str, object] = {
@@ -207,6 +224,7 @@ def materialize_processed_label_packets(
             label: {
                 "filename": label_files[label],
                 "canonical_label": label,
+                "legacy_label": label_names.get(label),
                 "record_count": 0,
             }
             for label in sorted_labels

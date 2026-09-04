@@ -75,12 +75,14 @@ class MaterializeProcessedLabelPacketsTests(unittest.TestCase):
             index = json.loads((output / "label_index.json").read_text(encoding="utf-8"))
             files = [output / item["filename"] for item in index["labels"].values()]
             rows = [json.loads(path.read_text(encoding="utf-8").strip()) for path in files]
+            filenames = {label: item["filename"] for label, item in index["labels"].items()}
 
         self.assertEqual(report["label_count"], 2)
         self.assertEqual(report["output_records"], 2)
         self.assertEqual({row["verify_label"] for row in rows}, {LABEL_A, LABEL_B})
         self.assertEqual({row["source_record"]["input"] for row in rows}, {"v3题干"})
         self.assertTrue(all(row["evidence"]["llm_match"] is True for row in rows))
+        self.assertIn("知识点@词汇@固定搭配／句型", filenames[CANONICAL_A])
 
     def test_excludes_false_and_incomplete_evidence_from_processed_packets(self):
         from english_knowledge_tagger.materialize_processed_label_packets import (
