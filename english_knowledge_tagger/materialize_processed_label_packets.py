@@ -78,7 +78,7 @@ def _safe_full_label(legacy_label: str) -> str:
     safe = safe.strip() or "label"
     # Linux allows 255 bytes per component. Leave room for the prefix,
     # sequence number and suffix while preserving the beginning of the label.
-    return safe[:180]
+    return safe.encode("utf-8")[:180].decode("utf-8", errors="ignore")
 
 
 def _read_evidence(
