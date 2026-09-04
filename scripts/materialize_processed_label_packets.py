@@ -30,6 +30,25 @@ EXCLUDED_LABELS = (
 )
 
 
+def _manifest_labels(paths: list[Path]) -> tuple[str, ...] | None:
+    if not paths:
+        return None
+    labels: set[str] = set()
+    for path in paths:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError(f"candidate manifest is not valid JSON: {path}") from error
+        candidates = payload.get("candidates") if isinstance(payload, dict) else None
+        if not isinstance(candidates, list):
+            raise ValueError(f"candidate manifest has no candidates list: {path}")
+        for index, item in enumerate(candidates, 1):
+            if not isinstance(item, dict) or not isinstance(item.get("canonical_label"), str):
+                raise ValueError(f"candidate manifest {path} entry {index} has no canonical_label")
+            labels.add(item["canonical_label"])
+    return tuple(sorted(labels))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot-db", type=Path, required=True)
@@ -44,6 +63,13 @@ def main() -> None:
         default=None,
         help="knowledge label to exclude (repeatable; defaults to the six frozen exclusions)",
     )
+    parser.add_argument(
+        "--candidate-manifest",
+        type=Path,
+        action="append",
+        default=[],
+        help="candidate manifest used as an allow-list (repeatable)",
+    )
     args = parser.parse_args()
     if args.report.exists():
         parser.error(f"refusing to overwrite existing report: {args.report}")
@@ -57,6 +83,7 @@ def main() -> None:
             excluded_labels=(
                 EXCLUDED_LABELS if args.exclude_label is None else tuple(args.exclude_label)
             ),
+            allowed_labels=_manifest_labels(args.candidate_manifest),
             expected_label_count=args.expected_label_count,
         )
     except (FileExistsError, FileNotFoundError, OSError, ValueError, json.JSONDecodeError) as error:

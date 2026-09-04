@@ -122,6 +122,47 @@ class MaterializeProcessedLabelPacketsTests(unittest.TestCase):
         self.assertEqual(report["output_records"], 0)
         self.assertEqual(report["eligible_positive_evidence"], 0)
 
+    def test_candidate_manifests_filter_evidence_labels_outside_this_batch(self):
+        from english_knowledge_tagger.materialize_processed_label_packets import (
+            materialize_processed_label_packets,
+        )
+        from english_knowledge_tagger.knowledge_taxonomy_migration import KnowledgeTaxonomyMigration
+
+        extra = "知识点->句法->句子成分->谓语"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "v3.jsonl"
+            source.write_text(
+                json.dumps({
+                    "question_id": "q1", "parent_id": "p1", "is_sub_question": False,
+                    "input": "v3题干", "output": f"{LABEL_A};{LABEL_B}",
+                }, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+            snapshot = _snapshot(root / "snapshot.sqlite3", [
+                {"question_id": "q1", "parent_id": "p1", "is_sub_question": False,
+                 "canonical_label": CANONICAL_A, "legacy_label": LABEL_A,
+                 "review_id": "r-a", "llm_match": True, "input_precheck_status": "complete"},
+                {"question_id": "q1", "parent_id": "p1", "is_sub_question": False,
+                 "canonical_label": CANONICAL_B, "legacy_label": LABEL_B,
+                 "review_id": "r-b", "llm_match": True, "input_precheck_status": "complete"},
+                {"question_id": "q1", "parent_id": "p1", "is_sub_question": False,
+                 "canonical_label": extra, "legacy_label": "知识点@语法句法@句子成分@谓语",
+                 "review_id": "r-extra", "llm_match": True, "input_precheck_status": "complete"},
+            ])
+            output = root / "processed"
+            report = materialize_processed_label_packets(
+                snapshot_db=snapshot,
+                source_path=source,
+                output_dir=output,
+                migration=KnowledgeTaxonomyMigration(aliases=()),
+                allowed_labels=(CANONICAL_A, CANONICAL_B),
+                expected_label_count=2,
+            )
+
+        self.assertEqual(report["label_count"], 2)
+        self.assertEqual(report["output_records"], 2)
+        self.assertEqual(report["evidence_counts"]["outside_allowed_manifest_records"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

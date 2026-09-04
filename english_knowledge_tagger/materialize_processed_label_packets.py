@@ -82,7 +82,10 @@ def _safe_full_label(legacy_label: str) -> str:
 
 
 def _read_evidence(
-    connection: sqlite3.Connection, *, excluded: frozenset[str]
+    connection: sqlite3.Connection,
+    *,
+    excluded: frozenset[str],
+    allowed: frozenset[str] | None = None,
 ) -> tuple[
     set[str],
     dict[str, str],
@@ -121,6 +124,10 @@ def _read_evidence(
         label = str(canonical_label)
         if label in excluded:
             counts["excluded_evidence_records"] += 1
+            continue
+        if allowed is not None and label not in allowed:
+            counts["outside_allowed_manifest_records"] += 1
+            counts[f"outside_allowed_label:{label}"] += 1
             continue
         labels.add(label)
         label_names.setdefault(label, str(legacy_label))
@@ -163,6 +170,7 @@ def materialize_processed_label_packets(
     output_dir: Path,
     migration: KnowledgeTaxonomyMigration,
     excluded_labels: Iterable[str] = (),
+    allowed_labels: Iterable[str] | None = None,
     expected_label_count: int = 138,
 ) -> dict[str, object]:
     """Write one readable packet file per processed label.
@@ -180,11 +188,27 @@ def materialize_processed_label_packets(
         raise FileExistsError(f"refusing to overwrite non-empty output directory: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
     excluded = _normalize_excluded(excluded_labels, migration)
+    allowed = None
+    if allowed_labels is not None:
+        allowed_values: set[str] = set()
+        for value in allowed_labels:
+            item = value.strip()
+            if not item:
+                continue
+            if item.startswith("知识点@"):
+                allowed_values.add(_canonical_legacy(item, migration))
+            elif item.startswith("知识点->"):
+                allowed_values.add(migration.canonicalize(item).canonical_path)
+            else:
+                raise ValueError(f"allowed label must start with 知识点@ or 知识点->: {item}")
+        if not allowed_values:
+            raise ValueError("allowed_labels must contain at least one label")
+        allowed = frozenset(allowed_values)
 
     connection = sqlite3.connect(snapshot_db)
     try:
         labels, label_names, evidence_by_identity, duplicate_identities, evidence_counts = _read_evidence(
-            connection, excluded=excluded
+            connection, excluded=excluded, allowed=allowed
         )
     finally:
         connection.close()
@@ -322,6 +346,7 @@ def materialize_processed_label_packets(
         "index_path": str(index_path),
         "holds_path": str(holds_path),
         "excluded_labels": sorted(excluded),
+        "allowed_label_count": len(allowed) if allowed is not None else None,
         "label_count": len(sorted_labels),
         "expected_label_count": expected_label_count,
         "eligible_positive_evidence": sum(len(items) for items in selected.values()),
