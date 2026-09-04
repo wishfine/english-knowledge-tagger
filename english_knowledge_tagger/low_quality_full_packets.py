@@ -91,8 +91,8 @@ def build_low_quality_label_full_packets(
         raise FileNotFoundError(f"source is not a file: {source_path}")
     if not policy_path.is_file():
         raise FileNotFoundError(f"policy is not a file: {policy_path}")
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise FileExistsError(f"refusing to write into non-empty output directory: {output_dir}")
+    if output_dir.exists() and not output_dir.is_dir():
+        raise FileExistsError(f"output path is not a directory: {output_dir}")
 
     canonical_labels = _load_policy(policy_path)
     excluded = _normalise_exclusions(exclude_labels)
@@ -107,7 +107,14 @@ def build_low_quality_label_full_packets(
     if len(legacy_labels) != len(set(legacy_labels)):
         raise ValueError("canonical labels collide after historical rendering")
 
-    output_dir.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    intended_paths = {
+        output_dir / _filename(index, legacy)
+        for index, legacy in enumerate(legacy_labels, 1)
+    }
+    existing = next((path for path in intended_paths if path.exists()), None)
+    if existing is not None:
+        raise FileExistsError(f"refusing to overwrite existing packet: {existing}")
     handles: dict[str, object] = {}
     counts: dict[str, int] = {label: 0 for label in legacy_labels}
     source_records = 0

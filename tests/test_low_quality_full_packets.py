@@ -95,6 +95,31 @@ class LowQualityFullPacketTests(unittest.TestCase):
                     source, policy_path=policy, output_dir=output
                 )
 
+    def test_allows_existing_directory_with_unrelated_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            source = _write_jsonl(
+                directory / "source.jsonl",
+                [{"question_id": "q1", "output": "知识点@语用@时间@顺序"}],
+            )
+            policy = directory / "policy.json"
+            policy.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "p0-terminal-label-policy-v1",
+                        "labels": ["知识点->语用->时间->顺序"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = directory / "output"
+            output.mkdir()
+            (output / "README.md").write_text("keep", encoding="utf-8")
+            report = build_low_quality_label_full_packets(
+                source, policy_path=policy, output_dir=output
+            )
+            self.assertEqual(report["labels"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
