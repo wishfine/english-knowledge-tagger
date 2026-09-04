@@ -25,6 +25,11 @@
       "rule_id": "legacy-wh-question-to-wh-word",
       "source_prefix": "知识点->语法句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问句",
       "target_prefix": "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问词"
+    },
+    {
+      "rule_id": "legacy-can-inference-to-cant-negative-inference",
+      "source_prefix": "知识点->语法词法->动词->情态动词->can->can/can't表示推测",
+      "target_prefix": "知识点->词法->动词->情态动词->can->can't表示否定推测"
     }
   ]
 }

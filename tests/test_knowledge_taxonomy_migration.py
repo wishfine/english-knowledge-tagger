@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 
 class KnowledgeTaxonomyMigrationTests(unittest.TestCase):
-    def test_teacher_migration_covers_three_explicit_renamed_labels(self):
+    def test_teacher_migration_covers_explicit_renamed_labels(self):
         self.assertTrue(callable(load_knowledge_taxonomy_migration))
         policy = (
             Path(__file__).resolve().parents[1]
@@ -26,6 +26,8 @@ class KnowledgeTaxonomyMigrationTests(unittest.TestCase):
                 "知识点->句法->句子种类->疑问句->特殊疑问句->how类特殊疑问词",
             "知识点->语法句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问句":
                 "知识点->句法->句子种类->疑问句->特殊疑问句->wh-类特殊疑问词",
+            "知识点->语法词法->动词->情态动词->can->can/can't表示推测":
+                "知识点->词法->动词->情态动词->can->can't表示否定推测",
         }
         for legacy, canonical in expected.items():
             result = migration.canonicalize(legacy)

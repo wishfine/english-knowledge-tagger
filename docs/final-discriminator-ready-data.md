@@ -61,7 +61,7 @@ train_candidate
 
 本次使用的是实际执行过的 `run133`：`positive-candidates-133-20260828-130222`。它与后续 `wilson141` 的交集只有 129 个标签；run133 中另外 4 个未通过快速池门禁的标签必须排除。`wilson141 - run133` 的 12 个标签没有本次终判 evidence，不会被补造；涉及这些标签的题目会因 `missing_label_evidence` 留在 hold。
 
-这 12 个标签中，11 个已在仓库建立 `positive-candidates-20260903-wilson141-delta11.json` packet manifest，可用 v3 源重新物化；`can/can't表示推测` 仍因老师 taxonomy 没有对应 active 末级标签，暂列 `taxonomy_blocked`，不启动终判。
+这 12 个标签中，11 个已在仓库建立 `positive-candidates-20260903-wilson141-delta11.json` packet manifest，可用 v3 源重新物化；`can/can't表示推测` 经老师口径纠正后映射到 CSV 已有的 `can->can't表示否定推测`，记录为 `taxonomy_reconciled_pending_rerun`，需重新物化和终判，不能补造旧 evidence。
 
 模型终判没有 `uncertain` 枚举：`llm_match=false` 和 `status=error` 都是 hold；`confidence=low` 会在统计中记录，但不自动改写成 uncertain 或删除。离线快照也必须排除未通过 Wilson 快速池门禁的标签，不能把它们的 true 结果混入候选。
 

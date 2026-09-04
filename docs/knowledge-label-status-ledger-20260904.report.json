@@ -1,0 +1,19 @@
+{
+  "candidate_manifest_count": 3,
+  "candidate_manifest_labels": 144,
+  "output": "docs/knowledge-label-status-ledger-20260904.md",
+  "schema_version": "knowledge-label-status-ledger-v1",
+  "source_ledger": "docs/knowledge-label-calibration-ledger-full-sample.md",
+  "source_ledger_sha256": "cc3907c40ca654b6c7814f8d8e49928e5540505040a35d46aa649a189a571265",
+  "status_counts": {
+    "pending_fast_pool_review": 239,
+    "post_sweep_hold": 2,
+    "quality_excluded": 4,
+    "taxonomy_reconciled_pending_rerun": 1,
+    "training_candidate_unreleased": 138
+  },
+  "taxonomy_reconciled": {
+    "知识点@语法词法@动词@情态动词@can@can/can't表示推测": "知识点->词法->动词->情态动词->can->can't表示否定推测"
+  },
+  "total_labels": 384
+}
