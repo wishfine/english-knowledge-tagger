@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from english_knowledge_tagger.route_label_files import apply_route_plan, plan_routes
+from english_knowledge_tagger.route_label_files import _routing_labels
 
 
 def test_route_plan_moves_processed_and_issue_labels_by_embedded_label(tmp_path: Path) -> None:
@@ -53,3 +54,22 @@ def test_route_plan_moves_processed_and_issue_labels_by_embedded_label(tmp_path:
     assert (issue / "次优-002-知识点@词汇@B.jsonl").is_file()
     assert not list(source.glob("*.jsonl"))
 
+
+def test_routing_manifest_accepts_eligible_unprocessed_schema(tmp_path: Path) -> None:
+    routing = tmp_path / "routing.json"
+    routing.write_text(
+        json.dumps(
+            {
+                "schema_version": "eligible-unprocessed-routing-v1",
+                "processed_labels": ["知识点@词汇@A"],
+                "issue_labels": ["知识点@词汇@B"],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    processed, issue = _routing_labels(routing)
+
+    assert processed == ["知识点@词汇@A"]
+    assert issue == ["知识点@词汇@B"]

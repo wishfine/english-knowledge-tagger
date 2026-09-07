@@ -16,12 +16,17 @@ from .rename_pool_label_files import _label_from_name, _load_manifest
 
 
 ROUTING_SCHEMA_VERSION = "post-sweep-15-routing-v1"
+SUPPORTED_ROUTING_SCHEMA_VERSIONS = frozenset(
+    {ROUTING_SCHEMA_VERSION, "eligible-unprocessed-routing-v1"}
+)
 
 
 def _routing_labels(path: Path) -> tuple[list[str], list[str]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != ROUTING_SCHEMA_VERSION:
-        raise ValueError(f"routing manifest schema_version must be {ROUTING_SCHEMA_VERSION}")
+    schema_version = payload.get("schema_version")
+    if schema_version not in SUPPORTED_ROUTING_SCHEMA_VERSIONS:
+        supported = ", ".join(sorted(SUPPORTED_ROUTING_SCHEMA_VERSIONS))
+        raise ValueError(f"routing manifest schema_version must be one of: {supported}")
     processed = payload.get("processed_labels")
     issue = payload.get("issue_labels")
     if not isinstance(processed, list) or not isinstance(issue, list):
@@ -192,4 +197,3 @@ def main() -> int:
         args.map_output.parent.mkdir(parents=True, exist_ok=True)
         args.map_output.write_text(text, encoding="utf-8")
     return 0
-
