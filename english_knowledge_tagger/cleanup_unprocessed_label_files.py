@@ -43,9 +43,22 @@ def _load_routing(path: Path) -> set[str]:
     return routed
 
 
-def _label_from_filename(name: str, labels: set[str]) -> str | None:
+def _canonical_as_legacy(canonical: str) -> str:
+    value = canonical.replace("->", "@")
+    value = value.replace("知识点@词法", "知识点@语法词法")
+    value = value.replace("知识点@句法", "知识点@语法句法")
+    return value
+
+
+def _label_from_filename(name: str, freeze: dict[str, dict[str, Any]]) -> str | None:
     stem = name.rsplit(".", 1)[0] if "." in name else name
-    candidates = sorted(((label, _safe_label(label)) for label in labels), key=lambda pair: len(pair[1]), reverse=True)
+    candidates: list[tuple[str, str]] = []
+    for label, row in freeze.items():
+        candidates.append((label, _safe_label(label)))
+        canonical = row.get("canonical_label")
+        if isinstance(canonical, str) and canonical:
+            candidates.append((label, _safe_label(_canonical_as_legacy(canonical))))
+    candidates.sort(key=lambda pair: len(pair[1]), reverse=True)
     for label, safe in candidates:
         if stem == safe or stem.endswith("-" + safe):
             return label
@@ -58,7 +71,6 @@ def plan_cleanup(directory: Path, freeze_manifest: Path, routing_manifest: Path)
         raise FileNotFoundError(directory)
     freeze = _load_freeze(freeze_manifest)
     routed = _load_routing(routing_manifest)
-    labels = set(freeze)
     found_routed: set[str] = set()
     actions: list[dict[str, str]] = []
     unmatched: list[str] = []
@@ -70,7 +82,7 @@ def plan_cleanup(directory: Path, freeze_manifest: Path, routing_manifest: Path)
             continue
         if path.resolve() in ignored_paths:
             continue
-        label = _label_from_filename(path.name, labels)
+        label = _label_from_filename(path.name, freeze)
         if label is None:
             unmatched.append(path.name)
             continue
