@@ -1,0 +1,79 @@
+{
+  "schema_version": "final-label-prompt-clarifications-v1",
+  "prompt_version": "final-label-discriminator-v2-problem-boundaries-20260909",
+  "purpose": "教师复核后的 18 个问题标签边界澄清；用于 60 条 A/B 实验，不覆盖原始标签释义。",
+  "labels": [
+    {
+      "legacy_label": "知识点@语法句法@句子成分@主语",
+      "clarification": "仅当主语的形式或结构直接参与当前小题作答时判 true，例如主格代词、动名词、不定式、主语从句或形式主语 it 的选择、改写、识别。普通句子自然出现主语、被动语态、主谓一致、词汇填空或父题背景中的主语不触发；主语可以与谓语、SVO、SVC 等合理共标。"
+    },
+    {
+      "legacy_label": "知识点@语法句法@简单句@主+系+表",
+      "clarification": "仅当 S+系动词+表语结构、系动词的选择或表语位置直接决定当前答案时判 true。be、become、look、seem、feel、sound、taste、smell、get、turn 等只有在句中实际充当系动词且该结构参与作答时才触发；be 作进行时或被动语态助动词不触发。排除 SVOC（如 make/find/keep+宾语+补语）以及只考词义、时态或主谓一致的题。"
+    },
+    {
+      "legacy_label": "知识点@词汇@构词法@转化法",
+      "clarification": "仅当同一词形完全不变、没有增删字母或前后缀，并由一种词类直接转换为另一种词类，且该转换直接参与作答时判 true，如 water n./v.、answer n./v.、clean adj./v.。词义可随词类转换改变，但同一词类内部的多义词、仅中文翻译不同或普通固定搭配不触发。排除 direct→director、warmth→warm、weigh→weight、say→says、worked、building、复数和比较级。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@动词@实义动词@及物动词",
+      "clarification": "仅当直接宾语关系、双宾语、宾语补足语或及/不及物对比直接决定答案时判 true。普通动词后碰巧出现名词、介词宾语，或题目只考时态、语态、情态、拼写、词义和固定搭配时判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@动词时态@时态辨析@现在完成时与过去完成时的区别",
+      "clarification": "必须存在 have/has+过去分词与 had+过去分词的实质性候选对比，并且当前答案需要根据现在参照与过去某一时点参照进行区分，或解析明确比较两者参照关系，才判 true。仅因选项同时出现两种形式，但答案实际由主谓一致、词形或固定搭配决定时不触发；单独考现在完成时、单独考过去完成时、完成进行时、将来完成时或普通过去叙事不属于“区别”。"
+    },
+    {
+      "legacy_label": "知识点@语篇主题@人与社会@互联通讯",
+      "clarification": "文章或对话的主要内容、交际目的或答案必须围绕电话、短信、邮件、即时通讯软件、视频通话、社交平台互动或数字通讯展开才判 true。仅出现手机、电脑、网站、互联网、线上购物/学习/旅游/游戏/支付，或一般新闻、广告、科普和公告的信息传播，而通讯不是篇章主线时判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@that引导宾语从句",
+      "clarification": "that 引导的陈述性内容从句必须直接参与当前小题作答。动词或形式宾语 it 后的 that 从句可判 true；按本项目操作口径，题目明确考查 be sure/confident/glad/afraid+that 从句也可判 true。that 引导的定语从句、同位语从句、so...that/such...that 结果状语从句、It seems that... 主语从句、The fact is that... 表语从句及父题背景自然出现的 that 从句判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法句法@主从复合句@宾语从句@宾语从句的引导词@连接代词wh-ever引导宾语从句",
+      "clarification": "仅保留动词或介词后的 whatever/whoever/whichever 名词性从句，并且该结构直接参与作答；whichever 后带名词的结构也可纳入。句首主语从句、系动词后的表语从句、whatever/whoever 引导的让步状语从句、no matter who/what/which、whenever/however、普通 what/when/where 从句、单独代词或限定词及父题自然出现的 wh-ever 判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法句法@句子种类@祈使句@祈使句否定形式",
+      "clarification": "正向包括 Don't/Do not+动词原形、Please don't+动词原形、Never+动词原形、Let's/Let us not+动词原形、Don't let+宾语+动词原形。No smoking/No parking 等 No+V-ing 只在公共标识、规则或明确禁止语境中纳入；No entry/No photos 等 No+名词不自动纳入。一般 mustn't/can't 陈述句和普通否定句不自动纳入。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@冠词@定冠词（the）",
+      "clarification": "只有 the 的使用直接决定当前答案或解析时判 true。特指、上文复指、独一无二事物、序数词、最高级、乐器、江河海洋山脉群岛、姓氏复数和固定结构可共标；父题材料中偶然出现 the 不触发。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@冠词@零冠词",
+      "clarification": "只有不使用冠词直接决定答案时判 true。正向包括复数泛指、不可数/抽象名词泛指、多数人名地名、球类/棋类、学科、通常意义下的三餐、星期月份季节及 by+交通工具。人名地名、三餐和季节必须结合语境，the United States、the breakfast we had 等不能机械判零冠词。即使属于固定结构，只要题目直接考查该位置是否加冠词仍可判 true；若答案实际由介词、词义或其他语法决定，不触发。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@动词时态@一般过去时@动词过去式变化规则",
+      "clarification": "仅当题目直接考查过去式的构成或拼写时判 true，包括 work→worked、study→studied、stop→stopped、go→went 等规则和不规则变化；若同一题同时依据过去时间和具体过去式形式作答，可以与一般过去时标签共标。仅依据 yesterday/last year 选择一般过去时，选择 did/was/were，或 did/didn't 后用动词原形而不考过去式构成时判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@动词时态@现在进行时@现在进行时的定义/判定",
+      "clarification": "仅当题目需要判断现在进行时的使用或结构时判 true，包括此刻正在发生、现阶段持续、带 always/constantly/forever 的情感性反复动作、否定式和疑问式，以及由画面或对话明确支持的当下动作。be+V-ing 若实际是系表结构中的动名词等非进行体结构不触发。严格语法上已安排的将来动作可用现在进行时，但按本项目分工这类题不判本标签；单纯出现 am/is/are+V-ing 但答案不依赖其时态意义时判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@非谓语动词@动词不定式@动词不定式的句法功能@不定式作补语",
+      "clarification": "必须是动词+宾语+to do/do 的宾语补足语结构，并直接参与作答才判 true，如 ask/tell/want/allow/see/hear/make/let/have 的相应用法。普通不定式作主语、宾语、定语、状语，或 I bought a book to read 这类用途/后置修饰结构，判 false；材料中碰巧出现 to do 也不触发。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@形容词与副词@副词的用法@副词修饰副词",
+      "clarification": "当前小题内必须存在一个副词实际修饰另一个副词，且该关系直接参与答案或解析，如 very slowly、much too quickly。副词修饰动词、形容词或整句，too much 修饰名词/动词，以及父题其他小题中的副词，判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@被动语态@过去进行时的被动语态",
+      "clarification": "必须直接考查 was/were being+过去分词这一过去进行时被动结构，包括其否定、疑问和时间参照变式。was/were being 后为形容词或其他非过去分词成分时不触发。一般过去时被动、现在进行时被动、普通 was/were、分词作定语或仅出现 by 短语，判 false；关键材料缺失时判 input_status=insufficient。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@非谓语动词@动名词@动名词的结构@动名词的一般式",
+      "clarification": "只有当前小题确认该 -ing 形式是动名词，并且直接考查其一般式构成或名词性用法时才判 true，包括作主语、宾语、表语或表示用途的定语。该结构标签可以与动名词作主语/宾语/定语、动名词否定式共标；现在进行时/过去进行时中的 V-ing、现在分词作定语/状语/宾补，以及仅考 run→running 等进行时拼写时判 false。"
+    },
+    {
+      "legacy_label": "知识点@语法词法@非谓语动词@动词不定式@动词不定式的结构@动词不定式的被动式",
+      "clarification": "题目实际利用 to be+过去分词的形式、被动意义或句法功能时判 true，如 to be built、to be invited；有限谓语 be+过去分词和主动不定式 to do 不属于本标签。仅干扰项出现 to be done 不自动触发；若题目明确通过比较该选项完成作答，则可以判 true。"
+    }
+  ]
+}
